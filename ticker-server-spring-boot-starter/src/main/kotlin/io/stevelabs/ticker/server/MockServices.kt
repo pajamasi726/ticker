@@ -1,6 +1,7 @@
 package io.stevelabs.ticker.server
 
 import io.stevelabs.ticker.core.ServiceType
+import io.stevelabs.ticker.server.state.ServiceState
 
 /** Hardcoded fixtures for Phase 0 — replaced by the real poller in Phase 1. */
 class MockServices {

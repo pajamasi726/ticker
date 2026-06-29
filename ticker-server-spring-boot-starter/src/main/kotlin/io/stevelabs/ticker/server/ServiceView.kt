@@ -1,8 +1,7 @@
 package io.stevelabs.ticker.server
 
 import io.stevelabs.ticker.core.ServiceType
-
-enum class ServiceState { UP, DEGRADED, DOWN, UNKNOWN }
+import io.stevelabs.ticker.server.state.ServiceState
 
 /**
  * UI feed row for the status wall. Phase 0 values are hardcoded mock data; the
