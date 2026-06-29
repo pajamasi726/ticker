@@ -1,2 +1,6 @@
-// Root project: no shared build logic yet. Each module configures itself.
-// (backend/build.gradle.kts holds the Spring Boot + Kotlin config.)
+// Root: shared coordinates only. Each module applies its own plugins.
+subprojects {
+    group = "io.stevelabs"
+    version = "0.1.0-SNAPSHOT"
+    repositories { mavenCentral() }
+}
