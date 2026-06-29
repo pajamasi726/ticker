@@ -34,7 +34,7 @@ class TickerServerAutoConfiguration {
     @Bean fun httpHealthChecker(restClient: RestClient, poll: PollProperties) = HttpHealthChecker(restClient, poll)
     @Bean fun springHealthChecker(restClient: RestClient, poll: PollProperties) = SpringHealthChecker(restClient, poll)
     @Bean(destroyMethod = "close") fun pollExecutor(): ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
-    @Bean fun poller(registry: TargetRegistry, checkers: List<HealthChecker>, store: HealthStateStore, executor: ExecutorService) =
-        Poller(registry, checkers, store, executor)
+    @Bean fun poller(registry: TargetRegistry, checkers: List<HealthChecker>, store: HealthStateStore, executor: ExecutorService, poll: PollProperties) =
+        Poller(registry, checkers, store, executor, poll)
     @Bean fun serviceController(store: HealthStateStore) = ServiceController(store)
 }

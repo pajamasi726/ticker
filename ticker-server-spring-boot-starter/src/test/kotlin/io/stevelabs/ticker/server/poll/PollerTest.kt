@@ -11,6 +11,7 @@ import io.stevelabs.ticker.server.target.TargetDefinition
 import io.stevelabs.ticker.server.target.TargetRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.util.concurrent.Executors
 
 class PollerTest {
@@ -31,6 +32,7 @@ class PollerTest {
             listOf(stub(ServiceType.SPRING, CheckOutcome.SUCCESS), stub(ServiceType.HTTP, CheckOutcome.FAILURE)),
             store,
             Executors.newVirtualThreadPerTaskExecutor(),
+            props,
         )
 
         poller.pollAll()
@@ -38,5 +40,35 @@ class PollerTest {
         val byName = store.snapshot().associateBy { it.target.name }
         assertThat(byName.getValue("up").state).isEqualTo(ServiceState.UP)
         assertThat(byName.getValue("down").state).isEqualTo(ServiceState.DOWN)
+    }
+
+    @Test fun `pollAll records FAILURE when a check hangs past the bounded await`() {
+        // timeout=200ms → awaitMs = max(400, 1000) = 1000ms; stub sleeps 1500ms → must timeout
+        val props = PollProperties(failureThreshold = 1, timeout = Duration.ofMillis(200))
+        val registry = TargetRegistry(listOf(
+            TargetDefinition("slow", ServiceType.HTTP, "http://slow"),
+        ))
+        val store = HealthStateStore(registry, props)
+
+        val slowChecker = object : HealthChecker {
+            override fun supports(t: ServiceType) = t == ServiceType.HTTP
+            override fun check(target: Target): CheckResult {
+                Thread.sleep(1500)
+                return CheckResult(CheckOutcome.SUCCESS, 1500)
+            }
+        }
+
+        val poller = Poller(
+            registry,
+            listOf(slowChecker),
+            store,
+            Executors.newVirtualThreadPerTaskExecutor(),
+            props,
+        )
+
+        poller.pollAll()
+
+        val byName = store.snapshot().associateBy { it.target.name }
+        assertThat(byName.getValue("slow").state).isEqualTo(ServiceState.DOWN)
     }
 }
