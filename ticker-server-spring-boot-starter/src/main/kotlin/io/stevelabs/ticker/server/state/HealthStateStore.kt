@@ -16,7 +16,7 @@ class HealthStateStore(
     private val states = ConcurrentHashMap<String, HealthState>()
 
     fun record(targetId: String, result: CheckResult, now: Instant = Instant.now()) {
-        states.getOrPut(targetId) { HealthState(pollProperties.failureThreshold) }.record(result, now)
+        states.computeIfAbsent(targetId) { HealthState(pollProperties.failureThreshold) }.record(result, now)
     }
 
     fun snapshot(now: Instant = Instant.now()): List<TargetHealth> {

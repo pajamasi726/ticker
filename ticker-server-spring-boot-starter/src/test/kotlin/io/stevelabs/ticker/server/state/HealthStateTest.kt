@@ -56,6 +56,14 @@ class HealthStateTest {
         assertThat(hs.effectiveState(t0.plusSeconds(31), staleness)).isEqualTo(ServiceState.UNKNOWN)
     }
 
+    @Test fun `degraded resets the failure counter`() {
+        val hs = HealthState(3)
+        hs.record(ok(), t0); hs.record(fail(), t0); hs.record(fail(), t0)  // 2 failures
+        hs.record(degraded(), t0)                                          // reset
+        hs.record(fail(), t0); hs.record(fail(), t0)                       // only 2 again
+        assertThat(hs.effectiveState(t0, staleness)).isEqualTo(ServiceState.DEGRADED)
+    }
+
     @Test fun `sparkline keeps recent latencies with null for failures, bounded`() {
         val hs = HealthState(failureThreshold = 3, sparklineCapacity = 3)
         hs.record(ok(1), t0); hs.record(ok(2), t0); hs.record(fail(), t0); hs.record(ok(4), t0)

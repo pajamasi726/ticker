@@ -11,9 +11,8 @@ class HealthState(
 ) {
     var state: ServiceState = ServiceState.UNKNOWN
         private set
-    var consecutiveFailures: Int = 0
-        private set
-    var lastLatencyMs: Int? = null
+    private var consecutiveFailures: Int = 0
+    @Volatile var lastLatencyMs: Int? = null
         private set
     var lastSampleAt: Instant? = null
         private set
@@ -21,9 +20,9 @@ class HealthState(
         private set
 
     private val window = ArrayDeque<Int?>()
-    fun sparkline(): List<Int?> = window.toList()
+    @Synchronized fun sparkline(): List<Int?> = window.toList()
 
-    fun record(result: CheckResult, now: Instant) {
+    @Synchronized fun record(result: CheckResult, now: Instant) {
         lastSampleAt = now
         when (result.outcome) {
             CheckOutcome.SUCCESS -> {
@@ -47,7 +46,7 @@ class HealthState(
         }
     }
 
-    fun effectiveState(now: Instant, stalenessWindow: Duration): ServiceState {
+    @Synchronized fun effectiveState(now: Instant, stalenessWindow: Duration): ServiceState {
         val last = lastSampleAt ?: return ServiceState.UNKNOWN
         return if (Duration.between(last, now) > stalenessWindow) ServiceState.UNKNOWN else state
     }
