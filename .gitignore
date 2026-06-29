@@ -16,3 +16,6 @@ frontend/dist/
 
 # Logs
 *.log
+
+# Playwright MCP scratch
+.playwright-mcp/
