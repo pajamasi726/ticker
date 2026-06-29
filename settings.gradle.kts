@@ -14,4 +14,3 @@ include("ticker-core")
 include("ticker-client-spring-boot-starter")
 include("ticker-server-spring-boot-starter")
 include("ticker-server-sample")
-include("backend") // TEMP: removed in Task 2 once its code has moved

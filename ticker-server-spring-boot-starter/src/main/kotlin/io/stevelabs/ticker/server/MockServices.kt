@@ -1,12 +1,8 @@
-package io.stevelabs.ticker.api
+package io.stevelabs.ticker.server
 
-import io.stevelabs.ticker.api.dto.ServiceState
-import io.stevelabs.ticker.api.dto.ServiceType
-import io.stevelabs.ticker.api.dto.ServiceView
-import org.springframework.stereotype.Component
+import io.stevelabs.ticker.core.ServiceType
 
 /** Hardcoded fixtures for Phase 0 — replaced by the real poller in Phase 1. */
-@Component
 class MockServices {
     fun all(): List<ServiceView> = listOf(
         ServiceView("payment-api", "payment-api", ServiceType.SPRING, ServiceState.UP,
