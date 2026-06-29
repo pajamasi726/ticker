@@ -28,10 +28,16 @@ nginx and other non-Spring endpoints only need up/down.
 2. **Trivial to add a service.** A Spring app joins by knowing only the collector URL
    (self-register on startup). Non-Spring targets via a one-line config entry. Target: under
    2 minutes, no dashboard authoring.
-3. **Drill-down on Spring internals.** Click a tile → JVM heap, GC, thread count, HTTP
+3. **SBA-style deployment.** Attach monitoring by adding a dependency — a **client starter**
+   on each monitored app + a **server starter** embedded in a collector app (Spring Boot Admin
+   model). Activated by properties + auto-configuration; no annotation setup required.
+4. **Drill-down on Spring internals.** Click a tile → JVM heap, GC, thread count, HTTP
    rate/latency, DB connection pool, actuator health components.
-4. **Simple, trustworthy alerts.** Slack on down (after debounce) and on recovery.
+5. **Simple, trustworthy alerts.** Slack on down (after debounce) and on recovery.
    Configuring alerts = setting a webhook, not authoring rules.
+6. **Open source / Maven Central.** `ticker-core`, `ticker-client-spring-boot-starter`, and
+   `ticker-server-spring-boot-starter` are published to Maven Central (`io.stevelabs`,
+   Apache-2.0), so any Spring Boot team can adopt them.
 
 ## Non-goals
 See `CLAUDE.md` → Non-goals. Short version: no TSDB, no logs, no tracing, no query language,
@@ -69,7 +75,7 @@ look (the AI-dashboard cliché). Starting direction (Claude Code: refine with th
   legible charts — not a wall of gauges.
 - **Copy.** Name things by what the operator controls. "Add a service," not "register a
   target endpoint." Empty/error states give direction ("No services yet — point an app's
-  `ticker.collector-url` here"), never mood. Active voice on every control.
+  `ticker.client.collector-url` here"), never mood. Active voice on every control.
 
 ## Open product questions (decide as you go)
 - **History retention:** how long? Default: last 24h of samples, then prune — enough for

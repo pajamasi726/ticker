@@ -10,6 +10,10 @@ Scaffold backend (Kotlin / Spring Boot / Gradle) + frontend (React / TS / Vite).
 (tiles + states + placeholder sparkline). One Docker image serves both.
 **Done when:** `docker run` shows a status wall of fake services in the browser.
 
+## Phase 0.5 — Modularize
+Split the project into `ticker-core` / `ticker-client-spring-boot-starter` / `ticker-server-spring-boot-starter` / `ticker-server-sample`. Wire properties + auto-configuration for both starters (`ticker.client.enabled`, `ticker.client.collector-url`, `ticker.server.enabled`). Bundle the built `frontend/` assets into the server starter jar. Verify local publish with `./gradlew publishToMavenLocal`.
+**Done when:** `./gradlew build` is green across all modules; `./gradlew publishToMavenLocal` publishes core + the two starters to `~/.m2`; `./gradlew :ticker-server-sample:bootRun` starts the collector.
+
 ## Phase 1 — Real liveness (static targets)
 Add `targets.yml` loading, the `Target` model, `HttpHealthChecker` and `SpringHealthChecker`
 (health endpoint only), the `Poller` (scheduled + virtual-thread fan-out), and the health
@@ -18,10 +22,8 @@ state machine with `failureThreshold` debounce. `/api/services` now reflects rea
 tile red after the threshold; a single blip does not.
 
 ## Phase 2 — Self-registration (push)
-`POST /api/targets` upsert + `GET` / `DELETE`. A minimal client snippet (startup
-`ApplicationReadyEvent` POST using `ticker.collector-url`) documented in the README.
-**Done when:** a new Spring app appears on the wall just by starting up, with zero
-collector-side config.
+`POST /api/targets` upsert + `GET` / `DELETE`. Wire the HTTP POST in `ticker-client-spring-boot-starter` (startup `ApplicationReadyEvent` POST using `ticker.client.collector-url`); document in README.
+**Done when:** a new Spring app appears on the wall just by starting up with `ticker.client.enabled=true` and `ticker.client.collector-url` set, with zero collector-side config.
 
 ## Phase 3 — Persistence & history
 JPA entities (`Target`, `HealthSample`, `AlertEvent`); H2 (`dev`) + MySQL (`prod`) profiles.
@@ -62,6 +64,10 @@ semantics). Watchdog wiring (k8s probes + a documented external check). Finalize
 surface. README: deploy steps + the "not the sole alert path / watch the watcher" notes.
 **Done when:** it looks like the ops board in the PRD, the watchdog is documented and wired,
 and a teammate can deploy it from the README alone.
+
+## Maven Central publishing
+Publish `ticker-core`, `ticker-client-spring-boot-starter`, and `ticker-server-spring-boot-starter` to Maven Central (`io.stevelabs`). Requires Sonatype OSSRH account, signing config, and DNS-verified domain (`stevelabs.io`). Local-publish path (`publishToMavenLocal`) is verified in Phase 0.5; the Central push is a separate release step done once the API is stable.
+**Done when:** the three artifacts are available on Maven Central and the README has coordinates.
 
 ## Explicitly later / maybe never
 Telegram / email notifiers · auth / RBAC · multi-collector federation · long *queryable*

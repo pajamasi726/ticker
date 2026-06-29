@@ -19,6 +19,12 @@
                                    +---------------------------+
 ```
 
+## Modules
+- **`ticker-core`** — shared types (`ServiceType`, etc.). Published to Maven Central.
+- **`ticker-client-spring-boot-starter`** — auto-configuration client starter. Add as a dependency to any monitored Spring Boot app; activated by `ticker.client.enabled=true`. Reads `ticker.client.collector-url` and logs self-registration on startup (HTTP POST to `/api/targets` active in Phase 2). Published to Maven Central.
+- **`ticker-server-spring-boot-starter`** — collector REST API + all server-side components, bundled with the React UI (built `frontend/` assets are included in the jar). Activated by `ticker.server.enabled=true`. Published to Maven Central.
+- **`ticker-server-sample`** — runnable `@SpringBootApplication` that pulls in the server starter. The entry point for `./gradlew :ticker-server-sample:bootRun` and `bootBuildImage` (`ticker:latest`). Not published.
+
 ## Components
 - **TargetRegistry** — source of truth for what we monitor. Targets come from
   self-registration (push) and/or `targets.yml` (static). Persisted (JPA) so registrations
@@ -47,10 +53,7 @@ A target has: `id`, `name`, `type` (`SPRING` | `HTTP`), `url`, optional `tags`,
 POST /api/targets
 { "name": "payment-api", "type": "SPRING", "url": "http://payment-api:8080", "tags": ["payments"] }
 ```
-On the app side this is a tiny startup hook (an `ApplicationReadyEvent` listener that POSTs
-once, reading the collector URL from config `ticker.collector-url`). Re-registering on each
-boot is fine (upsert by name+url). **Keep the client trivial — ~30 lines, not a library,
-until proven otherwise.**
+On the app side, the **`ticker-client-spring-boot-starter`** (a published Spring Boot starter, not a hand-rolled snippet) handles this automatically. Add it as a dependency, set `ticker.client.enabled=true` and `ticker.client.collector-url=<collector>`, and registration is wired. The starter logs self-registration on startup; the HTTP POST to `/api/targets` is active in Phase 2. Re-registering on each boot is fine (upsert by name+url).
 
 **Static (`targets.yml`) — for things that can't self-register (nginx, third-party):**
 ```yaml
@@ -200,8 +203,7 @@ The collector is a single point of failure for *its own* alerting. Mitigate:
 - The README must state this explicitly.
 
 ## Deployment
-- **MVP:** single Docker image. `npm run build` outputs static assets copied into the
-  backend's `resources/static`; Spring serves the SPA + `/api`. One container, `dev` = H2.
+- **MVP:** single Docker image. `npm --prefix frontend run build` outputs static assets bundled into the server starter jar's `resources/static`; Spring serves the SPA + `/api`. One container, `dev` = H2.
 - **Prod:** `prod` profile = MySQL (JDBC URL + creds via env). Still one app container plus
   the MySQL it talks to.
 - **Config surface (env):** `TICKER_POLL_INTERVAL`, `TICKER_FAILURE_THRESHOLD`,
