@@ -17,7 +17,8 @@ dependencyManagement {
 
 dependencies {
     api(project(":ticker-core"))
-    implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    api("org.springframework.boot:spring-boot-starter-webmvc")
+    api("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-autoconfigure")
     implementation("tools.jackson.module:jackson-module-kotlin")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
