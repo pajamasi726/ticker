@@ -1,0 +1,52 @@
+:root {
+  --up: #2e9e5b;
+  --degraded: #d98a00;
+  --down: #d64545;
+  --unknown: #7b8494;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #0f1115;
+  color: #e6e6e6;
+}
+.app { padding: 16px; }
+.app__header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; }
+.app__header h1 { font-size: 18px; margin: 0; letter-spacing: 0.5px; }
+.app__sub { font-family: ui-monospace, monospace; color: #8b95a5; font-size: 12px; }
+.wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.tile {
+  border: 1px solid #2a2f3a;
+  border-left-width: 4px;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #161a22;
+}
+.tile--up { border-left-color: var(--up); }
+.tile--degraded { border-left-color: var(--degraded); }
+.tile--down { border-left-color: var(--down); }
+.tile--unknown { border-left-color: var(--unknown); }
+.tile__head { display: flex; align-items: center; gap: 6px; }
+.tile__glyph { font-size: 12px; }
+.tile--up .tile__glyph { color: var(--up); }
+.tile--degraded .tile__glyph { color: var(--degraded); }
+.tile--down .tile__glyph { color: var(--down); }
+.tile--unknown .tile__glyph { color: var(--unknown); }
+.tile__name { font-weight: 600; font-size: 13px; }
+.tile__meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #8b95a5;
+  margin: 4px 0;
+}
+.sparkline polyline { stroke: #5b8def; stroke-width: 1.5; fill: none; }
+.sparkline line { stroke: #3a4150; stroke-width: 1; }
+.empty { font-family: ui-monospace, monospace; color: #8b95a5; }
+.error { color: var(--down); font-family: ui-monospace, monospace; }
