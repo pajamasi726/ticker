@@ -38,3 +38,21 @@ kotlin {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+// Copy the built SPA into the boot jar's static resources. frontend/dist may be
+// absent during backend-only dev/test → contributes nothing then (no forced npm build).
+tasks.processResources {
+	into("static") {
+		from(rootProject.layout.projectDirectory.dir("frontend/dist"))
+	}
+}
+
+// Package the single image as ticker:latest (otherwise it defaults to the backend
+// subproject name + version).
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootBuildImage>("bootBuildImage") {
+	imageName.set("ticker:latest")
+}
+
+// Single executable artifact only — disable the plain jar so build/libs holds
+// just the bootJar (backend-<version>.jar), keeping the *-*.jar globs unambiguous.
+tasks.jar { enabled = false }
