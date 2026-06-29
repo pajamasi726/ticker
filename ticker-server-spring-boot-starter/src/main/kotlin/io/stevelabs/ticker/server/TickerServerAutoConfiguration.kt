@@ -37,4 +37,5 @@ class TickerServerAutoConfiguration {
     @Bean fun poller(registry: TargetRegistry, checkers: List<HealthChecker>, store: HealthStateStore, executor: ExecutorService, poll: PollProperties) =
         Poller(registry, checkers, store, executor, poll)
     @Bean fun serviceController(store: HealthStateStore) = ServiceController(store)
+    @Bean fun targetController(registry: TargetRegistry, store: HealthStateStore) = TargetController(registry, store)
 }

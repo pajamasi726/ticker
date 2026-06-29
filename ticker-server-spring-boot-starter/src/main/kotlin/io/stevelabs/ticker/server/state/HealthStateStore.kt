@@ -15,6 +15,11 @@ class HealthStateStore(
 ) {
     private val states = ConcurrentHashMap<String, HealthState>()
 
+    /** Drop a target's health (used when a registered target is removed). */
+    fun evict(id: String) {
+        states.remove(id)
+    }
+
     fun record(targetId: String, result: CheckResult, now: Instant = Instant.now()) {
         states.computeIfAbsent(targetId) { HealthState(pollProperties.failureThreshold) }.record(result, now)
     }

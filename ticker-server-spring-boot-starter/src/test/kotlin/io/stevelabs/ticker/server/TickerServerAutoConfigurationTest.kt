@@ -16,6 +16,7 @@ class TickerServerAutoConfigurationTest {
             assertThat(it).hasSingleBean(HealthStateStore::class.java)
             assertThat(it).hasSingleBean(Poller::class.java)
             assertThat(it).hasSingleBean(ServiceController::class.java)
+            assertThat(it).hasSingleBean(TargetController::class.java)
         }
     }
 
