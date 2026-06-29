@@ -28,5 +28,11 @@ class ServiceControllerTest(@Autowired val mockMvc: MockMvc) {
             .andExpect { jsonPath("$[3].state") { value("DEGRADED") } }
             .andExpect { jsonPath("$[5].state") { value("DOWN") } }
             .andExpect { jsonPath("$[6].state") { value("UNKNOWN") } }
+            // null latencyMs serializes as JSON null for a DOWN service (batch-worker)
+            .andExpect { jsonPath("$[5].latencyMs") { value(null as Any?) } }
+            // sparkline null gap — batch-worker's 3rd sample (index 2) is a failed-poll gap
+            .andExpect { jsonPath("$[5].sparkline[2]") { value(null as Any?) } }
+            // HTTP type row is present (edge-nginx)
+            .andExpect { jsonPath("$[4].type") { value("HTTP") } }
     }
 }
