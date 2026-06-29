@@ -17,3 +17,14 @@ management:
 ticker:
   server:
     enabled: true
+  poll:
+    interval: 3s          # snappy demo: DOWN after ~9s
+  targets:
+    - name: self
+      type: SPRING
+      url: http://localhost:8080      # the collector polls its own actuator -> UP
+      tags: [collector]
+    - name: down-demo
+      type: HTTP
+      url: http://localhost:9         # nothing listening -> FAILURE -> DOWN after threshold
+      tags: [demo]

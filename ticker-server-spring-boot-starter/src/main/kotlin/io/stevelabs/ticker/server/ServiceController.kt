@@ -1,13 +1,24 @@
 package io.stevelabs.ticker.server
 
+import io.stevelabs.ticker.server.state.HealthStateStore
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/services")
-class ServiceController(private val mockServices: MockServices) {
+class ServiceController(private val store: HealthStateStore) {
 
     @GetMapping
-    fun list(): List<ServiceView> = mockServices.all()
+    fun list(): List<ServiceView> = store.snapshot().map { th ->
+        ServiceView(
+            id = th.target.id,
+            name = th.target.name,
+            type = th.target.type,
+            state = th.state,
+            tags = th.target.tags,
+            latencyMs = th.latencyMs,
+            sparkline = th.sparkline,
+        )
+    }
 }
