@@ -5,7 +5,7 @@ export function StatusWall({ services }: { services: ServiceView[] }) {
   if (services.length === 0) {
     return (
       <p className="empty">
-        No services yet — point an app's <code>ticker.collector-url</code> here.
+        No services yet — point an app's <code>ticker.client.collector-url</code> here.
       </p>
     )
   }

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Dev server proxies /api to the backend (./gradlew :backend:bootRun on :8080).
+// Dev server proxies /api to the backend (./gradlew :ticker-server-sample:bootRun on :8080).
 export default defineConfig({
   plugins: [react()],
   server: {
