@@ -38,8 +38,9 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
           setDetail(d)
           setError(null)
         })
-        .catch((e) => {
-          if (active) setError(String(e))
+        .catch(() => {
+          // Friendly, not a raw TypeError — the collector may be unreachable or the service deregistered.
+          if (active) setError('Lost connection to the collector — details may be stale.')
         })
     load()
     const t = setInterval(load, POLL_MS)

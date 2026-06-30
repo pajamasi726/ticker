@@ -36,7 +36,11 @@ export function formatValue(value: number | null, unit: Unit): string {
       return formatDuration(value)
     case 'MILLIS':
       return `${Math.round(value).toLocaleString()} ms`
-    case 'TIMESTAMP':
-      return new Date(value * 1000).toLocaleTimeString()
+    case 'TIMESTAMP': {
+      // Locale-stable absolute "YYYY-MM-DD HH:mm" (24h) — avoids leaking locale time-only text.
+      const d = new Date(value * 1000)
+      const p = (n: number) => String(n).padStart(2, '0')
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+    }
   }
 }
