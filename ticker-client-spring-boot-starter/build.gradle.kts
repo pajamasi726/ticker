@@ -26,7 +26,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
-    testImplementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("tools.jackson.module:jackson-module-kotlin")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

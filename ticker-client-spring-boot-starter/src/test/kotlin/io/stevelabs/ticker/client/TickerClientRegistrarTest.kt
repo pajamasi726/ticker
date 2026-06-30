@@ -44,6 +44,16 @@ class TickerClientRegistrarTest {
         assertThat(body).contains("\"name\":\"my-app\"")
         assertThat(body).contains("\"url\":\"http://my-app:8081\"")
         assertThat(body).contains("\"type\":\"SPRING\"")
+        assertThat(body).contains("\"tags\":[\"team-a\"]")
+    }
+
+    @Test fun `falls back to spring application name when name is unset`() {
+        server.enqueue(MockResponse().setResponseCode(200))
+        val env = MockEnvironment().withProperty("spring.application.name", "env-app")
+        val props = TickerClientProperties(collectorUrl = base(), url = "http://my-app:8081", name = null)
+        TickerClientRegistrar(props, env, restClient, maxAttempts = 1, retryDelayMs = 0).onApplicationReady()
+        val body = server.takeRequest().body.readUtf8()
+        assertThat(body).contains("\"name\":\"env-app\"")
     }
 
     @Test fun `skips registration when url is not set`() {

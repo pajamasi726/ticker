@@ -33,8 +33,7 @@ class TickerClientRegistrar(
         val endpoint = "${collectorUrl.trimEnd('/')}/api/targets"
         repeat(maxAttempts) { attempt ->
             try {
-                val response = restClient.post().uri(endpoint).body(request).retrieve().toBodilessEntity()
-                check(response.statusCode.is2xxSuccessful) { "HTTP ${response.statusCode}" }
+                restClient.post().uri(endpoint).body(request).retrieve().toBodilessEntity()
                 log.info("Registered '{}' with collector {}", request.name, endpoint)
                 return
             } catch (e: Exception) {
@@ -42,7 +41,14 @@ class TickerClientRegistrar(
                     log.error("Failed to register '{}' with {} after {} attempts: {}", request.name, endpoint, maxAttempts, e.message)
                 } else {
                     log.warn("Registration attempt {} for '{}' failed ({}); retrying...", attempt + 1, request.name, e.message)
-                    if (retryDelayMs > 0) Thread.sleep(retryDelayMs)
+                    if (retryDelayMs > 0) {
+                        try {
+                            Thread.sleep(retryDelayMs)
+                        } catch (ie: InterruptedException) {
+                            Thread.currentThread().interrupt()
+                            return
+                        }
+                    }
                 }
             }
         }
