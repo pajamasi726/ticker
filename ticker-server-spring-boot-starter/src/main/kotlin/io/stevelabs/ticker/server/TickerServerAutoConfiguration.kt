@@ -11,6 +11,7 @@ import io.stevelabs.ticker.server.poll.Poller
 import io.stevelabs.ticker.server.state.HealthStateStore
 import io.stevelabs.ticker.server.target.TargetRegistry
 import io.stevelabs.ticker.server.target.TargetsProperties
+import io.stevelabs.ticker.server.web.SpaCacheControlFilter
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -45,4 +46,5 @@ class TickerServerAutoConfiguration {
     @Bean fun targetController(registry: TargetRegistry, store: HealthStateStore) = TargetController(registry, store)
     @Bean fun detailController(registry: TargetRegistry, store: HealthStateStore, metricSource: MetricSource) =
         DetailController(registry, store, metricSource)
+    @Bean fun spaCacheControlFilter() = SpaCacheControlFilter()
 }
