@@ -38,6 +38,14 @@ export default function App() {
 
   const staleSeconds = lastOkAt != null ? Math.max(0, Math.round((now - lastOkAt) / 1000)) : null
 
+  if (selectedId) {
+    return (
+      <main className="app">
+        <ServiceDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+      </main>
+    )
+  }
+
   return (
     <main className="app">
       <header className="app__header">
@@ -63,9 +71,6 @@ export default function App() {
         </p>
       ) : (
         <StatusWall services={services} onSelect={setSelectedId} stale={!reachable} />
-      )}
-      {selectedId && (
-        <ServiceDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
       )}
     </main>
   )

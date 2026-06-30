@@ -50,6 +50,13 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     }
   }, [id])
 
+  // Full-page view (not an overlay), so Esc is the quick way back to the wall.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   const allWidgets = detail?.groups.flatMap((g) => g.widgets) ?? []
   const byKey = (k: string) => allWidgets.find((w) => w.key === k)
   const uptime = byKey('uptime')
@@ -62,35 +69,33 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
       : null
 
   return (
-    <div className="detail-overlay" onClick={onClose}>
-      <aside className="detail-panel" onClick={(e) => e.stopPropagation()}>
-        <header className="detail-header">
-          <h2 className="detail-title">{detail?.name ?? id}</h2>
-          <span className={`state state--${(detail?.state ?? 'unknown').toLowerCase()}`}>{detail?.state ?? '…'}</span>
-          {detail?.type && <span className="detail-type">{detail.type}</span>}
-          {uptimeText && <span className="detail-uptime">up {uptimeText}</span>}
-          {cpu?.value != null && <span className="detail-stat">CPU {formatValue(cpu.value, 'PERCENT')}</span>}
-          {heapPct != null && <span className="detail-stat">Heap {heapPct}%</span>}
-          <button className="detail-close" onClick={onClose} aria-label="Close">×</button>
-        </header>
-        {error && <p className="detail-error">{error}</p>}
-        {detail?.type === 'HTTP' && (
-          <p className="detail-note">HTTP target — no JVM metrics. Latency {detail.latencyMs ?? '—'} ms.</p>
-        )}
-        {detail?.type === 'SPRING' && detail.groups.length === 0 && (
-          <p className="detail-note">No metrics — unreachable or actuator metrics not exposed.</p>
-        )}
-        {detail?.groups.map((group) => (
-          <section key={group.title} className="detail-group">
-            <h3 className="detail-group__title">{group.title}<span className="detail-group__count">{group.widgets.length}</span></h3>
-            <div className="widget-grid">
-              {group.widgets.map((w) => (
-                <MetricWidget key={w.key} widget={w} series={series.current[w.key] ?? []} />
-              ))}
-            </div>
-          </section>
-        ))}
-      </aside>
+    <div className="detail-view">
+      <header className="detail-header">
+        <button className="detail-back" onClick={onClose} aria-label="Back to all services">← all services</button>
+        <h2 className="detail-title">{detail?.name ?? id}</h2>
+        <span className={`state state--${(detail?.state ?? 'unknown').toLowerCase()}`}>{detail?.state ?? '…'}</span>
+        {detail?.type && <span className="detail-type">{detail.type}</span>}
+        {uptimeText && <span className="detail-uptime">up {uptimeText}</span>}
+        {cpu?.value != null && <span className="detail-stat">CPU {formatValue(cpu.value, 'PERCENT')}</span>}
+        {heapPct != null && <span className="detail-stat">Heap {heapPct}%</span>}
+      </header>
+      {error && <p className="detail-error">{error}</p>}
+      {detail?.type === 'HTTP' && (
+        <p className="detail-note">HTTP target — no JVM metrics. Latency {detail.latencyMs ?? '—'} ms.</p>
+      )}
+      {detail?.type === 'SPRING' && detail.groups.length === 0 && (
+        <p className="detail-note">No metrics — unreachable or actuator metrics not exposed.</p>
+      )}
+      {detail?.groups.map((group) => (
+        <section key={group.title} className="detail-group">
+          <h3 className="detail-group__title">{group.title}<span className="detail-group__count">{group.widgets.length}</span></h3>
+          <div className="widget-grid">
+            {group.widgets.map((w) => (
+              <MetricWidget key={w.key} widget={w} series={series.current[w.key] ?? []} />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }
