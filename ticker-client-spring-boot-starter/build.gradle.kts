@@ -22,14 +22,15 @@ dependencyManagement {
 dependencies {
     api(project(":ticker-core"))
     implementation("org.springframework.boot:spring-boot-autoconfigure")
+    implementation("org.springframework:spring-web")
     implementation("org.slf4j:slf4j-api")
-    testImplementation("org.springframework.boot:spring-boot-test")
-    testImplementation("org.assertj:assertj-core")
-    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("tools.jackson.module:jackson-module-kotlin")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.test { useJUnitPlatform() }
+tasks.withType<Test> { useJUnitPlatform() }
 
 publishing {
     publications {

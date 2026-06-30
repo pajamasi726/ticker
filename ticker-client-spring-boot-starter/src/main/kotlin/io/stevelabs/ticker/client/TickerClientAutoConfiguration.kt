@@ -5,6 +5,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.core.env.Environment
+import org.springframework.http.client.SimpleClientHttpRequestFactory
+import org.springframework.web.client.RestClient
 
 @AutoConfiguration
 @EnableConfigurationProperties(TickerClientProperties::class)
@@ -12,6 +14,18 @@ import org.springframework.core.env.Environment
 class TickerClientAutoConfiguration {
 
     @Bean
-    fun tickerClientRegistrar(properties: TickerClientProperties, environment: Environment): TickerClientRegistrar =
-        TickerClientRegistrar(properties, environment)
+    fun tickerClientRestClient(): RestClient {
+        val factory = SimpleClientHttpRequestFactory().apply {
+            setConnectTimeout(3000)
+            setReadTimeout(3000)
+        }
+        return RestClient.builder().requestFactory(factory).build()
+    }
+
+    @Bean
+    fun tickerClientRegistrar(
+        properties: TickerClientProperties,
+        environment: Environment,
+        tickerClientRestClient: RestClient,
+    ): TickerClientRegistrar = TickerClientRegistrar(properties, environment, tickerClientRestClient)
 }

@@ -1,31 +1,50 @@
 package io.stevelabs.ticker.client
 
+import io.stevelabs.ticker.core.RegistrationRequest
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.core.env.Environment
+import org.springframework.web.client.RestClient
 
-/**
- * Phase-0 skeleton: on startup, resolve what this app would register as and log it.
- * The actual HTTP POST to {collector-url}/api/targets arrives in ROADMAP Phase 2.
- */
+/** On startup, POST this app's registration to {collector-url}/api/targets (ROADMAP Phase 2). */
 class TickerClientRegistrar(
     private val properties: TickerClientProperties,
     private val environment: Environment,
+    private val restClient: RestClient,
+    private val maxAttempts: Int = 3,
+    private val retryDelayMs: Long = 2000,
 ) {
     private val log = LoggerFactory.getLogger(TickerClientRegistrar::class.java)
 
     @EventListener(ApplicationReadyEvent::class)
     fun onApplicationReady() {
-        val name = properties.name ?: environment.getProperty("spring.application.name") ?: "unknown"
         val collectorUrl = properties.collectorUrl
-        if (collectorUrl == null) {
-            log.warn("ticker.client is enabled but ticker.client.collector-url is not set; self-registration skipped.")
+        val url = properties.url
+        if (collectorUrl == null || url == null) {
+            log.warn("ticker.client enabled but collector-url or url is unset; self-registration skipped.")
             return
         }
-        log.info(
-            "Ticker client ready: '{}' (type={}, tags={}) -> collector {} (self-registration POST arrives in a later phase).",
-            name, properties.type, properties.tags, collectorUrl,
-        )
+        val name = properties.name ?: environment.getProperty("spring.application.name") ?: "unknown"
+        register(collectorUrl, RegistrationRequest(name = name, type = properties.type, url = url, tags = properties.tags))
+    }
+
+    private fun register(collectorUrl: String, request: RegistrationRequest) {
+        val endpoint = "${collectorUrl.trimEnd('/')}/api/targets"
+        repeat(maxAttempts) { attempt ->
+            try {
+                val response = restClient.post().uri(endpoint).body(request).retrieve().toBodilessEntity()
+                check(response.statusCode.is2xxSuccessful) { "HTTP ${response.statusCode}" }
+                log.info("Registered '{}' with collector {}", request.name, endpoint)
+                return
+            } catch (e: Exception) {
+                if (attempt == maxAttempts - 1) {
+                    log.error("Failed to register '{}' with {} after {} attempts: {}", request.name, endpoint, maxAttempts, e.message)
+                } else {
+                    log.warn("Registration attempt {} for '{}' failed ({}); retrying...", attempt + 1, request.name, e.message)
+                    if (retryDelayMs > 0) Thread.sleep(retryDelayMs)
+                }
+            }
+        }
     }
 }
