@@ -84,6 +84,43 @@ a fixed curated dashboard, not a configurable builder / query language.
 Stored history / a "Last N min" time-axis is the **next phase** (the renderer is built to receive
 stored series).
 
+## Phase 7c — Metric-threshold alerting ✓ (done 2026-07-01)
+Per-metric threshold alerts on top of the existing alert subsystem. Recommended defaults
+(CPU>80% · system-CPU>90% · heap>85% · disk-free<10% · GC-overhead>25% · open-files>80%),
+**adjustable from the drill-down UI** (🔔 per widget → threshold/cooldown/enable). A `@Scheduled`
+`MetricAlertService` evaluates each enabled rule against live SPRING targets (only whitelisted
+`/actuator/metrics` — guardrail #4), fires via the existing Slack `AlertSender` (or logs if no
+webhook) **with the captured value**, with per-(target,rule) **cooldown** (guardrail #2), and keeps a
+recent-fires log (`GET /api/alerts/recent`) so breaches are visible without Slack. Rules are
+**in-memory** (seeded from defaults; no-DB); REST `GET/PUT /api/alerts/rules`. Runs **alongside**
+incident alerting (guardrail #3).
+**Done when:** ✓ a low threshold set in the UI fires within the eval interval and shows in "Recent
+alerts"; tests green; Playwright shows the 🔔 popover + fired strip. (`docs/qa/2026-07-01-alerting/`.)
+
+## Phase 8 — UI-managed HTTP/endpoint monitors (pull / health-check + warm-up) — PLANNED
+Let an operator add a **plain HTTP target** from the UI (not just `targets.yml`): name + URL (or
+host/domain + port + path) → the existing poller GETs it expecting 2xx → alive/DOWN, debounced.
+Doubles as a **warm-up** pinger (keeps an endpoint hot). NOTE: plain HTTP polling targets already
+exist (static `targets.yml` + the poller); this phase is the **UI + lifecycle**. Design care:
+UI-added targets have no client heartbeat, so they must be treated as **persistent/STATIC-like**, not
+heartbeat-expiring REGISTERED targets — i.e. a new `TargetSource.UI` kept until explicitly removed
+(optional file persistence so they survive restart, consistent with the no-DB stance / opt-in).
+Reuse `POST/DELETE /api/targets`; add an "Add monitor" form on the wall.
+**Recommended:** small scope — name, URL, interval, expected-2xx; no scripting/assertions (that's
+out of the liveness-board spirit).
+
+## Phase 9 — Programmatic (code-level) configuration — PLANNED
+Everything set via `application.yml` (targets, dashboard def, alert rules) should also be
+configurable **in code**, the way most Spring starters allow — a `*Customizer`/`*Configurer` bean
+pattern. e.g. `@Bean fun tickerCustomizer() = TickerConfigurer { it.addTarget(...);
+it.alertRule("cpu-process", threshold = 0.7); it.dashboardGroup(...) }`, applied by the
+auto-configuration after binding properties. Keeps YAML as the default while giving library users
+type-safe, conditional, env-driven config. Design: define `TickerConfigurer` (and/or
+`DashboardCustomizer`, `AlertRuleCustomizer`) interfaces; collect `ObjectProvider<...>` in the
+autoconfig and apply over the property-derived defaults.
+**Done when:** a sample `@Bean` customizer adds a target + tweaks an alert rule with no YAML, and it
+composes with YAML config; documented in the README.
+
 ## Maven Central publishing
 Publish `ticker-core`, `ticker-client-spring-boot-starter`, and `ticker-server-spring-boot-starter` to Maven Central (`io.stevelabs`). Requires Sonatype OSSRH account, signing config, and DNS-verified domain (`stevelabs.io`). Local-publish path (`publishToMavenLocal`) is verified in Phase 0.5; the Central push is a separate release step done once the API is stable.
 **Done when:** the three artifacts are available on Maven Central and the README has coordinates.
