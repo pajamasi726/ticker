@@ -33,6 +33,11 @@ export function ServiceTile({ service, onSelect }: Props) {
           {service.latencyMs != null ? `${service.latencyMs}ms` : '—'}
         </span>
       </div>
+      {service.tags.length > 0 && (
+        <div className="tile__tags">
+          {service.tags.map((t) => <span key={t} className="chip">{t}</span>)}
+        </div>
+      )}
       <Sparkline values={service.sparkline} />
     </div>
   )

@@ -3,6 +3,7 @@ import type { ServiceView } from './types'
 import { fetchServices } from './api'
 import { StatusWall } from './components/StatusWall'
 import { ServiceDetailPanel } from './components/ServiceDetailPanel'
+import { SummaryBar } from './components/SummaryBar'
 
 const POLL_MS = 5000
 
@@ -27,6 +28,7 @@ export default function App() {
       <header className="app__header">
         <h1>Ticker</h1>
         <span className="app__sub">service liveness</span>
+        <SummaryBar services={services} />
       </header>
       {error && <p className="error">{error}</p>}
       <StatusWall services={services} onSelect={setSelectedId} />
