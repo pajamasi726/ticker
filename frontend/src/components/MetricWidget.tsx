@@ -25,9 +25,11 @@ export function MetricWidget({ widget, series }: MetricWidgetProps) {
     const current = series.length > 0 ? series[series.length - 1] : widget.value
     return (
       <div className="widget widget--chart">
-        <div className="widget__label">{widget.label}</div>
-        <div className="widget__value">{formatValue(current, widget.unit)}</div>
-        <LiveChart data={series} width={150} height={40} />
+        <div className="widget__head">
+          <span className="widget__label">{widget.label}</span>
+          <span className="widget__value">{formatValue(current ?? null, widget.unit)}</span>
+        </div>
+        <LiveChart data={series} unit={widget.unit} />
       </div>
     )
   }

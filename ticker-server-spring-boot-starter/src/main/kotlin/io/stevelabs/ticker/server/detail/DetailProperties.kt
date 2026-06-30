@@ -77,7 +77,8 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
     GroupSpec(
         "JVM Memory (non-heap)",
         listOf(
-            WidgetSpec("nonheap-used", "Non-heap used", "jvm.memory.used", tags = mapOf("area" to "nonheap"), render = Render.GAUGE, unit = Unit.BYTES, max = MetricRef("jvm.memory.committed", mapOf("area" to "nonheap"))),
+            // Trend, not a gauge: non-heap "committed" grows on demand, so used/committed near 100% is normal, not critical.
+            WidgetSpec("nonheap-used", "Non-heap used", "jvm.memory.used", tags = mapOf("area" to "nonheap"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("nonheap-metaspace", "Metaspace", "jvm.memory.used", tags = mapOf("id" to "Metaspace"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("nonheap-compressed-class", "Compressed Class", "jvm.memory.used", tags = mapOf("id" to "Compressed Class Space"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("nonheap-code-cache", "Code cache", "jvm.memory.used", tags = mapOf("id" to "CodeHeap 'profiled nmethods'"), render = Render.CHART, unit = Unit.BYTES),

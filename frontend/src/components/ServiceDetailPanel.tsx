@@ -50,8 +50,16 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     }
   }, [id])
 
-  const uptime = detail?.groups.flatMap((g) => g.widgets).find((w) => w.key === 'uptime')
+  const allWidgets = detail?.groups.flatMap((g) => g.widgets) ?? []
+  const byKey = (k: string) => allWidgets.find((w) => w.key === k)
+  const uptime = byKey('uptime')
   const uptimeText = uptime ? formatValue(uptime.value, 'SECONDS') : null
+  const cpu = byKey('cpu-process')
+  const heap = byKey('heap-used')
+  const heapPct =
+    heap && heap.value != null && heap.max != null && heap.max > 0
+      ? Math.round((heap.value / heap.max) * 100)
+      : null
 
   return (
     <div className="detail-overlay" onClick={onClose}>
@@ -61,6 +69,8 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
           <span className={`state state--${(detail?.state ?? 'unknown').toLowerCase()}`}>{detail?.state ?? '…'}</span>
           {detail?.type && <span className="detail-type">{detail.type}</span>}
           {uptimeText && <span className="detail-uptime">up {uptimeText}</span>}
+          {cpu?.value != null && <span className="detail-stat">CPU {formatValue(cpu.value, 'PERCENT')}</span>}
+          {heapPct != null && <span className="detail-stat">Heap {heapPct}%</span>}
           <button className="detail-close" onClick={onClose} aria-label="Close">×</button>
         </header>
         {error && <p className="detail-error">{error}</p>}
@@ -72,7 +82,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
         )}
         {detail?.groups.map((group) => (
           <section key={group.title} className="detail-group">
-            <h3 className="detail-group__title">{group.title}</h3>
+            <h3 className="detail-group__title">{group.title}<span className="detail-group__count">{group.widgets.length}</span></h3>
             <div className="widget-grid">
               {group.widgets.map((w) => (
                 <MetricWidget key={w.key} widget={w} series={series.current[w.key] ?? []} />

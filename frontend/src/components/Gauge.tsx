@@ -19,10 +19,13 @@ export function Gauge({ label, value, max, unit, higherIsBetter = false }: Gauge
   const maxText = unit !== 'PERCENT' && max != null && max > 0 ? ` / ${formatValue(max, unit)}` : ''
   return (
     <div className="widget gauge">
-      <div className="widget__label">{label}</div>
+      <div className="widget__head">
+        <span className="widget__label">{label}</span>
+        {pct != null && <span className="gauge__pct" style={{ color }}>{Math.round(pct)}%</span>}
+      </div>
       <div className="widget__value">
         {formatValue(value, unit)}
-        <span className="gauge__max">{maxText}</span>
+        {maxText && <span className="gauge__max">{maxText}</span>}
       </div>
       <div className="gauge__track">
         <div className="gauge__fill" style={{ width: `${pct ?? 0}%`, background: color }} />
