@@ -16,7 +16,8 @@ const TITLE: Record<string, string> = {
 function label(m: MetricValue): string {
   const v = m.measurements
   switch (m.name) {
-    case 'jvm.memory.used': case 'jvm.memory.max': return `${((v.VALUE ?? 0) / 1_048_576).toFixed(0)} MB`
+    case 'jvm.memory.used': return `${((v.VALUE ?? 0) / 1_048_576).toFixed(0)} MB`
+    case 'jvm.memory.max': return (v.VALUE ?? 0) > 0 ? `${((v.VALUE ?? 0) / 1_048_576).toFixed(0)} MB` : '—'
     case 'jvm.threads.live': return `${v.VALUE ?? 0}`
     case 'process.cpu.usage': return `${((v.VALUE ?? 0) * 100).toFixed(1)} %`
     case 'process.uptime': return `${Math.floor((v.VALUE ?? 0) / 60)} min`
@@ -39,10 +40,8 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
         .then((d) => {
           if (!active) return
           for (const m of d.metrics) {
-            const arr = series.current[m.name] ?? []
-            arr.push(chartValue(m))
-            if (arr.length > MAX_POINTS) arr.shift()
-            series.current[m.name] = arr
+            const prev = series.current[m.name] ?? []
+            series.current[m.name] = [...prev, chartValue(m)].slice(-MAX_POINTS)
           }
           setDetail(d); setError(null)
         })
