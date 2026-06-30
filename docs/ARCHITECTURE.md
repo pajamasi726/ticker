@@ -4,7 +4,7 @@
 ```
    Spring apps                       Collector (Spring Boot)              Browser
  +------------+  self-register     +---------------------------+      +----------+
- | app A      | --POST /api/targets|  TargetRegistry (JPA)     |      | React UI |
+ | app A      | --POST /api/targets|  TargetRegistry (in-mem)  |      | React UI |
  | (actuator) | ---------------->  |        |                  |      | status   |
  +------------+                    |        v                  | GET  | wall +   |
  +------------+                    |  Poller --virtual threads-+------| detail   |
@@ -27,8 +27,9 @@
 
 ## Components
 - **TargetRegistry** — source of truth for what we monitor. Targets come from
-  self-registration (push) and/or `targets.yml` (static). Persisted (JPA) so registrations
-  survive restart; static entries are re-seeded on boot.
+  self-registration (push) and/or `targets.yml` (static). Held in memory; clients
+  re-register on a heartbeat so the registry self-heals across a collector restart.
+  Static entries are re-seeded on boot.
 - **Poller** — scheduled orchestrator. Every `pollInterval`, fans out one check per target
   over a **virtual-thread executor** (cheap concurrency for many targets; avoids dedicating
   platform threads). Per-check timeout.
@@ -82,55 +83,38 @@ filtered `/actuator/prometheus`):
 **Never** fetch `/actuator/env`, `/configprops`, or anything secret-bearing. The whitelist is
 explicit and code-reviewed.
 
-## Data model (JPA)
-- `Target` — as above; persisted registrations + cached last state.
-- `HealthSample` — `targetId`, `timestamp`, `state`, `latencyMs`, small `detail`. Appended per poll.
-- `AlertEvent` — `targetId`, `from`, `to`, `timestamp`, `notified`.
+## Data model (in-memory)
+- **TargetRegistry** — live list of targets (registered + static); held in memory. Registered
+  targets self-heal across a restart via the client heartbeat.
+- **HealthState** — per target: current state, consecutive-failure counter, and a bounded
+  recent history window (last N samples — enough for the sparkline and incident context).
+  Memory only; no DB rows.
+- **AlertEvent** — transient; the `AlertEngine` tracks last-notified state and cooldown in
+  memory. Not persisted.
 
-## Retention & archival
-`HealthSample` rows accumulate as the poller runs. They are **DB rows, not log files**, so we
-don't "roll" them like Logback — a scheduled job ages them out, optionally archiving to
-compressed cold storage first. (The collector's *own application logs* use standard Logback
-rolling — separate and free; this section is about health history.)
+### Deferred: optional embedded-H2 persistence
+If poll-history ever needs to survive restart (e.g. for P5 detail charts across restarts),
+persistence can be added as an **optional, off-by-default embedded H2 (file)** — JPA entities
+(`HealthSample`, `AlertEvent`) pruned on a schedule. **MySQL is not a near-term target.**
+Design it only if and when the need is confirmed.
 
-**Row lifecycle (two thresholds):**
-1. **Hot** — in the DB, age <= `retention`. Queryable, shown on the dashboard.
-2. **Archived** — past `retention`: exported to a compressed file, optionally uploaded to S3,
-   then deleted from the DB. Kept for audit/compliance, not shown on the dashboard.
-3. **Expired** (optional) — an archive older than `maxAge` is deleted. Unset = keep forever.
+## Retention (in-memory)
+The recent history window per target is **bounded in size** (`ticker.history.window`, default
+last 100 samples). Older samples are evicted when the window fills — no DB, no prune job
+required. This is enough for the sparkline and short-term incident context.
 
-At default settings (24h, archival off) this is just a prune and disk is a non-issue. Archival
-matters only when you want history **longer than the hot window** without the DB drifting into
-a TSDB. Framing: this is really **audit/compliance retention** (an operational record for N
-months), so "short hot DB + long cold S3" is the right shape.
+(The collector's *own application logs* use standard Logback rolling — separate and free.)
 
-```properties
-ticker.history.retention=24h                    # how long rows stay queryable in the DB
+### Deferred: archival + cold storage
+If/when optional embedded-H2 persistence is added (see Data model above), a scheduled prune
+job and optional write-then-archive-to-S3 path become relevant. Until then there is no DB
+to archive from.
 
-ticker.archive.enabled=false                     # off = retention just prunes (simplest)
-ticker.archive.schedule=0 0 3 * * *              # cron; when the job runs (default 03:00)
-ticker.archive.format=ndjson                     # ndjson (greppable) | parquet (Athena-friendly)
-ticker.archive.compression=gzip                  # gzip | none
-ticker.archive.local-dir=/var/ticker/archive      # used when S3 is off
-ticker.archive.max-age=                          # blank = keep archives forever
-
-ticker.archive.s3.enabled=false
-ticker.archive.s3.bucket=
-ticker.archive.s3.prefix=ticker/health/
-ticker.archive.s3.region=ap-northeast-2
-```
-
-**Job order (non-negotiable):** select aged rows -> write+verify the archive (S3/local) ->
-*only then* delete from the DB. If the write/upload fails, keep the rows and retry next run —
-never delete on a half-finished archive. Files are date-partitioned, e.g.
-`health-2026-06-25.ndjson.gz`.
-
-**Credentials:** bucket/prefix/region may live in properties; **access keys must not.** On
-ECS/EKS use an IAM role; otherwise the AWS default credential chain (env vars). Especially if
-this goes open source — a committed key is public and permanent.
-
-**Dependency:** the AWS SDK is an **optional, `@ConditionalOnProperty(s3.enabled)`** path so it
-isn't dragged into every deployment. Default build stays dead simple; archival is opt-in.
+The ordering rule when/if implemented: select aged rows → write+verify cold storage (local or
+S3) → *only then* delete from the DB. A failed upload keeps the rows and retries next run.
+Credentials (bucket/prefix/region may live in properties; **access keys must not** — use an
+IAM role or the AWS default credential chain). The AWS SDK is
+`@ConditionalOnProperty(s3.enabled)` so it is never pulled in by default.
 
 ## REST API
 | Method | Path | Purpose |
@@ -203,14 +187,11 @@ The collector is a single point of failure for *its own* alerting. Mitigate:
 - The README must state this explicitly.
 
 ## Deployment
-- **MVP:** single Docker image. `npm --prefix frontend run build` outputs static assets bundled into the server starter jar's `resources/static`; Spring serves the SPA + `/api`. One container, `dev` = H2.
-- **Prod:** `prod` profile = MySQL (JDBC URL + creds via env). Still one app container plus
-  the MySQL it talks to.
+- **MVP:** single Docker image. `npm --prefix frontend run build` outputs static assets bundled into the server starter jar's `resources/static`; Spring serves the SPA + `/api`. One container, no external DB required.
 - **Config surface (env):** `TICKER_POLL_INTERVAL`, `TICKER_FAILURE_THRESHOLD`,
-  `TICKER_HISTORY_WINDOW`, `TICKER_SLACK_WEBHOOK`, DB settings, `SPRING_PROFILES_ACTIVE`.
-  Slack alert types and history archival have their own `ticker.slack.*` / `ticker.archive.*`
-  properties — see **Alerting** and **Retention & archival**. Secrets (webhooks, AWS keys) come
-  from env/IAM role only, never from committed properties.
+  `TICKER_HISTORY_WINDOW`, `TICKER_SLACK_WEBHOOK`, `SPRING_PROFILES_ACTIVE`.
+  Slack alert types have their own `ticker.slack.*` properties — see **Alerting**.
+  Secrets (webhooks) come from env only, never from committed properties.
 
 ## Key decisions & rationale
 - **Pull to check, push to register.** The collector *scrapes* targets (so "scrape failed ->
@@ -219,8 +200,9 @@ The collector is a single point of failure for *its own* alerting. Mitigate:
   pull-vs-push tension directly.
 - **Virtual threads for fan-out.** Polling N targets concurrently costs ~N virtual threads,
   not N platform threads — so "do I need a dedicated thread pool?" stops being a scaling worry.
-- **H2 dev / MySQL prod, one JPA layer.** Zero-dependency local runs; familiar prod store; no
-  new datastore to learn or operate.
+- **In-memory, no DB by default.** Zero-dependency runs; the client heartbeat keeps the
+  registry current across restarts. Embedded H2 file persistence is deferred — add it only
+  if history-across-restart is confirmed as a need.
 - **No auth at MVP.** It's internal and network-restricted. Add auth only when it leaves that
   boundary — a deliberate, separate decision.
 - **Bounded history, not a TSDB.** We answer "is it up / what just happened," not "show me

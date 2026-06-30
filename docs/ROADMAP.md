@@ -25,12 +25,12 @@ tile red after the threshold; a single blip does not.
 `POST /api/targets` upsert + `GET` / `DELETE`. Wire the HTTP POST in `ticker-client-spring-boot-starter` (startup `ApplicationReadyEvent` POST using `ticker.client.collector-url`); document in README.
 **Done when:** a new Spring app appears on the wall just by starting up with `ticker.client.enabled=true` and `ticker.client.collector-url` set, with zero collector-side config.
 
-## Phase 3 — Persistence & history
-JPA entities (`Target`, `HealthSample`, `AlertEvent`); H2 (`dev`) + MySQL (`prod`) profiles.
-Append a sample per poll; scheduled prune past `retention`. The wall's sparkline is now real
-recent data.
-**Done when:** restart the collector -> registered targets and recent history survive; old
-samples get pruned.
+## Phase 3 — Registration heartbeat (no DB)
+Client heartbeat: `ticker-client-spring-boot-starter` sends a periodic re-registration so
+the collector's in-memory target list self-heals across a collector restart. Configurable
+interval (`ticker.client.heartbeat-interval`, default 30s); `<=0` disables. The sparkline
+draws from the in-memory history window — real recent data, no DB required.
+**Done when:** restart the collector → all live clients reappear within one heartbeat interval; the sparkline shows real recent samples held in memory.
 
 ## Phase 4 — Alerts (incident + digest)
 `AlertEngine` + the `Notifier` interface + `SlackNotifier` (webhook from env), wired for both
@@ -49,14 +49,15 @@ Detail endpoint + view: pull the metric whitelist (heap / GC / threads / HTTP / 
 **Done when:** clicking a Spring tile shows live JVM / HTTP / DB internals; a degraded
 component shows amber, not red.
 
-## Phase 6 — History archival
-Implement the Retention & archival model (ARCHITECTURE): the scheduled archive job, compression
-(ndjson/gzip), the **write+verify -> then delete** ordering, and the optional
-`@ConditionalOnProperty(s3.enabled)` S3 upload path. Default build stays prune-only (no AWS SDK
-pulled in).
-**Done when:** with archival off, rows past `retention` are pruned; with it on, aged rows land
-as `health-YYYY-MM-DD.ndjson.gz` (local or S3) and are deleted from the DB only after a verified
-write — a failed upload leaves the rows intact for the next run.
+## Phase 6 — History persistence + archival (optional, deferred)
+Add **optional, off-by-default embedded H2 (file)** persistence for poll history
+(`HealthSample`) only — registered targets stay heartbeat-managed in memory. Append a sample
+per poll; prune past `retention`. Then add the archive job: write+verify cold storage
+*before* deleting rows, optional S3 upload, `@ConditionalOnProperty`. **No MySQL** —
+embedded H2 file only; no external datastore.
+**Done when:** with persistence on, history survives restart and old samples are pruned; with
+archival on, aged rows land as `health-YYYY-MM-DD.ndjson.gz` and are deleted only after a
+verified write — a failed upload leaves the rows intact for the next run.
 
 ## Phase 7 — Polish & hardening
 Design pass with the `frontend-design` skill (heartbeat signature, density, type scale, color
@@ -71,6 +72,7 @@ Publish `ticker-core`, `ticker-client-spring-boot-starter`, and `ticker-server-s
 
 ## Explicitly later / maybe never
 Telegram / email notifiers · auth / RBAC · multi-collector federation · long *queryable*
-history in the hot DB (archive to cold storage or use a real TSDB instead) · auto-remediation.
+history (use a real TSDB instead) · MySQL (not a near-term goal) / any external datastore ·
+auto-remediation.
 Only on explicit request — and check it's still in the tool's spirit (a *simple liveness
 board*) first.

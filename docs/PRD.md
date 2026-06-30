@@ -50,7 +50,7 @@ no custom-dashboard builder, no RBAC at MVP.
 - A killed service shows `DOWN` and posts to Slack within ~`(pollInterval × failureThreshold)`
   seconds — and a single transient blip does **not** alert.
 - The collector runs in **one small container** (≤256Mi) at our scale.
-- Bringing the stack up locally needs **no external services** (H2 default).
+- Bringing the stack up locally needs **no external services** (in-memory, no DB).
 
 ## UX & design direction
 The subject is a fintech **operations board** — closer to a NOC / control-room wall than a
