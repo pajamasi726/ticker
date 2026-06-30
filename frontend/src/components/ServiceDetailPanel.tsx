@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchDetail } from '../api'
-import type { ServiceDetail } from '../types'
+import { fetchDetail, fetchAlertRules, updateAlertRule, fetchRecentAlerts } from '../api'
+import type { ServiceDetail, AlertRule, AlertFire } from '../types'
 import { MetricWidget } from './MetricWidget'
 import { formatValue } from '../format'
 
@@ -12,6 +12,8 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   const [error, setError] = useState<string | null>(null)
   const series = useRef<Record<string, number[]>>({})
   const prevRaw = useRef<Record<string, number>>({})
+  const [rules, setRules] = useState<Record<string, AlertRule>>({})
+  const [recent, setRecent] = useState<AlertFire[]>([])
 
   useEffect(() => {
     let active = true
@@ -58,6 +60,24 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // Alert rules (fetched once) + recent fires (polled). Silently absent if alerting is disabled (404).
+  useEffect(() => {
+    let active = true
+    fetchAlertRules()
+      .then((rs) => { if (active) setRules(Object.fromEntries(rs.map((r) => [r.key, r]))) })
+      .catch(() => { if (active) setRules({}) })
+    const loadRecent = () => fetchRecentAlerts().then((a) => { if (active) setRecent(a) }).catch(() => {})
+    loadRecent()
+    const t = setInterval(loadRecent, POLL_MS)
+    return () => { active = false; clearInterval(t) }
+  }, [id])
+
+  const onAlertSave = (key: string, patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number }) => {
+    updateAlertRule(key, patch)
+      .then((r) => setRules((prev) => ({ ...prev, [r.key]: r })))
+      .catch(() => {})
+  }
+
   const allWidgets = detail?.groups.flatMap((g) => g.widgets) ?? []
   const byKey = (k: string) => allWidgets.find((w) => w.key === k)
   const uptime = byKey('uptime')
@@ -80,6 +100,14 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     return den > 0 ? num / den : 0
   }
 
+  const timeAgo = (iso: string) => {
+    const t = Date.parse(iso)
+    if (Number.isNaN(t)) return ''
+    const s = Math.max(0, Math.round((Date.now() - t) / 1000))
+    return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`
+  }
+  const myRecent = recent.filter((a) => a.targetId === id).slice(0, 5)
+
   return (
     <div className="detail-view">
       <header className="detail-header">
@@ -92,6 +120,16 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
         {heapPct != null && <span className="detail-stat">Heap {heapPct}%</span>}
       </header>
       {error && <p className="detail-error">{error}</p>}
+      {myRecent.length > 0 && (
+        <div className="recent-alerts" role="status">
+          <span className="recent-alerts__title">⚠ Recent alerts</span>
+          {myRecent.map((a, i) => (
+            <span key={i} className="recent-alerts__item">
+              {a.label} <b>{formatValue(a.value, a.unit)}</b> vs {formatValue(a.threshold, a.unit)} · {timeAgo(a.at)}
+            </span>
+          ))}
+        </div>
+      )}
       {detail?.type === 'HTTP' && (
         <p className="detail-note">HTTP target — no JVM metrics. Latency {detail.latencyMs ?? '—'} ms.</p>
       )}
@@ -107,6 +145,8 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
                 key={w.key}
                 widget={w.ratio ? { ...w, value: ratioValue(w.ratio) } : w}
                 series={series.current[w.key] ?? []}
+                alertRule={rules[w.key] ?? null}
+                onAlertSave={onAlertSave}
               />
             ))}
           </div>

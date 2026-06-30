@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Unit } from '../types'
 import { formatValue } from '../format'
 
@@ -7,9 +8,10 @@ interface GaugeProps {
   max: number | null
   unit: Unit
   higherIsBetter?: boolean
+  bell?: ReactNode
 }
 
-export function Gauge({ label, value, max, unit, higherIsBetter = false }: GaugeProps) {
+export function Gauge({ label, value, max, unit, higherIsBetter = false, bell }: GaugeProps) {
   const pct =
     value != null && max != null && max > 0 ? Math.min((value / max) * 100, 100) : null
   // Color by severity. For higher-is-better gauges (e.g. disk free) a full bar is healthy, so invert.
@@ -21,7 +23,10 @@ export function Gauge({ label, value, max, unit, higherIsBetter = false }: Gauge
     <div className="widget gauge">
       <div className="widget__head">
         <span className="widget__label">{label}</span>
-        {pct != null && <span className="gauge__pct" style={{ color }}>{Math.round(pct)}%</span>}
+        <span className="widget__head-end">
+          {pct != null && <span className="gauge__pct" style={{ color }}>{Math.round(pct)}%</span>}
+          {bell}
+        </span>
       </div>
       <div className="widget__value">
         {formatValue(value, unit)}

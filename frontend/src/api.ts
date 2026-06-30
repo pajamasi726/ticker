@@ -1,4 +1,4 @@
-import type { ServiceView, ServiceDetail } from './types'
+import type { ServiceView, ServiceDetail, AlertRule, AlertFire } from './types'
 
 export async function fetchServices(): Promise<ServiceView[]> {
   const res = await fetch('/api/services')
@@ -9,5 +9,30 @@ export async function fetchServices(): Promise<ServiceView[]> {
 export async function fetchDetail(id: string): Promise<ServiceDetail> {
   const res = await fetch(`/api/services/${encodeURIComponent(id)}/detail`)
   if (!res.ok) throw new Error(`detail ${id}: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchAlertRules(): Promise<AlertRule[]> {
+  const res = await fetch('/api/alerts/rules')
+  if (!res.ok) throw new Error(`GET /api/alerts/rules: ${res.status}`)
+  return res.json()
+}
+
+export async function updateAlertRule(
+  key: string,
+  patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number },
+): Promise<AlertRule> {
+  const res = await fetch(`/api/alerts/rules/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (!res.ok) throw new Error(`PUT /api/alerts/rules/${key}: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchRecentAlerts(): Promise<AlertFire[]> {
+  const res = await fetch('/api/alerts/recent')
+  if (!res.ok) throw new Error(`GET /api/alerts/recent: ${res.status}`)
   return res.json()
 }

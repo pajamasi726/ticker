@@ -40,3 +40,25 @@ export interface ServiceDetail {
   sparkline: (number | null)[]
   groups: ResolvedGroup[]
 }
+
+// Metric-threshold alerting (configured per metric, keyed by the dashboard widget key).
+export interface AlertRule {
+  key: string
+  label: string
+  comparator: 'GT' | 'LT'
+  threshold: number // ratio 0-1 for PERCENT rules
+  unit: Unit
+  cooldownSeconds: number
+  enabled: boolean
+}
+
+export interface AlertFire {
+  targetId: string
+  targetName: string
+  ruleKey: string
+  label: string
+  value: number
+  threshold: number
+  unit: Unit
+  at: string
+}
