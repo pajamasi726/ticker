@@ -4,8 +4,8 @@ import type { ServiceDetail } from '../types'
 
 // Known metric → how to present it. Unknown metrics fall back to a raw row.
 const LABELS: Record<string, (m: Record<string, number>) => string> = {
-  'jvm.memory.used': (m) => `${(m.VALUE / 1_048_576).toFixed(0)} MB`,
-  'jvm.memory.max': (m) => (m.VALUE > 0 ? `${(m.VALUE / 1_048_576).toFixed(0)} MB` : '—'),
+  'jvm.memory.used': (m) => `${((m.VALUE ?? 0) / 1_048_576).toFixed(0)} MB`,
+  'jvm.memory.max': (m) => ((m.VALUE ?? 0) > 0 ? `${((m.VALUE ?? 0) / 1_048_576).toFixed(0)} MB` : '—'),
   'jvm.threads.live': (m) => `${m.VALUE}`,
   'process.cpu.usage': (m) => `${(m.VALUE * 100).toFixed(1)} %`,
   'process.uptime': (m) => `${Math.floor(m.VALUE / 60)} min`,
@@ -34,7 +34,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     let active = true
     const load = () =>
       fetchDetail(id)
-        .then((d) => { if (active) setDetail(d) })
+        .then((d) => { if (active) { setDetail(d); setError(null) } })
         .catch((e) => { if (active) setError(String(e)) })
     load()
     const t = setInterval(load, 4000)
@@ -60,7 +60,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
         )}
         <ul className="metric-cards">
           {detail?.metrics.map((m) => (
-            <li key={m.name} className="metric-card">
+            <li key={`${m.name}|${m.tag ?? ''}`} className="metric-card">
               <span className="metric-title">{TITLES[m.name] ?? m.name}</span>
               <span className="metric-value">
                 {(LABELS[m.name] ?? ((x: Record<string, number>) => JSON.stringify(x)))(m.measurements)}
