@@ -68,6 +68,22 @@ surface. README: deploy steps + the "not the sole alert path / watch the watcher
 **Done when:** it looks like the ops board in the PRD, the watchdog is documented and wired,
 and a teammate can deploy it from the README alone.
 
+## Phase 7b — Comprehensive Spring/JVM dashboard (live)
+Expand the P5/P7a drill-down (7 flat cards) into a **rich curated dashboard** matching the common
+pre-built Grafana Spring Boot dashboards: ~9 grouped sections (Basic · JVM Memory heap/non-heap ·
+GC · Threads · Classes & HTTP · Logback · Data Sources · Web) of ~40 widgets rendered as gauges +
+live charts + numbers. The backend owns the **dashboard definition** (`ticker.detail.dashboard`);
+`MetricFetcher` resolves it over virtual threads, pulling ONLY whitelisted `/actuator/metrics/{name}`
+(guardrail #4); the frontend is a **generic renderer** (render/unit-driven, no per-metric code).
+Charts accumulate live while open (cumulative counters charted as per-poll deltas). This is a
+deliberate identity expansion: "liveness board **+ a rich curated Spring/JVM dashboard**" — still
+a fixed curated dashboard, not a configurable builder / query language.
+**Done when:** clicking a Spring tile opens a wide, grouped dashboard updating live; absent groups
+(e.g. no-DB → Data Sources) are omitted gracefully; only `/actuator/metrics/` is ever called;
+`./gradlew test` green; `npm run build` clean; a Playwright screenshot shows the grouped dashboard.
+Stored history / a "Last N min" time-axis is the **next phase** (the renderer is built to receive
+stored series).
+
 ## Maven Central publishing
 Publish `ticker-core`, `ticker-client-spring-boot-starter`, and `ticker-server-spring-boot-starter` to Maven Central (`io.stevelabs`). Requires Sonatype OSSRH account, signing config, and DNS-verified domain (`stevelabs.io`). Local-publish path (`publishToMavenLocal`) is verified in Phase 0.5; the Central push is a separate release step done once the API is stable.
 **Done when:** the three artifacts are available on Maven Central and the README has coordinates.

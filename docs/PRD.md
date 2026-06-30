@@ -15,8 +15,12 @@ Internal dev/SRE team. Small scale (tens of services, not thousands). Runs insid
 
 ## Scope decision (read before building)
 Priority is **liveness first**: the #1 job is "is each service up, right now, on one screen."
-On top of that we want **Spring/JVM drill-down** (heap, GC, threads, HTTP latency, DB pool,
-actuator health) on click — that detail is the reason we build instead of adopting:
+On top of that we want a **rich, curated Spring/JVM dashboard** on click — a comprehensive,
+grouped set of actuator/JVM widgets (heap & pools, GC, threads, classes, HTTP, DB pool, Tomcat,
+logback) rendered as gauges + live charts + numbers, matching the common pre-built Grafana
+Spring Boot dashboards. It's a *fixed, curated* dashboard (server-owned definition), **not** an
+end-user dashboard builder or query language; live now, opt-in stored history is the next phase.
+That detail is the reason we build instead of adopting:
 - **Uptime Kuma** — nails liveness, but no JVM/app internals.
 - **Netdata** — great infra view, but no app internals without per-app setup.
 
@@ -41,7 +45,7 @@ nginx and other non-Spring endpoints only need up/down.
 
 ## Non-goals
 See `CLAUDE.md` → Non-goals. Short version: no TSDB, no logs, no tracing, no query language,
-no custom-dashboard builder, no RBAC at MVP.
+no **end-user** dashboard builder (the curated server-owned dashboard is in scope), no RBAC at MVP.
 
 ## Success criteria
 - Add a brand-new Spring service and see it on the wall **without touching collector config**
