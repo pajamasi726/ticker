@@ -32,16 +32,18 @@ interval (`ticker.client.heartbeat-interval`, default 30s); `<=0` disables. The 
 draws from the in-memory history window — real recent data, no DB required.
 **Done when:** restart the collector → all live clients reappear within one heartbeat interval; the sparkline shows real recent samples held in memory.
 
-## Phase 4 — Alerts (incident + digest)
-`AlertEngine` + the `Notifier` interface + `SlackNotifier` (webhook from env), wired for both
-alert types from ARCHITECTURE -> Alerting:
-- **Incident (Type 1):** transition detection + cooldown; DOWN + recovery messages.
-- **Periodic digest (Type 2):** a scheduled summary (counts + anything not-UP), with
-  `onlyWhenIssues` and an optional separate webhook/channel.
-Both gated by `@ConditionalOnProperty` — incident on by default, digest opt-in.
-**Done when:** killing a service posts a Slack "DOWN" after debounce and a "recovered" with
-downtime on return (flapping respects cooldown); and enabling the digest posts a scheduled
-"N up / M down" summary to its channel.
+## Phase 4 — Alerts (incident + digest) ✓ (incident implemented; digest deferred)
+`AlertDecider` (pure transition logic) + `AlertSender` interface + `SlackSender` (webhook
+from env) + `AlertService` (scheduled snapshot-diff), all gated by
+`@ConditionalOnProperty(ticker.alert.enabled=true)`:
+- **Incident (Type 1) — implemented:** state machine transition detection + cooldown; DOWN +
+  recovery messages posted to Slack. Off by default; webhook URL from env only, never committed.
+  Flapping is suppressed by `failureThreshold` debounce (state machine) + `cooldown` (alert layer).
+- **Periodic digest (Type 2) — deferred:** a scheduled summary (counts + anything not-UP) with
+  `onlyWhenIssues` and optional separate webhook/channel. Not built; add in a future phase.
+**Done when (incident):** killing a service posts a Slack "DOWN" after debounce and a
+"recovered" on return; flapping respects the cooldown; `ticker.alert.enabled` not set → no
+alert beans loaded at all.
 
 ## Phase 5 — Drill-down
 Detail endpoint + view: pull the metric whitelist (heap / GC / threads / HTTP / DB pool) for

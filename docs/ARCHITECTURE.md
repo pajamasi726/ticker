@@ -129,54 +129,47 @@ IAM role or the AWS default credential chain). The AWS SDK is
 The UI polls `/api/services` once per cycle. Keep the payload small — sparkline = last N points only.
 
 ## Alerting
-Two independent alert types, both delivered through the same `Notifier` (Slack at MVP). Each is
-enabled and configured purely via properties — drop in a webhook and go. They do different jobs
-and are tuned separately so neither drowns the other.
+Two alert types are planned; **incident alerts are implemented** (Phase 4). Both are delivered
+via the `AlertSender` interface (`SlackSender` at MVP) and are purely property-driven — no code
+changes to opt in.
 
-### Type 1 — Incident alerts (error / event-driven)
-The "wake me up, something broke" channel — fires the moment state changes.
-- **Trigger:** `UP/DEGRADED -> DOWN` and recovery `DOWN -> UP`. Optionally `-> DEGRADED`
-  (config; off by default to reduce noise).
-- **Debounce:** the state machine already requires `failureThreshold` consecutive failures
-  before `DOWN`, so a single blip never alerts.
-- **Cooldown:** after notifying for a target, suppress repeats for `alertCooldown` (e.g. 15m)
-  unless the state changes again.
-- **Payload:** service name, old -> new state, timestamp, downtime duration (on recovery), and
-  a link to the detail view.
+> **Guardrail #3 — not the sole alert path.** This board runs *alongside* your existing
+> on-call alerting (PagerDuty, OpsGenie, etc.), not replacing it. Until proven, never treat
+> "no Ticker alert" as confirmation that a production payment flow is healthy.
 
-### Type 2 — Periodic digest (scheduled / heartbeat)
-The "regular pulse" channel — posts a rollup on a schedule, even when all is well.
-- **Trigger:** a cron schedule (e.g. daily 09:00, or every 6h) — not state changes.
-- **Content:** counts (UP / DEGRADED / DOWN), the list of anything currently not-UP, optional
-  uptime % over the window. One compact summary, not one message per service.
-- **`onlyWhenIssues`:** if `true`, stay silent when everything is UP. Default `false` — a steady
-  "all N healthy" beat doubles as the cheapest **watch-the-watcher**: if the 09:00 digest never
-  arrives, the collector itself is down.
+### Type 1 — Incident alerts (implemented, Phase 4)
+An `AlertService` (scheduled, same cadence as the Poller) takes a snapshot from `HealthStateStore`
+each cycle, diffs each target's state vs the previous cycle via `AlertDecider`, and posts to
+Slack on `DOWN` entry or recovery. Key properties:
 
-### Notifier & config
-`Notifier.send(...)`; `SlackNotifier` posts via an incoming webhook. A single default webhook
-covers both types; each type may override with its own webhook to land in a different channel
-(Slack incoming webhooks are bound to one channel each). The interface leaves room for
-Telegram/email later — don't build those until asked. Webhook URLs come from env/config and are
-**never committed**.
+- **Off by default.** No alert beans are loaded unless `ticker.alert.enabled=true`.
+- **Debounce (two layers):** the health state machine requires `failureThreshold` consecutive
+  failures before `DOWN`, so a single blip never reaches `AlertService`. The alert layer adds a
+  `cooldown` (default 15 m) that suppresses re-alerting for the same target within the window.
+- **Inert without a webhook.** If `ticker.alert.enabled=true` but no webhook URL is configured,
+  `AlertService` logs a one-time warning and skips sending — it does not throw.
+- **Webhook from env only.** `ticker.alert.slack-webhook-url` maps to env var
+  `TICKER_ALERT_SLACK_WEBHOOK_URL`; never committed to properties files.
 
+Config surface:
 ```properties
-ticker.slack.enabled=true
-ticker.slack.webhook-url=${TICKER_SLACK_WEBHOOK}   # default channel for both types
-
-# Type 1 — incident (error)
-ticker.slack.incident.enabled=true
-ticker.slack.incident.webhook-url=                # optional: separate channel
-ticker.slack.incident.notify-on=DOWN,RECOVERY     # DOWN | RECOVERY | DEGRADED
-
-# Type 2 — periodic digest
-ticker.slack.digest.enabled=false
-ticker.slack.digest.webhook-url=                  # optional: separate channel
-ticker.slack.digest.schedule=0 0 9 * * *          # cron; default daily 09:00
-ticker.slack.digest.only-when-issues=false
+ticker.alert.enabled=false
+ticker.alert.slack-webhook-url=        # env TICKER_ALERT_SLACK_WEBHOOK_URL; never committed
+ticker.alert.cooldown=15m
 ```
-Both types are `@ConditionalOnProperty` — beyond the incident channel everything is off by
-default, so the tool stays quiet and simple until you opt in.
+
+`SlackSender` is a separate `@ConditionalOnProperty(ticker.alert.slack-webhook-url)` bean so
+the `slackWebhookUrl!!` dereference in `AlertAutoConfiguration` is safe.
+
+### Type 2 — Periodic digest (deferred)
+A scheduled rollup (counts + anything not-UP) with `onlyWhenIssues` and an optional separate
+webhook/channel. Not implemented yet; add in a future phase when the need is confirmed.
+
+### AlertSender interface
+`AlertSender.send(text: String)` is the seam that keeps `AlertService` unit-testable without
+HTTP. `SlackSender` never throws — a failed Slack POST is caught and logged, so a transient
+webhook error never breaks the alert scan. Webhook URLs come from env/config and are **never
+committed**. The interface leaves room for Telegram/email later — don't build those until asked.
 
 ## The watchdog (don't skip)
 The collector is a single point of failure for *its own* alerting. Mitigate:
