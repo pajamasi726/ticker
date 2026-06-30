@@ -14,18 +14,15 @@ import org.springframework.web.client.RestClient
 class TickerClientAutoConfiguration {
 
     @Bean
-    fun tickerClientRestClient(): RestClient {
+    fun tickerClientRegistrar(
+        properties: TickerClientProperties,
+        environment: Environment,
+    ): TickerClientRegistrar {
         val factory = SimpleClientHttpRequestFactory().apply {
             setConnectTimeout(3000)
             setReadTimeout(3000)
         }
-        return RestClient.builder().requestFactory(factory).build()
+        val restClient = RestClient.builder().requestFactory(factory).build()
+        return TickerClientRegistrar(properties, environment, restClient)
     }
-
-    @Bean
-    fun tickerClientRegistrar(
-        properties: TickerClientProperties,
-        environment: Environment,
-        tickerClientRestClient: RestClient,
-    ): TickerClientRegistrar = TickerClientRegistrar(properties, environment, tickerClientRestClient)
 }
