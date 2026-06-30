@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchDetail, fetchAlertRules, updateAlertRule, fetchRecentAlerts } from '../api'
 import type { ServiceDetail, AlertRule, AlertFire } from '../types'
 import { MetricWidget } from './MetricWidget'
+import { AlertDrawer } from './AlertDrawer'
 import { formatValue } from '../format'
 
 const MAX_POINTS = 60
@@ -14,6 +15,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   const prevRaw = useRef<Record<string, number>>({})
   const [rules, setRules] = useState<Record<string, AlertRule>>({})
   const [recent, setRecent] = useState<AlertFire[]>([])
+  const [alertConfigKey, setAlertConfigKey] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -108,6 +110,12 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   }
   const myRecent = recent.filter((a) => a.targetId === id).slice(0, 5)
 
+  // The quantity an alert rule compares: ratio (value/max) for gauges with a max, else the raw value.
+  const quantityOf = (w?: { value: number | null; max: number | null }) => {
+    if (!w || w.value == null) return null
+    return w.max != null && w.max > 0 ? w.value / w.max : w.value
+  }
+
   return (
     <div className="detail-view">
       <header className="detail-header">
@@ -146,12 +154,21 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
                 widget={w.ratio ? { ...w, value: ratioValue(w.ratio) } : w}
                 series={series.current[w.key] ?? []}
                 alertRule={rules[w.key] ?? null}
-                onAlertSave={onAlertSave}
+                onAlertOpen={setAlertConfigKey}
               />
             ))}
           </div>
         </section>
       ))}
+      {alertConfigKey && rules[alertConfigKey] && (
+        <AlertDrawer
+          rule={rules[alertConfigKey]}
+          current={quantityOf(byKey(alertConfigKey))}
+          recent={recent.filter((a) => a.targetId === id && a.ruleKey === alertConfigKey)}
+          onSave={(patch) => onAlertSave(alertConfigKey, patch)}
+          onClose={() => setAlertConfigKey(null)}
+        />
+      )}
     </div>
   )
 }

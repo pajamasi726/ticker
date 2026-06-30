@@ -8,12 +8,12 @@ interface MetricWidgetProps {
   widget: ResolvedWidget
   series: number[]
   alertRule?: AlertRule | null
-  onAlertSave?: (key: string, patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number }) => void
+  onAlertOpen?: (key: string) => void
 }
 
 /** Generic renderer: GAUGE -> Gauge, CHART -> LiveChart + current value, NUMBER -> big value. */
-export function MetricWidget({ widget, series, alertRule, onAlertSave }: MetricWidgetProps) {
-  const bell = alertRule && onAlertSave ? <AlertBell rule={alertRule} onSave={onAlertSave} /> : null
+export function MetricWidget({ widget, series, alertRule, onAlertOpen }: MetricWidgetProps) {
+  const bell = alertRule && onAlertOpen ? <AlertBell rule={alertRule} onOpen={onAlertOpen} /> : null
 
   if (widget.render === 'GAUGE') {
     return (
