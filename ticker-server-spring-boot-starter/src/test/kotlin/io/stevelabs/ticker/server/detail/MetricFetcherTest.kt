@@ -11,6 +11,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.web.client.RestClient
 
 class MetricFetcherTest {
@@ -64,5 +65,25 @@ class MetricFetcherTest {
         val props = DetailProperties(metrics = listOf(MetricSpec("jvm.threads.live", "area:heap")))
         MetricFetcher(restClient, props).fetch(target())
         assertThat(paths).anySatisfy { assertThat(it).isEqualTo("/actuator/metrics/jvm.threads.live?tag=area:heap") }
+    }
+
+    @Test fun `MetricSpec rejects path-traversal names`() {
+        assertThrows<IllegalArgumentException> { MetricSpec("../env") }
+        assertThrows<IllegalArgumentException> { MetricSpec("a/b") }
+    }
+
+    @Test fun `MetricSpec accepts a normal Micrometer name`() {
+        val spec = MetricSpec("jvm.memory.used", "area:heap")
+        assertThat(spec.name).isEqualTo("jvm.memory.used")
+    }
+
+    @Test fun `default DetailProperties does not throw (all default names are valid)`() {
+        assertThat(DetailProperties().metrics).isNotEmpty()
+    }
+
+    @Test fun `default whitelist fetch stays inside actuator metrics prefix (guardrail 4 full defaults)`() {
+        MetricFetcher(restClient, DetailProperties()).fetch(target())
+        assertThat(paths).isNotEmpty()
+        assertThat(paths).allSatisfy { assertThat(it).startsWith("/actuator/metrics/") }
     }
 }
