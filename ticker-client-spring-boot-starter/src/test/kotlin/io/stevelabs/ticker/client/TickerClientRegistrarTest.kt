@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.mock.env.MockEnvironment
 import org.springframework.web.client.RestClient
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 class TickerClientRegistrarTest {
     private lateinit var server: MockWebServer
@@ -71,5 +73,41 @@ class TickerClientRegistrarTest {
         val props = TickerClientProperties(collectorUrl = base(), url = "http://my-app:8081", name = "my-app")
         registrar(props, attempts = 3).onApplicationReady() // must not throw
         assertThat(server.requestCount).isEqualTo(3)
+    }
+
+    @Test fun `sends periodic heartbeats after the initial registration`() {
+        repeat(4) { server.enqueue(MockResponse().setResponseCode(200)) } // initial + heartbeats
+        val props = TickerClientProperties(
+            collectorUrl = base(), url = "http://my-app:8081", name = "my-app",
+            heartbeatInterval = Duration.ofMillis(100),
+        )
+        val reg = TickerClientRegistrar(props, MockEnvironment(), restClient, maxAttempts = 1, retryDelayMs = 0)
+        reg.onApplicationReady()
+        try {
+            val first = server.takeRequest(2, TimeUnit.SECONDS)   // initial
+            val second = server.takeRequest(2, TimeUnit.SECONDS)  // first heartbeat
+            assertThat(first).isNotNull()
+            assertThat(second).isNotNull()
+            assertThat(first!!.path).isEqualTo("/api/targets")
+            assertThat(second!!.path).isEqualTo("/api/targets")
+        } finally {
+            reg.destroy()
+        }
+    }
+
+    @Test fun `does not heartbeat when interval is zero`() {
+        server.enqueue(MockResponse().setResponseCode(200)) // initial only
+        val props = TickerClientProperties(
+            collectorUrl = base(), url = "http://my-app:8081", name = "my-app",
+            heartbeatInterval = Duration.ZERO,
+        )
+        val reg = TickerClientRegistrar(props, MockEnvironment(), restClient, maxAttempts = 1, retryDelayMs = 0)
+        reg.onApplicationReady()
+        try {
+            assertThat(server.takeRequest(1, TimeUnit.SECONDS)).isNotNull()          // initial
+            assertThat(server.takeRequest(500, TimeUnit.MILLISECONDS)).isNull()      // no heartbeat
+        } finally {
+            reg.destroy()
+        }
     }
 }
