@@ -20,7 +20,7 @@ class AlertDecider {
         if (previous == null) return AlertOutcome(AlertKind.NONE, lastIncidentAt) // baseline; never alert on first sight
 
         val enteredDown = previous != ServiceState.DOWN && current == ServiceState.DOWN
-        val leftDown = previous == ServiceState.DOWN && current != ServiceState.DOWN
+        val leftDown = previous == ServiceState.DOWN && (current == ServiceState.UP || current == ServiceState.DEGRADED)
 
         return when {
             enteredDown ->

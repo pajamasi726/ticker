@@ -10,12 +10,16 @@ import io.stevelabs.ticker.server.target.TargetRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.concurrent.Executor
 
 class AlertServiceTest {
     private class RecordingSender : AlertSender {
         val sent = mutableListOf<String>()
         override fun send(text: String) { sent += text }
     }
+
+    /** Inline executor — runs the task on the calling thread so tests stay deterministic. */
+    private val inlineExecutor = Executor { it.run() }
 
     private fun storeWith(name: String): HealthStateStore =
         HealthStateStore(
@@ -26,7 +30,7 @@ class AlertServiceTest {
     @Test fun `fires one incident on DOWN and one recovery on UP across cycles`() {
         val store = storeWith("svc")
         val sender = RecordingSender()
-        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender)
+        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender, inlineExecutor)
 
         svc.checkForAlerts()                                              // cycle 1: baseline (UNKNOWN) → no alert
         assertThat(sender.sent).isEmpty()
@@ -44,7 +48,7 @@ class AlertServiceTest {
     @Test fun `stays silent for a DEGRADED transition`() {
         val store = storeWith("svc")
         val sender = RecordingSender()
-        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender)
+        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender, inlineExecutor)
         svc.checkForAlerts()                                              // baseline
         store.record("svc", CheckResult(CheckOutcome.DEGRADED, 1500), Instant.now())
         svc.checkForAlerts()                                              // UNKNOWN → DEGRADED → silent
@@ -53,9 +57,25 @@ class AlertServiceTest {
 
     @Test fun `does not throw when no sender is configured`() {
         val store = storeWith("svc")
-        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender = null)
+        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender = null, inlineExecutor)
         svc.checkForAlerts()
         store.record("svc", CheckResult(CheckOutcome.FAILURE, 0), Instant.now())
         svc.checkForAlerts()                                              // would-be incident, no sender → inert, no throw
+    }
+
+    @Test fun `suppresses recovery when the service was DOWN at first observation (no incident ever sent)`() {
+        val store = storeWith("svc")
+        val sender = RecordingSender()
+        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender, inlineExecutor)
+
+        // Service is already DOWN before the first checkForAlerts cycle
+        store.record("svc", CheckResult(CheckOutcome.FAILURE, 0), Instant.now())
+        svc.checkForAlerts()                                              // baseline → NONE (first sight, no prev state)
+
+        // Now it recovers
+        store.record("svc", CheckResult(CheckOutcome.SUCCESS, 5), Instant.now())
+        svc.checkForAlerts()                                              // DOWN→UP, but no incident was ever sent → no recovery
+
+        assertThat(sender.sent).isEmpty()
     }
 }

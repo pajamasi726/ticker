@@ -15,7 +15,7 @@ class SlackSender(
             restClient.post().uri(webhookUrl).body(mapOf("text" to text)).retrieve().toBodilessEntity()
             log.debug("Posted Slack alert: {}", text)
         } catch (e: Exception) {
-            log.warn("Failed to post Slack alert ({}): {}", text, e.message)
+            log.warn("Failed to post Slack alert ({}): {}", text, e.javaClass.simpleName)
         }
     }
 }

@@ -22,11 +22,24 @@ class AlertDeciderTest {
         assertThat(out.lastIncidentAt).isEqualTo(t0)
     }
 
-    @Test fun `leaving DOWN fires a recovery (to UP or DEGRADED)`() {
-        assertThat(decider.decide(ServiceState.DOWN, ServiceState.UP, t0, t0.plusSeconds(60), cooldown).kind)
-            .isEqualTo(AlertKind.RECOVERY)
-        assertThat(decider.decide(ServiceState.DOWN, ServiceState.DEGRADED, t0, t0.plusSeconds(60), cooldown).kind)
-            .isEqualTo(AlertKind.RECOVERY)
+    @Test fun `leaving DOWN fires a recovery (to UP or DEGRADED) and preserves the cooldown anchor`() {
+        val recoveryToUp = decider.decide(ServiceState.DOWN, ServiceState.UP, t0, t0.plusSeconds(60), cooldown)
+        assertThat(recoveryToUp.kind).isEqualTo(AlertKind.RECOVERY)
+        assertThat(recoveryToUp.lastIncidentAt).isEqualTo(t0)           // anchor unchanged on recovery
+
+        val recoveryToDegraded = decider.decide(ServiceState.DOWN, ServiceState.DEGRADED, t0, t0.plusSeconds(60), cooldown)
+        assertThat(recoveryToDegraded.kind).isEqualTo(AlertKind.RECOVERY)
+        assertThat(recoveryToDegraded.lastIncidentAt).isEqualTo(t0)    // anchor unchanged on recovery
+    }
+
+    @Test fun `DOWN to UNKNOWN is NOT a recovery (collector lost sight, not a real recovery)`() {
+        val out = decider.decide(ServiceState.DOWN, ServiceState.UNKNOWN, t0, t0.plusSeconds(60), cooldown)
+        assertThat(out.kind).isEqualTo(AlertKind.NONE)
+    }
+
+    @Test fun `DOWN staying DOWN is silent`() {
+        val out = decider.decide(ServiceState.DOWN, ServiceState.DOWN, t0, t0.plusSeconds(60), cooldown)
+        assertThat(out.kind).isEqualTo(AlertKind.NONE)
     }
 
     @Test fun `non-DOWN transitions are silent`() {

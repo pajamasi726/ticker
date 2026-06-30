@@ -5,6 +5,7 @@ import io.stevelabs.ticker.server.state.ServiceState
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import java.time.Instant
+import java.util.concurrent.Executor
 
 /** Each poll cycle, diff every target's effective state vs the previous cycle and alert on DOWN entry/exit. */
 class AlertService(
@@ -12,10 +13,13 @@ class AlertService(
     private val decider: AlertDecider,
     private val properties: AlertProperties,
     private val sender: AlertSender?,
+    private val executor: Executor,
 ) {
     private val log = LoggerFactory.getLogger(AlertService::class.java)
     private val previousStates = HashMap<String, ServiceState>()
     private val lastIncidentAt = HashMap<String, Instant>()
+    /** IDs with an open, actually-dispatched incident — used to suppress orphan recoveries. */
+    private val alerted = HashSet<String>()
     private var warnedNoSender = false
 
     @Scheduled(fixedRateString = "\${ticker.poll.interval:10s}")
@@ -28,8 +32,16 @@ class AlertService(
             liveIds += id
             val outcome = decider.decide(previousStates[id], th.state, lastIncidentAt[id], now, properties.cooldown)
             when (outcome.kind) {
-                AlertKind.INCIDENT -> emit("🔴 *${th.target.name}* is DOWN")
-                AlertKind.RECOVERY -> emit("🟢 *${th.target.name}* recovered")
+                AlertKind.INCIDENT -> {
+                    emit("🔴 *${th.target.name}* is DOWN")
+                    if (sender != null) alerted += id
+                }
+                AlertKind.RECOVERY -> {
+                    if (id in alerted) {
+                        emit("🟢 *${th.target.name}* recovered")
+                        alerted -= id
+                    }
+                }
                 AlertKind.NONE -> {}
             }
             outcome.lastIncidentAt?.let { lastIncidentAt[id] = it }
@@ -38,6 +50,7 @@ class AlertService(
         // forget targets that no longer exist (deregistered / removed)
         previousStates.keys.retainAll(liveIds)
         lastIncidentAt.keys.retainAll(liveIds)
+        alerted.retainAll(liveIds)
     }
 
     private fun emit(text: String) {
@@ -49,6 +62,6 @@ class AlertService(
             }
             return
         }
-        s.send(text)
+        executor.execute { s.send(text) }
     }
 }
