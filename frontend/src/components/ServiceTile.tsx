@@ -9,9 +9,20 @@ const GLYPH: Record<ServiceState, string> = {
   UNKNOWN: '?',
 }
 
-export function ServiceTile({ service }: { service: ServiceView }) {
+interface Props {
+  service: ServiceView
+  onSelect?: (id: string) => void
+}
+
+export function ServiceTile({ service, onSelect }: Props) {
   return (
-    <div className={`tile tile--${service.state.toLowerCase()}`}>
+    <div
+      className={`tile tile--${service.state.toLowerCase()}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect?.(service.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect?.(service.id) }}
+    >
       <div className="tile__head">
         <span className="tile__glyph" aria-hidden>{GLYPH[service.state]}</span>
         <span className="tile__name">{service.name}</span>

@@ -1,7 +1,12 @@
 import type { ServiceView } from '../types'
 import { ServiceTile } from './ServiceTile'
 
-export function StatusWall({ services }: { services: ServiceView[] }) {
+interface Props {
+  services: ServiceView[]
+  onSelect?: (id: string) => void
+}
+
+export function StatusWall({ services, onSelect }: Props) {
   if (services.length === 0) {
     return (
       <p className="empty">
@@ -11,7 +16,7 @@ export function StatusWall({ services }: { services: ServiceView[] }) {
   }
   return (
     <div className="wall">
-      {services.map((s) => <ServiceTile key={s.id} service={s} />)}
+      {services.map((s) => <ServiceTile key={s.id} service={s} onSelect={onSelect} />)}
     </div>
   )
 }

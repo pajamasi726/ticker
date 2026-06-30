@@ -10,3 +10,19 @@ export interface ServiceView {
   latencyMs: number | null
   sparkline: (number | null)[]
 }
+
+export interface MetricValue {
+  name: string
+  tag: string | null
+  measurements: Record<string, number>
+}
+
+export interface ServiceDetail {
+  id: string
+  name: string
+  type: ServiceType
+  state: ServiceState
+  latencyMs: number | null
+  sparkline: (number | null)[]
+  metrics: MetricValue[]
+}

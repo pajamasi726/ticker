@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import type { ServiceView } from './types'
 import { fetchServices } from './api'
 import { StatusWall } from './components/StatusWall'
+import { ServiceDetailPanel } from './components/ServiceDetailPanel'
 
 const POLL_MS = 5000
 
 export default function App() {
   const [services, setServices] = useState<ServiceView[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -27,7 +29,10 @@ export default function App() {
         <span className="app__sub">service liveness</span>
       </header>
       {error && <p className="error">{error}</p>}
-      <StatusWall services={services} />
+      <StatusWall services={services} onSelect={setSelectedId} />
+      {selectedId && (
+        <ServiceDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+      )}
     </main>
   )
 }
