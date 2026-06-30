@@ -28,12 +28,6 @@ export interface ServiceView {
   sparkline: (number | null)[]
 }
 
-export interface MetricValue {
-  name: string
-  tag: string | null
-  measurements: Record<string, number>
-}
-
 export interface ServiceDetail {
   id: string
   name: string
@@ -41,6 +35,5 @@ export interface ServiceDetail {
   state: ServiceState
   latencyMs: number | null
   sparkline: (number | null)[]
-  metrics: MetricValue[]
   groups: ResolvedGroup[]
 }
