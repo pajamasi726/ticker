@@ -30,6 +30,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
                 const prev = prevRaw.current[w.key]
                 point = prev == null ? 0 : Math.max(0, raw - prev) // per-poll delta; clamp restarts
                 prevRaw.current[w.key] = raw
+                if (w.perSecond) point = point / (POLL_MS / 1000) // normalize delta to a per-second rate
               }
               const prevSeries = series.current[w.key] ?? []
               series.current[w.key] = [...prevSeries, point].slice(-MAX_POINTS)
@@ -68,6 +69,17 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
       ? Math.round((heap.value / heap.max) * 100)
       : null
 
+  // Latest per-poll delta of a sibling widget (for client-side ratio widgets like error rate).
+  const lastDelta = (k: string) => {
+    const s = series.current[k]
+    return s && s.length ? s[s.length - 1] : 0
+  }
+  const ratioValue = (r: { numerator: string[]; denominator: string[] }) => {
+    const num = r.numerator.reduce((a, k) => a + lastDelta(k), 0)
+    const den = r.denominator.reduce((a, k) => a + lastDelta(k), 0)
+    return den > 0 ? num / den : 0
+  }
+
   return (
     <div className="detail-view">
       <header className="detail-header">
@@ -91,7 +103,11 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
           <h3 className="detail-group__title">{group.title}<span className="detail-group__count">{group.widgets.length}</span></h3>
           <div className="widget-grid">
             {group.widgets.map((w) => (
-              <MetricWidget key={w.key} widget={w} series={series.current[w.key] ?? []} />
+              <MetricWidget
+                key={w.key}
+                widget={w.ratio ? { ...w, value: ratioValue(w.ratio) } : w}
+                series={series.current[w.key] ?? []}
+              />
             ))}
           </div>
         </section>

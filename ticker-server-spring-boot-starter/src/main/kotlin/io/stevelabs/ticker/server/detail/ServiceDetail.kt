@@ -13,6 +13,8 @@ data class ResolvedWidget(
     val max: Double?,
     val cumulative: Boolean = false,
     val higherIsBetter: Boolean = false,
+    val perSecond: Boolean = false,
+    val ratio: RatioSpec? = null,
 )
 
 /** A titled section of resolved widgets. */

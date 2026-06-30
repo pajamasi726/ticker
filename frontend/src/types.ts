@@ -12,6 +12,8 @@ export interface ResolvedWidget {
   max: number | null
   cumulative: boolean
   higherIsBetter: boolean
+  perSecond: boolean
+  ratio: { numerator: string[]; denominator: string[] } | null
 }
 
 export interface ResolvedGroup {

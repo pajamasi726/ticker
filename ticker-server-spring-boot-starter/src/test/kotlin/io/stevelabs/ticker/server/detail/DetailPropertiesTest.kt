@@ -10,6 +10,7 @@ class DetailPropertiesTest {
         val titles = DetailProperties().dashboard.map { it.title }
         assertThat(titles).containsExactly(
             "Basic",
+            "Throughput & Errors",
             "JVM Memory (heap)",
             "JVM Memory (non-heap)",
             "GC",

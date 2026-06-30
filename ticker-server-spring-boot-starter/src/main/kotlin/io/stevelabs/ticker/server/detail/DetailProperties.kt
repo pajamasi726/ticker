@@ -13,12 +13,17 @@ data class MetricRef(val name: String, val tags: Map<String, String> = emptyMap(
     }
 }
 
+/** A value derived from other widgets' per-poll deltas, computed client-side: sum(numerator)/sum(denominator). */
+data class RatioSpec(val numerator: List<String>, val denominator: List<String>)
+
 /**
  * One dashboard widget. `metric` + `tags` select the primary series; `statistic` picks the
  * measurement to read ("VALUE"/"COUNT"/"MAX"/"ACTIVE_TASKS", or derived "MEAN" = TOTAL_TIME/COUNT).
  * `cumulative` marks monotonic counters (the frontend charts the per-poll delta as a live rate).
  * `max` is an optional gauge denominator (its own metric+tags).
  * `higherIsBetter` inverts gauge color severity (e.g. disk.free: a full bar is healthy, not critical).
+ * `perSecond` renders a cumulative counter's per-poll delta as a rate (e.g. requests/sec). `ratio`
+ * derives a value from other widgets' per-poll deltas (e.g. error rate = errors/requests), client-side.
  */
 data class WidgetSpec(
     val key: String,
@@ -31,6 +36,8 @@ data class WidgetSpec(
     val cumulative: Boolean = false,
     val max: MetricRef? = null,
     val higherIsBetter: Boolean = false,
+    val perSecond: Boolean = false,
+    val ratio: RatioSpec? = null,
 ) {
     init {
         require(metric.matches(METRIC_NAME)) { "Invalid ticker.detail metric name (must match a Micrometer metric name): '$metric'" }
@@ -64,6 +71,16 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
             WidgetSpec("cpu-count", "CPUs", "system.cpu.count", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("files-open", "Open files", "process.files.open", render = Render.GAUGE, unit = Unit.COUNT, max = MetricRef("process.files.max")),
             WidgetSpec("disk-free", "Disk free", "disk.free", render = Render.GAUGE, unit = Unit.BYTES, max = MetricRef("disk.total"), higherIsBetter = true),
+        ),
+    ),
+    GroupSpec(
+        "Throughput & Errors",
+        listOf(
+            // Golden signals, derived client-side from already-whitelisted counters (guardrail #4 intact).
+            WidgetSpec("rps", "Requests/sec", "http.server.requests", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true, perSecond = true),
+            // metric/statistic only satisfy presence+validation; the displayed value is the client-side ratio.
+            WidgetSpec("error-rate", "Error rate", "http.server.requests", statistic = "COUNT", render = Render.GAUGE, unit = Unit.PERCENT, ratio = RatioSpec(numerator = listOf("http-client-error", "http-server-error"), denominator = listOf("http-requests"))),
+            WidgetSpec("alloc-rate", "Allocation rate", "jvm.gc.memory.allocated", statistic = "COUNT", render = Render.CHART, unit = Unit.BYTES, cumulative = true, perSecond = true),
         ),
     ),
     GroupSpec(

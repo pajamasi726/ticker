@@ -27,7 +27,9 @@ export function MetricWidget({ widget, series }: MetricWidgetProps) {
       <div className="widget widget--chart">
         <div className="widget__head">
           <span className="widget__label">{widget.label}</span>
-          <span className="widget__value">{formatValue(current ?? null, widget.unit)}</span>
+          <span className="widget__value">
+            {formatValue(current ?? null, widget.unit)}{widget.perSecond && current != null ? '/s' : ''}
+          </span>
         </div>
         <LiveChart data={series} unit={widget.unit} />
       </div>
