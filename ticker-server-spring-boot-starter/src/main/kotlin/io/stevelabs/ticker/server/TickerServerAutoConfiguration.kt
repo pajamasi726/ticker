@@ -3,6 +3,9 @@ package io.stevelabs.ticker.server
 import io.stevelabs.ticker.server.check.HealthChecker
 import io.stevelabs.ticker.server.check.HttpHealthChecker
 import io.stevelabs.ticker.server.check.SpringHealthChecker
+import io.stevelabs.ticker.server.detail.DetailProperties
+import io.stevelabs.ticker.server.detail.MetricFetcher
+import io.stevelabs.ticker.server.detail.MetricSource
 import io.stevelabs.ticker.server.poll.PollProperties
 import io.stevelabs.ticker.server.poll.Poller
 import io.stevelabs.ticker.server.state.HealthStateStore
@@ -19,7 +22,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 @AutoConfiguration
-@EnableConfigurationProperties(TickerServerProperties::class, PollProperties::class, TargetsProperties::class)
+@EnableConfigurationProperties(TickerServerProperties::class, PollProperties::class, TargetsProperties::class, DetailProperties::class)
 @EnableScheduling
 @ConditionalOnProperty(prefix = "ticker.server", name = ["enabled"], matchIfMissing = true)
 class TickerServerAutoConfiguration {
@@ -36,6 +39,10 @@ class TickerServerAutoConfiguration {
     @Bean(destroyMethod = "close") fun pollExecutor(): ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
     @Bean fun poller(registry: TargetRegistry, checkers: List<HealthChecker>, store: HealthStateStore, executor: ExecutorService, poll: PollProperties) =
         Poller(registry, checkers, store, executor, poll)
+    @Bean fun metricFetcher(restClient: RestClient, detailProperties: DetailProperties): MetricSource =
+        MetricFetcher(restClient, detailProperties)
     @Bean fun serviceController(store: HealthStateStore) = ServiceController(store)
     @Bean fun targetController(registry: TargetRegistry, store: HealthStateStore) = TargetController(registry, store)
+    @Bean fun detailController(registry: TargetRegistry, store: HealthStateStore, metricSource: MetricSource) =
+        DetailController(registry, store, metricSource)
 }
