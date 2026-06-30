@@ -19,6 +19,9 @@ ticker:
     enabled: true
   poll:
     interval: 3s          # snappy demo: DOWN after ~9s
+  alert:
+    enabled: true         # metric-threshold alerts active (no webhook -> fires log + /api/alerts/recent)
+    metric-interval: 5s   # snappy demo; production default is 30s
   targets:
     - name: self
       type: SPRING

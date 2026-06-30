@@ -15,6 +15,13 @@ import java.util.concurrent.TimeUnit
 /** Resolves a target's curated dashboard. The seam that lets DetailController be tested without HTTP. */
 interface MetricSource {
     fun fetch(target: Target): List<ResolvedGroup>
+
+    /**
+     * Resolve a single metric value from a SPRING target's actuator.
+     * Returns null for non-SPRING targets or if the metric is unavailable.
+     * Default returns null so existing test stubs don't require changes.
+     */
+    fun resolveValue(target: Target, ref: MetricRef, statistic: String): Double? = null
 }
 
 /**
@@ -31,6 +38,12 @@ class MetricFetcher(
 ) : MetricSource {
     private val log = LoggerFactory.getLogger(MetricFetcher::class.java)
     private val awaitMs = (pollProperties.timeout.toMillis() * 2).coerceAtLeast(1000)
+
+    override fun resolveValue(target: Target, ref: MetricRef, statistic: String): Double? {
+        if (target.type != ServiceType.SPRING) return null
+        val measurements = fetchMeasurements(target.url, ref) ?: return null
+        return statisticValue(measurements, statistic)
+    }
 
     override fun fetch(target: Target): List<ResolvedGroup> {
         if (target.type != ServiceType.SPRING) return emptyList()

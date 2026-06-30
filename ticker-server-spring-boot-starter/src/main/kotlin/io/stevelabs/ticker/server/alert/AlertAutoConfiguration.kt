@@ -1,6 +1,7 @@
 package io.stevelabs.ticker.server.alert
 
 import io.stevelabs.ticker.server.TickerServerAutoConfiguration
+import io.stevelabs.ticker.server.detail.MetricSource
 import io.stevelabs.ticker.server.state.HealthStateStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -11,7 +12,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.web.client.RestClient
-import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 @AutoConfiguration
@@ -33,10 +34,14 @@ class AlertAutoConfiguration {
         return SlackSender(RestClient.builder().requestFactory(factory).build(), properties.slackWebhookUrl!!)
     }
 
-    /** Fallback executor used when TickerServerAutoConfiguration (and its pollExecutor) is not active. */
+    /**
+     * Fallback executor used when TickerServerAutoConfiguration (and its pollExecutor) is not active.
+     * Typed ExecutorService so it resolves unambiguously: with virtual threads on, the context also has
+     * `applicationTaskExecutor` and `taskScheduler` Executors — only pollExecutor is an ExecutorService.
+     */
     @Bean
-    @ConditionalOnMissingBean(Executor::class)
-    fun alertFallbackExecutor(): Executor = Executors.newVirtualThreadPerTaskExecutor()
+    @ConditionalOnMissingBean(ExecutorService::class)
+    fun alertFallbackExecutor(): ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
 
     @Bean
     fun alertService(
@@ -44,6 +49,21 @@ class AlertAutoConfiguration {
         decider: AlertDecider,
         properties: AlertProperties,
         sender: ObjectProvider<AlertSender>,
-        executor: Executor,
+        executor: ExecutorService,
     ): AlertService = AlertService(store, decider, properties, sender.ifAvailable, executor)
+
+    @Bean
+    fun metricAlertStore(): MetricAlertStore = MetricAlertStore()
+
+    @Bean
+    fun metricAlertService(
+        store: HealthStateStore,
+        metricSource: MetricSource,
+        rules: MetricAlertStore,
+        sender: ObjectProvider<AlertSender>,
+        executor: ExecutorService,
+    ): MetricAlertService = MetricAlertService(store, metricSource, rules, sender.ifAvailable, executor)
+
+    @Bean
+    fun metricAlertController(rules: MetricAlertStore): MetricAlertController = MetricAlertController(rules)
 }

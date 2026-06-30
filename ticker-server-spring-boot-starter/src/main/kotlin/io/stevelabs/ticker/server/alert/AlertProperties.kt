@@ -8,4 +8,5 @@ data class AlertProperties(
     val enabled: Boolean = false,
     val slackWebhookUrl: String? = null,
     val cooldown: Duration = Duration.ofMinutes(15),
+    val metricInterval: Duration = Duration.ofSeconds(30),
 )
