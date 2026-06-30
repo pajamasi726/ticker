@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: ticker-client-sample
+  threads:
+    virtual:
+      enabled: true
+server:
+  port: 8081
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+ticker:
+  client:
+    enabled: true
+    type: SPRING
+    # collector-url, url, name supplied via env in the demo:
+    #   TICKER_CLIENT_COLLECTOR_URL, TICKER_CLIENT_URL, TICKER_CLIENT_NAME
+    collector-url: ${TICKER_CLIENT_COLLECTOR_URL:}
+    url: ${TICKER_CLIENT_URL:}
+    name: ${TICKER_CLIENT_NAME:ticker-client-sample}
