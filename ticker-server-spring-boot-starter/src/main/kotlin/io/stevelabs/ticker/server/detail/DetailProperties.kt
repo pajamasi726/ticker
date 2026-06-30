@@ -57,6 +57,7 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
         listOf(
             WidgetSpec("uptime", "Uptime", "process.uptime", render = Render.NUMBER, unit = Unit.SECONDS),
             WidgetSpec("started", "Started", "process.start.time", render = Render.NUMBER, unit = Unit.TIMESTAMP),
+            WidgetSpec("ready-time", "Ready in", "application.ready.time", render = Render.NUMBER, unit = Unit.SECONDS),
             WidgetSpec("cpu-process", "CPU (process)", "process.cpu.usage", render = Render.GAUGE, unit = Unit.PERCENT),
             WidgetSpec("cpu-system", "CPU (system)", "system.cpu.usage", render = Render.CHART, unit = Unit.PERCENT),
             WidgetSpec("load-1m", "Load avg (1m)", "system.load.average.1m", render = Render.CHART, unit = Unit.COUNT),
@@ -95,6 +96,7 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
             WidgetSpec("gc-live-data", "Live data", "jvm.gc.live.data.size", render = Render.NUMBER, unit = Unit.BYTES),
             WidgetSpec("gc-max-data", "Max data", "jvm.gc.max.data.size", render = Render.NUMBER, unit = Unit.BYTES),
             WidgetSpec("gc-overhead", "GC overhead", "jvm.gc.overhead", render = Render.GAUGE, unit = Unit.PERCENT),
+            WidgetSpec("heap-after-gc", "Heap after GC", "jvm.memory.usage.after.gc", render = Render.GAUGE, unit = Unit.PERCENT),
         ),
     ),
     GroupSpec(
@@ -103,6 +105,7 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
             WidgetSpec("threads-live", "Live", "jvm.threads.live", render = Render.CHART, unit = Unit.COUNT),
             WidgetSpec("threads-daemon", "Daemon", "jvm.threads.daemon", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("threads-peak", "Peak", "jvm.threads.peak", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("threads-started", "Started (total)", "jvm.threads.started", statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("threads-runnable", "Runnable", "jvm.threads.states", tags = mapOf("state" to "runnable"), render = Render.CHART, unit = Unit.COUNT),
             WidgetSpec("threads-blocked", "Blocked", "jvm.threads.states", tags = mapOf("state" to "blocked"), render = Render.CHART, unit = Unit.COUNT),
             WidgetSpec("threads-waiting", "Waiting", "jvm.threads.states", tags = mapOf("state" to "waiting"), render = Render.CHART, unit = Unit.COUNT),
@@ -113,6 +116,7 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
         "Classes & HTTP",
         listOf(
             WidgetSpec("classes-loaded", "Classes loaded", "jvm.classes.loaded", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("classes-unloaded", "Classes unloaded", "jvm.classes.unloaded", statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("compilation-time", "Compilation time", "jvm.compilation.time", render = Render.NUMBER, unit = Unit.MILLIS),
             WidgetSpec("http-requests", "HTTP requests", "http.server.requests", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
             WidgetSpec("http-latency-avg", "Avg latency", "http.server.requests", statistic = "MEAN", render = Render.CHART, unit = Unit.SECONDS),
@@ -144,7 +148,16 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
         listOf(
             WidgetSpec("tomcat-sessions-active", "Sessions active", "tomcat.sessions.active.current", render = Render.CHART, unit = Unit.COUNT),
             WidgetSpec("tomcat-sessions-created", "Sessions created", "tomcat.sessions.created", statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("tomcat-sessions-expired", "Sessions expired", "tomcat.sessions.expired", statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("tomcat-sessions-rejected", "Sessions rejected", "tomcat.sessions.rejected", statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("tomcat-threads-busy", "Threads busy", "tomcat.threads.busy", render = Render.CHART, unit = Unit.COUNT),
+        ),
+    ),
+    GroupSpec(
+        "Scheduled Tasks",
+        listOf(
+            WidgetSpec("sched-exec", "Executions", "tasks.scheduled.execution", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("sched-active", "Active now", "tasks.scheduled.execution.active", statistic = "ACTIVE_TASKS", render = Render.NUMBER, unit = Unit.COUNT),
         ),
     ),
 )

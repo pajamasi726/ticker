@@ -18,6 +18,7 @@ class DetailPropertiesTest {
             "Logback",
             "Data Sources",
             "Web",
+            "Scheduled Tasks",
         )
     }
 
