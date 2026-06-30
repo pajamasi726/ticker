@@ -2,16 +2,6 @@ package io.stevelabs.ticker.server.detail
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
-/** Legacy whitelist entry — kept THIS task (verbatim) so the existing `MetricFetcher` still compiles; Task 2 removes it. */
-data class MetricSpec(val name: String, val tag: String? = null) {
-    init {
-        require(name.matches(METRIC_NAME)) { "Invalid ticker.detail metric name (must match a Micrometer metric name): '$name'" }
-    }
-    private companion object {
-        val METRIC_NAME = Regex("^[a-zA-Z][a-zA-Z0-9._-]*$")
-    }
-}
-
 enum class Render { GAUGE, CHART, NUMBER }
 
 enum class Unit { BYTES, PERCENT, COUNT, SECONDS, MILLIS, TIMESTAMP }
@@ -49,18 +39,6 @@ data class GroupSpec(val title: String, val widgets: List<WidgetSpec>)
 
 @ConfigurationProperties(prefix = "ticker.detail")
 data class DetailProperties(
-    // Legacy whitelist — KEEP this task (the old MetricFetcher still reads `metrics`); Task 2 removes it.
-    val metrics: List<MetricSpec> = listOf(
-        MetricSpec("jvm.memory.used", "area:heap"),
-        MetricSpec("jvm.memory.max", "area:heap"),
-        MetricSpec("jvm.threads.live"),
-        MetricSpec("jvm.gc.pause"),
-        MetricSpec("process.cpu.usage"),
-        MetricSpec("http.server.requests"),
-        MetricSpec("process.uptime"),
-        MetricSpec("hikaricp.connections.active"),
-        MetricSpec("hikaricp.connections.max"),
-    ),
     val dashboard: List<GroupSpec> = DEFAULT_DASHBOARD,
 )
 

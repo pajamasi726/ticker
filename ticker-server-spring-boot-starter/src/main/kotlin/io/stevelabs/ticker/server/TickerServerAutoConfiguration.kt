@@ -39,8 +39,8 @@ class TickerServerAutoConfiguration {
     @Bean(destroyMethod = "close") fun pollExecutor(): ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
     @Bean fun poller(registry: TargetRegistry, checkers: List<HealthChecker>, store: HealthStateStore, executor: ExecutorService, poll: PollProperties) =
         Poller(registry, checkers, store, executor, poll)
-    @Bean fun metricFetcher(restClient: RestClient, detailProperties: DetailProperties): MetricSource =
-        MetricFetcher(restClient, detailProperties)
+    @Bean fun metricFetcher(restClient: RestClient, detailProperties: DetailProperties, executor: ExecutorService, poll: PollProperties): MetricSource =
+        MetricFetcher(restClient, detailProperties, executor, poll)
     @Bean fun serviceController(store: HealthStateStore) = ServiceController(store)
     @Bean fun targetController(registry: TargetRegistry, store: HealthStateStore) = TargetController(registry, store)
     @Bean fun detailController(registry: TargetRegistry, store: HealthStateStore, metricSource: MetricSource) =

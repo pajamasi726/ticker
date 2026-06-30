@@ -27,7 +27,7 @@ class DetailController(
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body<Any>(ApiError("TARGET_NOT_FOUND", "No target with id '$id'"))
         val health = store.snapshot(Instant.now()).firstOrNull { it.target.id == id }
-        val metrics = if (target.type == ServiceType.SPRING) metricSource.fetch(target) else emptyList()
+        val groups = if (target.type == ServiceType.SPRING) metricSource.fetch(target) else emptyList()
         return ResponseEntity.ok<Any>(
             ServiceDetail(
                 id = target.id,
@@ -36,7 +36,7 @@ class DetailController(
                 state = health?.state ?: ServiceState.UNKNOWN,
                 latencyMs = health?.latencyMs,
                 sparkline = health?.sparkline ?: emptyList(),
-                metrics = metrics,
+                groups = groups,
             ),
         )
     }

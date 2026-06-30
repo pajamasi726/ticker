@@ -2,7 +2,10 @@ package io.stevelabs.ticker.server
 
 import io.stevelabs.ticker.core.ServiceType
 import io.stevelabs.ticker.server.detail.MetricSource
-import io.stevelabs.ticker.server.detail.MetricValue
+import io.stevelabs.ticker.server.detail.Render
+import io.stevelabs.ticker.server.detail.ResolvedGroup
+import io.stevelabs.ticker.server.detail.ResolvedWidget
+import io.stevelabs.ticker.server.detail.Unit
 import io.stevelabs.ticker.server.poll.PollProperties
 import io.stevelabs.ticker.server.state.HealthStateStore
 import io.stevelabs.ticker.server.target.Target
@@ -31,23 +34,34 @@ class DetailControllerTest(@Autowired val mvc: MockMvc) {
         )
         @Bean fun healthStateStore(registry: TargetRegistry) = HealthStateStore(registry, PollProperties())
         @Bean fun metricSource() = object : MetricSource {
-            override fun fetch(target: Target): List<MetricValue> =
-                if (target.type == ServiceType.SPRING) listOf(MetricValue("jvm.threads.live", null, mapOf("VALUE" to 12.0))) else emptyList()
+            override fun fetch(target: Target): List<ResolvedGroup> =
+                if (target.type == ServiceType.SPRING) {
+                    listOf(
+                        ResolvedGroup(
+                            "Threads",
+                            listOf(ResolvedWidget("threads-live", "Live", Render.CHART, Unit.COUNT, 42.0, null, false)),
+                        ),
+                    )
+                } else {
+                    emptyList()
+                }
         }
     }
 
-    @Test fun `detail for a SPRING target returns metrics`() {
+    @Test fun `detail for a SPRING target returns grouped widgets`() {
         mvc.perform(get("/api/services/spring-svc/detail"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.id").value("spring-svc"))
-            .andExpect(jsonPath("$.metrics[0].name").value("jvm.threads.live"))
-            .andExpect(jsonPath("$.metrics[0].measurements.VALUE").value(12.0))
+            .andExpect(jsonPath("$.groups[0].title").value("Threads"))
+            .andExpect(jsonPath("$.groups[0].widgets[0].key").value("threads-live"))
+            .andExpect(jsonPath("$.groups[0].widgets[0].render").value("CHART"))
+            .andExpect(jsonPath("$.groups[0].widgets[0].value").value(42.0))
     }
 
-    @Test fun `detail for an HTTP target has no metrics`() {
+    @Test fun `detail for an HTTP target has empty groups`() {
         mvc.perform(get("/api/services/http-svc/detail"))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.metrics").isEmpty)
+            .andExpect(jsonPath("$.groups").isEmpty)
     }
 
     @Test fun `detail for an unknown id is 404 with error envelope`() {

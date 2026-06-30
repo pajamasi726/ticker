@@ -27,5 +27,5 @@ data class ServiceDetail(
     val state: ServiceState,
     val latencyMs: Int?,
     val sparkline: List<Int?>,
-    val metrics: List<MetricValue>,
+    val groups: List<ResolvedGroup>,
 )
