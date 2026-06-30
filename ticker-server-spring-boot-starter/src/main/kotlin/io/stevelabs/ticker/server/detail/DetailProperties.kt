@@ -18,6 +18,7 @@ data class MetricRef(val name: String, val tags: Map<String, String> = emptyMap(
  * measurement to read ("VALUE"/"COUNT"/"MAX"/"ACTIVE_TASKS", or derived "MEAN" = TOTAL_TIME/COUNT).
  * `cumulative` marks monotonic counters (the frontend charts the per-poll delta as a live rate).
  * `max` is an optional gauge denominator (its own metric+tags).
+ * `higherIsBetter` inverts gauge color severity (e.g. disk.free: a full bar is healthy, not critical).
  */
 data class WidgetSpec(
     val key: String,
@@ -29,6 +30,7 @@ data class WidgetSpec(
     val unit: Unit,
     val cumulative: Boolean = false,
     val max: MetricRef? = null,
+    val higherIsBetter: Boolean = false,
 ) {
     init {
         require(metric.matches(METRIC_NAME)) { "Invalid ticker.detail metric name (must match a Micrometer metric name): '$metric'" }
@@ -60,7 +62,7 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
             WidgetSpec("load-1m", "Load avg (1m)", "system.load.average.1m", render = Render.CHART, unit = Unit.COUNT),
             WidgetSpec("cpu-count", "CPUs", "system.cpu.count", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("files-open", "Open files", "process.files.open", render = Render.GAUGE, unit = Unit.COUNT, max = MetricRef("process.files.max")),
-            WidgetSpec("disk-free", "Disk free", "disk.free", render = Render.GAUGE, unit = Unit.BYTES, max = MetricRef("disk.total")),
+            WidgetSpec("disk-free", "Disk free", "disk.free", render = Render.GAUGE, unit = Unit.BYTES, max = MetricRef("disk.total"), higherIsBetter = true),
         ),
     ),
     GroupSpec(
@@ -131,7 +133,7 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
     GroupSpec(
         "Data Sources",
         listOf(
-            WidgetSpec("hikari-active", "Active", "hikaricp.connections.active", render = Render.CHART, unit = Unit.COUNT, max = MetricRef("hikaricp.connections.max")),
+            WidgetSpec("hikari-active", "Active", "hikaricp.connections.active", render = Render.CHART, unit = Unit.COUNT),
             WidgetSpec("hikari-idle", "Idle", "hikaricp.connections.idle", render = Render.CHART, unit = Unit.COUNT),
             WidgetSpec("hikari-pending", "Pending", "hikaricp.connections.pending", render = Render.CHART, unit = Unit.COUNT),
         ),

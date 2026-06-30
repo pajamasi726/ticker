@@ -12,6 +12,7 @@ data class ResolvedWidget(
     val value: Double?,
     val max: Double?,
     val cumulative: Boolean = false,
+    val higherIsBetter: Boolean = false,
 )
 
 /** A titled section of resolved widgets. */

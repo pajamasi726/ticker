@@ -11,7 +11,15 @@ interface MetricWidgetProps {
 /** Generic renderer: GAUGE -> Gauge, CHART -> LiveChart + current value, NUMBER -> big value. */
 export function MetricWidget({ widget, series }: MetricWidgetProps) {
   if (widget.render === 'GAUGE') {
-    return <Gauge label={widget.label} value={widget.value} max={widget.max} unit={widget.unit} />
+    return (
+      <Gauge
+        label={widget.label}
+        value={widget.value}
+        max={widget.max}
+        unit={widget.unit}
+        higherIsBetter={widget.higherIsBetter}
+      />
+    )
   }
   if (widget.render === 'CHART') {
     const current = series.length > 0 ? series[series.length - 1] : widget.value

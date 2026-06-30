@@ -11,6 +11,7 @@ export interface ResolvedWidget {
   value: number | null
   max: number | null
   cumulative: boolean
+  higherIsBetter: boolean
 }
 
 export interface ResolvedGroup {

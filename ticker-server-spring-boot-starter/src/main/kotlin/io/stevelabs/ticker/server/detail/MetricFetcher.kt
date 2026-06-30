@@ -63,7 +63,7 @@ class MetricFetcher(
         val measurements = fetchMeasurements(baseUrl, MetricRef(widget.metric, widget.tags)) ?: return null
         val value = statisticValue(measurements, widget.statistic) ?: return null
         val max = resolveMax(baseUrl, widget)
-        return ResolvedWidget(widget.key, widget.label, widget.render, widget.unit, value, max, widget.cumulative)
+        return ResolvedWidget(widget.key, widget.label, widget.render, widget.unit, value, max, widget.cumulative, widget.higherIsBetter)
     }
 
     private fun resolveMax(baseUrl: String, widget: WidgetSpec): Double? = when {
