@@ -19,7 +19,8 @@ On top of that we want a **rich, curated Spring/JVM dashboard** on click — a c
 grouped set of actuator/JVM widgets (heap & pools, GC, threads, classes, HTTP, DB pool, Tomcat,
 logback) rendered as gauges + live charts + numbers, matching the common pre-built Grafana
 Spring Boot dashboards. It's a *fixed, curated* dashboard (server-owned definition), **not** an
-end-user dashboard builder or query language; live now, opt-in stored history is the next phase.
+end-user dashboard builder or query language; live now, opt-in stored history (off by default;
+H2/MySQL; up to 7d with a time-range picker) is shipped.
 That detail is the reason we build instead of adopting:
 - **Uptime Kuma** — nails liveness, but no JVM/app internals.
 - **Netdata** — great infra view, but no app internals without per-app setup.
@@ -35,8 +36,10 @@ nginx and other non-Spring endpoints only need up/down.
 3. **SBA-style deployment.** Attach monitoring by adding a dependency — a **client starter**
    on each monitored app + a **server starter** embedded in a collector app (Spring Boot Admin
    model). Activated by properties + auto-configuration; no annotation setup required.
-4. **Drill-down on Spring internals.** Click a tile → JVM heap, GC, thread count, HTTP
-   rate/latency, DB connection pool, actuator health components.
+4. **Drill-down on Spring internals.** Click a tile → a rich curated dashboard (~9 grouped
+   sections, ~50 widgets — gauges, live charts, numbers) covering JVM heap/GC/threads/classes,
+   HTTP rate/latency/errors, DB connection pool, Tomcat, Logback, and basic process stats.
+   Click any widget for a full-page per-metric inspector with a time-range picker (live to 7d).
 5. **Simple, trustworthy alerts.** Slack on down (after debounce) and on recovery.
    Configuring alerts = setting a webhook, not authoring rules.
 6. **Open source / Maven Central.** `ticker-core`, `ticker-client-spring-boot-starter`, and
@@ -54,7 +57,8 @@ no **end-user** dashboard builder (the curated server-owned dashboard is in scop
 - A killed service shows `DOWN` and posts to Slack within ~`(pollInterval × failureThreshold)`
   seconds — and a single transient blip does **not** alert.
 - The collector runs in **one small container** (≤256Mi) at our scale.
-- Bringing the stack up locally needs **no external services** (in-memory, no DB).
+- Bringing the stack up locally needs **no external services** (in-memory, no DB by default; opt-in
+  metric history adds an embedded H2 file when `ticker.history.enabled=true`).
 
 ## UX & design direction
 The subject is a fintech **operations board** — closer to a NOC / control-room wall than a
@@ -82,7 +86,7 @@ look (the AI-dashboard cliché). Starting direction (Claude Code: refine with th
   `ticker.client.collector-url` here"), never mood. Active voice on every control.
 
 ## Open product questions (decide as you go)
-- **History retention:** how long? Default: last 24h of samples, then prune — enough for
-  "what just happened," not a TSDB.
+- **History retention:** ✓ resolved — default 7d (`ticker.history.retention`), configurable.
+  Opt-in persisted history (off by default); in-memory sparkline window always present.
 - **Degraded definition:** actuator non-UP component, or latency over threshold, or both?
   Start: actuator non-UP component OR p95 latency over `degradedLatencyMs`.

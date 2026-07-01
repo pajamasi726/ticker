@@ -45,21 +45,29 @@ from env) + `AlertService` (scheduled snapshot-diff), all gated by
 "recovered" on return; flapping respects the cooldown; `ticker.alert.enabled` not set → no
 alert beans loaded at all.
 
-## Phase 5 — Drill-down
-Detail endpoint + view: pull the metric whitelist (heap / GC / threads / HTTP / DB pool) for
-`SPRING` targets; render calm charts. Actuator non-UP components surface as `DEGRADED`.
-**Done when:** clicking a Spring tile shows live JVM / HTTP / DB internals; a degraded
-component shows amber, not red.
+## Phase 5 — Drill-down ✓ (expanded through Phase 7b)
+`GET /api/services/{id}/detail` returns a grouped, server-curated dashboard for `SPRING` targets
+(full widget inventory in Phase 7b). Actuator non-UP components surface as `DEGRADED`. The
+**per-metric inspector** (nav level 3: wall → service dashboard → per-metric detail) ships
+alongside: click any widget to open a full-page chart with an **auto / 0–100% scale toggle**, a
+**time-range picker** (live · 5m · 15m · 1h · 6h · 24h · 7d, backed by opt-in history — Phase 6),
+a **timestamp-format selector** (persisted), min/avg/max stats, HTTP by-endpoint breakdown (outcome-
+scoped), and inline alert config. HTTP targets show a minimal view; absent groups are omitted
+gracefully.
+**Done when:** ✓ grouped dashboard renders and updates live; per-metric inspector opens on widget
+click with range picker; a degraded component shows amber; HTTP target shows minimal view.
 
-## Phase 6 — History persistence + archival (optional, deferred)
-Add **optional, off-by-default embedded H2 (file)** persistence for poll history
-(`HealthSample`) only — registered targets stay heartbeat-managed in memory. Append a sample
-per poll; prune past `retention`. Then add the archive job: write+verify cold storage
-*before* deleting rows, optional S3 upload, `@ConditionalOnProperty`. **No MySQL** —
-embedded H2 file only; no external datastore.
-**Done when:** with persistence on, history survives restart and old samples are pruned; with
-archival on, aged rows land as `health-YYYY-MM-DD.ndjson.gz` and are deleted only after a
-verified write — a failed upload leaves the rows intact for the next run.
+## Phase 6 — Metric history persistence ✓ (archival to cold storage remains deferred)
+**Opt-in, off-by-default** (`ticker.history.enabled=false`). When enabled, a `@Scheduled`
+`MetricHistoryRecorder` writes resolved dashboard widget values (keyed by widget key) to a
+`metric_sample` table via Spring JDBC — **embedded H2 file** by default (`ticker.history.h2-path`);
+**MySQL** also supported (operator runs `docs/history-schema-mysql.sql`; credentials from env).
+Hourly prune to `ticker.history.retention` (default 7d). `GET /api/services/{id}/metric-history?key=&range=`
+returns server-side avg-downsampled points (≤ `maxBuckets`, default 240) for ranges 5m · 15m · 1h · 6h ·
+24h · 7d. Disabled → fully in-memory / no DB, no schema, no recorder.
+Archival-to-cold-storage (write+verify then delete, S3) remains the only deferred sub-part.
+**Done when:** ✓ with `ticker.history.enabled=true`, the drill-down range picker fetches server-side
+downsampled series; samples prune on schedule; H2 auto-creates; MySQL DDL documented.
 
 ## Phase 7 — Polish & hardening
 Design pass with the `frontend-design` skill (heartbeat signature, density, type scale, color
@@ -68,7 +76,7 @@ surface. README: deploy steps + the "not the sole alert path / watch the watcher
 **Done when:** it looks like the ops board in the PRD, the watchdog is documented and wired,
 and a teammate can deploy it from the README alone.
 
-## Phase 7b — Comprehensive Spring/JVM dashboard (live)
+## Phase 7b — Comprehensive Spring/JVM dashboard ✓ (done 2026-06-30)
 Expand the P5/P7a drill-down (7 flat cards) into a **rich curated dashboard** matching the common
 pre-built Grafana Spring Boot dashboards: ~9 grouped sections (Basic · JVM Memory heap/non-heap ·
 GC · Threads · Classes & HTTP · Logback · Data Sources · Web) of ~40 widgets rendered as gauges +
@@ -81,8 +89,8 @@ a fixed curated dashboard, not a configurable builder / query language.
 **Done when:** clicking a Spring tile opens a wide, grouped dashboard updating live; absent groups
 (e.g. no-DB → Data Sources) are omitted gracefully; only `/actuator/metrics/` is ever called;
 `./gradlew test` green; `npm run build` clean; a Playwright screenshot shows the grouped dashboard.
-Stored history / a "Last N min" time-axis is the **next phase** (the renderer is built to receive
-stored series).
+Stored history / a "Last N min" time-axis shipped in **Phase 6** (the renderer already receives
+stored series via the range picker).
 
 ## Phase 7c — Metric-threshold alerting ✓ (done 2026-07-01)
 Per-metric threshold alerts on top of the existing alert subsystem. Recommended defaults
@@ -96,6 +104,10 @@ recent-fires log (`GET /api/alerts/recent`) so breaches are visible without Slac
 incident alerting (guardrail #3).
 **Done when:** ✓ a low threshold set in the UI fires within the eval interval and shows in "Recent
 alerts"; tests green; Playwright shows the 🔔 popover + fired strip. (`docs/qa/2026-07-01-alerting/`.)
+
+> *The Phase 7b dashboard-richness expansion and the Phase 6 opt-in DB history were deliberate
+> product-owner scope calls made during development; both stay within the prime directive
+> (fixed curated dashboard, not a configurable builder or TSDB).*
 
 ## Phase 8 — UI-managed HTTP/endpoint monitors (pull / health-check + warm-up) — PLANNED
 Let an operator add a **plain HTTP target** from the UI (not just `targets.yml`): name + URL (or
@@ -127,7 +139,7 @@ Publish `ticker-core`, `ticker-client-spring-boot-starter`, and `ticker-server-s
 
 ## Explicitly later / maybe never
 Telegram / email notifiers · auth / RBAC · multi-collector federation · long *queryable*
-history (use a real TSDB instead) · MySQL (not a near-term goal) / any external datastore ·
-auto-remediation.
+history (use a real TSDB instead) · a required external datastore (MySQL as an opt-in history
+backend is shipped; MySQL as a mandatory dependency is not a goal) · auto-remediation.
 Only on explicit request — and check it's still in the tool's spirit (a *simple liveness
 board*) first.
