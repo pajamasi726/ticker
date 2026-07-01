@@ -3,7 +3,9 @@ package io.stevelabs.ticker.server.detail
 import io.stevelabs.ticker.core.ServiceType
 import io.stevelabs.ticker.server.state.ServiceState
 
-/** One resolved widget: a value (and optional gauge max), tagged with how to render/format it. */
+/** One resolved widget: a value (and optional gauge max), tagged with how to render/format it.
+ *  `available` is false when the target does not expose this metric — the UI shows it dimmed
+ *  ("not collected") rather than hiding it, so the full curated catalog stays visible. */
 data class ResolvedWidget(
     val key: String,
     val label: String,
@@ -15,6 +17,7 @@ data class ResolvedWidget(
     val higherIsBetter: Boolean = false,
     val perSecond: Boolean = false,
     val ratio: RatioSpec? = null,
+    val available: Boolean = true,
 )
 
 /** A titled section of resolved widgets. */

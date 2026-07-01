@@ -26,14 +26,17 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
   'heap-used':     { important: true, hasTip: true },
   'heap-eden':     { hasTip: true },
   'heap-old':      { important: true, hasTip: true },
-  'heap-survivor': {},
+  'heap-survivor':  {},
+  'heap-committed': { hasTip: true },
 
   // JVM memory — non-heap
   'nonheap-used':             { hasTip: true },
   'nonheap-metaspace':        { important: true, hasTip: true },
   'nonheap-compressed-class': {},
   'nonheap-code-cache':       { hasTip: true },
+  'nonheap-committed':        { hasTip: true },
   buffers:                    { hasTip: true },
+  'buffer-count':             { hasTip: true },
 
   // GC
   'gc-pause-count': { hasTip: true },
@@ -69,6 +72,12 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
   'http-client-error':{ hasTip: true },
   'http-server-error':{ important: true, hasTip: true },
 
+  // HTTP client
+  'http-client-rps':          { hasTip: true },
+  'http-client-latency-avg':  { hasTip: true },
+  'http-client-latency-max':  { hasTip: true },
+  'http-client-server-error': { important: true, hasTip: true },
+
   // Logback
   'log-error': { important: true, hasTip: true },
   'log-warn':  {},
@@ -78,17 +87,59 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
   'hikari-active':  {},
   'hikari-idle':    {},
   'hikari-pending': { important: true, hasTip: true },
+  'hikari-total':   {},
+  'hikari-max':     {},
+
+  // JDBC
+  'jdbc-active':    { important: true, hasTip: true },
+  'jdbc-idle':      {},
+  'jdbc-max':       {},
+  'jdbc-min':       {},
+
+  // Hibernate
+  'hibernate-sessions-open':          { hasTip: true },
+  'hibernate-transactions':           { hasTip: true },
+  'hibernate-connections-obtained':   { hasTip: true },
+  'hibernate-statements':             { hasTip: true },
+  'hibernate-query-executions':       { hasTip: true },
+  'hibernate-query-max':              { hasTip: true },
+  'hibernate-2lc-hit':                { hasTip: true },
+  'hibernate-2lc-miss':               { important: true, hasTip: true },
+  'hibernate-flushes':                {},
+
+  // Spring Cache
+  'cache-gets-hit':  { hasTip: true },
+  'cache-gets-miss': { important: true, hasTip: true },
+  'cache-puts':      {},
+  'cache-evictions': { hasTip: true },
+  'cache-size':      {},
 
   // Tomcat
-  'tomcat-sessions-active':   {},
-  'tomcat-sessions-created':  {},
-  'tomcat-sessions-expired':  {},
-  'tomcat-sessions-rejected': { important: true, hasTip: true },
-  'tomcat-threads-busy':      { hasTip: true },
+  'tomcat-sessions-active':     {},
+  'tomcat-sessions-created':    {},
+  'tomcat-sessions-expired':    {},
+  'tomcat-sessions-rejected':   { important: true, hasTip: true },
+  'tomcat-threads-busy':        { hasTip: true },
+  'tomcat-threads-current':     { hasTip: true },
+  'tomcat-threads-max':         {},
+  'tomcat-connections-current': { important: true, hasTip: true },
+  'tomcat-connections-max':     {},
+  'tomcat-global-requests':     { hasTip: true },
+  'tomcat-global-request-max':  { hasTip: true },
+  'tomcat-global-errors':       { important: true, hasTip: true },
+  'tomcat-bytes-sent':          { hasTip: true },
+  'tomcat-bytes-received':      { hasTip: true },
+  'tomcat-sessions-active-max': {},
 
   // Scheduled tasks
   'sched-exec':   {},
   'sched-active': { hasTip: true },
+
+  // Task executor (@Async / ThreadPoolTaskExecutor)
+  'executor-active':    { hasTip: true },
+  'executor-queued':    { important: true, hasTip: true },
+  'executor-pool-size': {},
+  'executor-completed': { hasTip: true },
 }
 
 export const infoFor = (key: string): MetricInfo | undefined => METRIC_INFO[key]

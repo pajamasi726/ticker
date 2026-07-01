@@ -38,8 +38,9 @@
   `add-monitored-service` skill).
 - **HealthState** — per-target state machine + recent sample history.
 - **MetricFetcher** — resolves the server-owned dashboard definition (`ticker.detail.dashboard`) against
-  live `/actuator/metrics/{name}` calls for a `SPRING` target, fanned out over virtual threads. Returns
-  grouped resolved widgets; absent groups are omitted gracefully. Only whitelisted metric paths are ever
+  live `/actuator/metrics/{name}` calls for a `SPRING` target, fanned out over virtual threads. Reads the
+  target's metric-names list once, then fetches only the metrics it exposes; every widget is returned with
+  an `available` flag (absent → dimmed in the UI, not hidden). Only whitelisted metric paths are ever
   called (guardrail #4).
 - **AlertEngine** — detects state-machine transitions, applies debounce/cooldown, dispatches via `AlertSender`.
 - **MetricAlertStore** — holds the in-memory set of per-metric threshold rules (6 recommended defaults:
@@ -92,23 +93,34 @@ States: `UNKNOWN` (never successfully polled / stale) -> `UP` <-> `DEGRADED` <->
 
 ## Dashboard definition and metric whitelist (drill-down)
 The collector owns a **server-curated dashboard definition** (`ticker.detail.dashboard`, a
-`@ConfigurationProperties` bean, overridable). It describes ~9 grouped sections of ~50 widgets
-rendered as gauges, live charts, or numbers:
+`@ConfigurationProperties` bean, overridable). It describes **15 grouped sections (~90 widgets)** —
+the full common Spring Boot / Micrometer metric set — rendered as gauges, live charts, or numbers:
 
 | Group | Sample metrics |
 |---|---|
 | Basic | `process.uptime`, `process.start.time`, `process.cpu.usage`, `system.cpu.usage`, `system.load.average.1m`, `process.files.open`, `disk.free` |
-| JVM Memory (heap) | `jvm.memory.used/max` `area:heap`, G1 Eden/Old/Survivor pools |
-| JVM Memory (non-heap) | `jvm.memory.used` `area:nonheap`, Metaspace, Compressed Class Space, Code Cache, buffers |
-| GC | `jvm.gc.pause`, `jvm.gc.memory.allocated`, `jvm.gc.memory.promoted`, `jvm.gc.overhead` |
-| Threads | `jvm.threads.live/daemon/peak/states` |
-| Classes & HTTP | `jvm.classes.loaded`, `jvm.compilation.time`, `http.server.requests` (count/latency/active/by-outcome) |
+| Throughput & Errors | `http.server.requests` rate, error-rate (derived), `jvm.gc.memory.allocated` rate |
+| JVM Memory (heap) | `jvm.memory.used/committed/max` `area:heap`, G1 Eden/Old/Survivor pools |
+| JVM Memory (non-heap) | `jvm.memory.used/committed` `area:nonheap`, Metaspace, Compressed Class, Code Cache, `jvm.buffer.*` |
+| GC | `jvm.gc.pause` (full/minor), `jvm.gc.memory.allocated/promoted`, `jvm.gc.overhead`, `jvm.memory.usage.after.gc` |
+| Threads | `jvm.threads.live/daemon/peak/started/states` |
+| Classes & HTTP | `jvm.classes.*`, `jvm.compilation.time`, `http.server.requests` (count/latency/active/by-outcome) |
+| HTTP Client | `http.client.requests` (rate/latency/5xx) |
 | Logback | `logback.events` by level |
-| Data Sources | `hikaricp.connections.*` (omitted when absent) |
-| Web | `tomcat.sessions.*`, `tomcat.threads.*` (omitted when absent) |
+| Data Sources | `hikaricp.connections.*`, `jdbc.connections.*` |
+| JPA / Hibernate | `hibernate.sessions/transactions/statements/query.executions/second.level.cache.*` |
+| Cache | `cache.gets` (hit/miss), `cache.puts`, `cache.evictions`, `cache.size` |
+| Web (Tomcat) | `tomcat.threads.*`, `tomcat.connections.*`, `tomcat.global.request/error/sent/received`, `tomcat.sessions.*` |
+| Task Executors | `executor.active/queued/pool.size/completed` |
+| Scheduled Tasks | `tasks.scheduled.execution` |
 
-`MetricFetcher` resolves each widget via `GET {url}/actuator/metrics/{name}` (with fixed tag filters)
-over virtual threads. A group whose every widget fails to resolve is omitted entirely.
+`MetricFetcher` first does one `GET {url}/actuator/metrics` to learn which metrics the target
+exposes, then resolves only those via `GET {url}/actuator/metrics/{name}` (with fixed tag filters)
+over virtual threads — no wasted request for the (many) metrics a given app doesn't have. **Every
+widget and group is always returned**: one whose metric is absent comes back with `available=false`,
+and the UI renders it **dimmed ("not collected")** rather than hiding it, so the full catalog stays
+visible and you can see at a glance what a target does and doesn't expose. (A target whose metrics
+endpoint is entirely unreachable yields no groups — the UI shows a "no metrics" note instead.)
 
 **Never** fetch `/actuator/env`, `/actuator/configprops`, `/actuator/heapdump`, or anything
 secret-bearing. The whitelist is explicit, code-reviewed, and enforced by a guardrail-#4 test.
@@ -164,7 +176,7 @@ by `GET /api/services/{id}/metric-history` for the drill-down range picker.
 | `GET`    | `/api/targets`                                  | list static + registered + UI targets |
 | `DELETE` | `/api/targets/{id}`                             | remove a UI or registered target (static → 409) |
 | `GET`    | `/api/services`                                 | **UI feed:** every target + current state + `source` + sparkline |
-| `GET`    | `/api/services/{id}/detail`                     | grouped dashboard detail (SPRING: resolved widgets; HTTP: empty groups) |
+| `GET`    | `/api/services/{id}/detail`                     | full curated dashboard (SPRING: every widget, each with `available`; HTTP: empty groups) |
 | `GET`    | `/api/services/{id}/metric-breakdown`           | tag-breakdown for a whitelisted metric (`?metric=&tag=&filter=`); guardrail #4 enforced |
 | `GET`    | `/api/services/{id}/metric-history`             | server-side avg-downsampled history (`?key=&range=5m\|15m\|1h\|6h\|24h\|7d`); requires `ticker.history.enabled` |
 | `GET`    | `/api/alerts/rules`                             | list all metric-alert rules (opt-in, `ticker.alert.enabled`) |

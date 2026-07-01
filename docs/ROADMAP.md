@@ -86,9 +86,16 @@ live charts + numbers. The backend owns the **dashboard definition** (`ticker.de
 Charts accumulate live while open (cumulative counters charted as per-poll deltas). This is a
 deliberate identity expansion: "liveness board **+ a rich curated Spring/JVM dashboard**" — still
 a fixed curated dashboard, not a configurable builder / query language.
-**Done when:** clicking a Spring tile opens a wide, grouped dashboard updating live; absent groups
-(e.g. no-DB → Data Sources) are omitted gracefully; only `/actuator/metrics/` is ever called;
-`./gradlew test` green; `npm run build` clean; a Playwright screenshot shows the grouped dashboard.
+**Done when:** clicking a Spring tile opens a wide, grouped dashboard updating live; absent metrics
+are handled gracefully; only `/actuator/metrics/` is ever called; `./gradlew test` green;
+`npm run build` clean; a Playwright screenshot shows the grouped dashboard.
+
+**Extended 2026-07-01 — full catalog + dimmed-absent:** the set now spans the full common Micrometer
+surface — **15 groups, ~90 widgets** (added HTTP Client, JPA/Hibernate, Cache, full Tomcat
+threads/connections/throughput, generic JDBC, Task Executors). Absent metrics are **no longer
+omitted** — every widget carries an `available` flag and the UI renders uncollected ones **dimmed
+("not collected")**, so the whole catalog stays visible per target. `MetricFetcher` reads the
+target's metric-names list once and GETs only what exists, keeping request volume sane.
 Stored history / a "Last N min" time-axis shipped in **Phase 6** (the renderer already receives
 stored series via the range picker).
 

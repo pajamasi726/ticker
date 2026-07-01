@@ -127,7 +127,9 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
                 </span>
               </span>
             </div>
-            {chartData.length > 1 ? (
+            {!widget.available ? (
+              <div className="mi__muted">{t('metric.unavailable')}</div>
+            ) : chartData.length > 1 ? (
               <>
                 <div className="mi__chart"><LiveChart data={chartData} timestamps={chartTs} unit={widget.unit} height={260} showTime fullScale={fullScale} intervalSec={5} timeFmt={fmt} /></div>
                 {stats && (

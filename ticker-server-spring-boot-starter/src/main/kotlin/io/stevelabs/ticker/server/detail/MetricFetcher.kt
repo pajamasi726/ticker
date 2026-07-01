@@ -35,8 +35,9 @@ interface MetricSource {
 /**
  * Resolves the curated dashboard against a target's actuator, pulling ONLY whitelisted
  * /actuator/metrics/{name} (guardrail #4). Widget resolutions fan out over virtual threads
- * (the Poller pattern), bounded by the per-call RestClient timeout. A widget whose primary
- * metric is missing/unreachable is dropped; a group with no surviving widgets is omitted.
+ * (the Poller pattern), bounded by the per-call RestClient timeout. Every widget and group is
+ * always returned: one whose metric is missing/unreachable comes back with available=false so the
+ * UI can show the full catalog with uncollected metrics dimmed rather than silently hidden.
  */
 class MetricFetcher(
     private val restClient: RestClient,
@@ -96,16 +97,29 @@ class MetricFetcher(
 
     override fun fetch(target: Target): List<ResolvedGroup> {
         if (target.type != ServiceType.SPRING) return emptyList()
-        // Submit every widget across every group first, so all GETs run concurrently, then collect.
+        // One GET lists the metrics this target actually exposes. We only fan out GETs for widgets
+        // whose metric is present; the rest render dimmed (available=false) with no wasted request —
+        // important now the curated catalog is large and most metrics are absent on a given target.
+        val present = fetchMetricNames(target.url)
+        // No names → actuator metrics unreachable/not exposed: return empty (UI shows the "no metrics"
+        // note) rather than a whole catalog of dimmed widgets for a target we can't read at all.
+        if (present.isEmpty()) return emptyList()
         val pending = properties.dashboard.map { group ->
             group to group.widgets.map { widget ->
-                executor.submit<ResolvedWidget?> { resolveWidget(target.url, widget) }
+                val future = if (widget.metric in present) executor.submit<ResolvedWidget?> { resolveWidget(target.url, widget) } else null
+                widget to future
             }
         }
-        return pending.mapNotNull { (group, futures) ->
-            val widgets = futures.mapNotNull { await(it) }
-            if (widgets.isEmpty()) null else ResolvedGroup(group.title, widgets)
+        return pending.map { (group, pairs) ->
+            val widgets = pairs.map { (spec, future) -> future?.let { await(it) } ?: unavailable(spec) }
+            ResolvedGroup(group.title, widgets)
         }
+    }
+
+    /** Names of the metrics this target exposes (GET /actuator/metrics). Empty set if unreachable. */
+    private fun fetchMetricNames(baseUrl: String): Set<String> {
+        val body = fetchBody(URI.create("${baseUrl.trimEnd('/')}/actuator/metrics")) ?: return emptySet()
+        return (body["names"] as? List<*>).orEmpty().mapNotNull { it?.toString() }.toSet()
     }
 
     private fun await(future: Future<ResolvedWidget?>): ResolvedWidget? =
@@ -121,12 +135,16 @@ class MetricFetcher(
             null
         }
 
-    private fun resolveWidget(baseUrl: String, widget: WidgetSpec): ResolvedWidget? {
-        val measurements = fetchMeasurements(baseUrl, MetricRef(widget.metric, widget.tags)) ?: return null
-        val value = statisticValue(measurements, widget.statistic) ?: return null
+    private fun resolveWidget(baseUrl: String, widget: WidgetSpec): ResolvedWidget {
+        val measurements = fetchMeasurements(baseUrl, MetricRef(widget.metric, widget.tags))
+        val value = measurements?.let { statisticValue(it, widget.statistic) } ?: return unavailable(widget)
         val max = resolveMax(baseUrl, widget)
-        return ResolvedWidget(widget.key, widget.label, widget.render, widget.unit, value, max, widget.cumulative, widget.higherIsBetter, widget.perSecond, widget.ratio)
+        return ResolvedWidget(widget.key, widget.label, widget.render, widget.unit, value, max, widget.cumulative, widget.higherIsBetter, widget.perSecond, widget.ratio, available = true)
     }
+
+    /** A placeholder widget for a metric this target does not expose — rendered dimmed by the UI. */
+    private fun unavailable(widget: WidgetSpec): ResolvedWidget =
+        ResolvedWidget(widget.key, widget.label, widget.render, widget.unit, null, null, widget.cumulative, widget.higherIsBetter, widget.perSecond, widget.ratio, available = false)
 
     private fun resolveMax(baseUrl: String, widget: WidgetSpec): Double? = when {
         widget.max != null -> fetchMeasurements(baseUrl, widget.max)?.let { statisticValue(it, "VALUE") }

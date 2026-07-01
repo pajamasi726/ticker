@@ -204,6 +204,10 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .widget:hover { border-color: var(--border-strong); }
 .widget--chart { grid-column: span 2; }
 .widget--number { justify-content: space-between; }
+/* Metric not collected on this target: dimmed, with a small note where the value would be. */
+.widget--unavailable { opacity: .45; }
+.widget--unavailable:hover { opacity: .7; border-color: var(--border); }
+.widget__na { font-family: var(--mono); font-size: 11px; color: var(--text-faint); letter-spacing: .3px; }
 .widget__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .widget__label {
   font-size: 10.5px;

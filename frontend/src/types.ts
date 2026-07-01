@@ -17,6 +17,7 @@ export interface ResolvedWidget {
   higherIsBetter: boolean
   perSecond: boolean
   ratio: { numerator: string[]; denominator: string[] } | null
+  available: boolean // false → target doesn't expose this metric; UI shows it dimmed ("not collected")
 }
 
 export interface ResolvedGroup {

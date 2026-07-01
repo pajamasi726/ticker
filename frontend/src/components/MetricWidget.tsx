@@ -44,6 +44,20 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
     : {}
   const cls = `${open ? ' widget--clickable' : ''}${important ? ' widget--important' : ''}`
 
+  // Not collected on this target: show the widget dimmed with a note (keeps the full catalog visible)
+  // instead of hiding it. Still clickable + ⓘ so its "about" info explains what you're missing.
+  if (!widget.available) {
+    return (
+      <div className={`widget widget--number widget--unavailable${open ? ' widget--clickable' : ''}`} {...interactive}>
+        <div className="widget__head">
+          <span className="widget__label">{widget.label}</span>
+          {infoBtn}
+        </div>
+        <div className="widget__na">{t('metric.unavailable')}</div>
+      </div>
+    )
+  }
+
   if (widget.render === 'GAUGE') {
     return (
       <Gauge

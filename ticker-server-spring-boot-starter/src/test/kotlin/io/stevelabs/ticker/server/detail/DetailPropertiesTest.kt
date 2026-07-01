@@ -16,9 +16,13 @@ class DetailPropertiesTest {
             "GC",
             "Threads",
             "Classes & HTTP",
+            "HTTP Client",
             "Logback",
             "Data Sources",
-            "Web",
+            "JPA / Hibernate",
+            "Cache",
+            "Web (Tomcat)",
+            "Task Executors",
             "Scheduled Tasks",
         )
     }

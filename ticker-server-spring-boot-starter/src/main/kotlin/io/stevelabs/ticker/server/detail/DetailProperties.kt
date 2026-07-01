@@ -87,6 +87,7 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
         "JVM Memory (heap)",
         listOf(
             WidgetSpec("heap-used", "Heap used", "jvm.memory.used", tags = mapOf("area" to "heap"), render = Render.GAUGE, unit = Unit.BYTES, max = MetricRef("jvm.memory.max", mapOf("area" to "heap"))),
+            WidgetSpec("heap-committed", "Heap committed", "jvm.memory.committed", tags = mapOf("area" to "heap"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("heap-eden", "G1 Eden", "jvm.memory.used", tags = mapOf("id" to "G1 Eden Space"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("heap-old", "G1 Old Gen", "jvm.memory.used", tags = mapOf("id" to "G1 Old Gen"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("heap-survivor", "G1 Survivor", "jvm.memory.used", tags = mapOf("id" to "G1 Survivor Space"), render = Render.CHART, unit = Unit.BYTES),
@@ -97,10 +98,12 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
         listOf(
             // Trend, not a gauge: non-heap "committed" grows on demand, so used/committed near 100% is normal, not critical.
             WidgetSpec("nonheap-used", "Non-heap used", "jvm.memory.used", tags = mapOf("area" to "nonheap"), render = Render.CHART, unit = Unit.BYTES),
+            WidgetSpec("nonheap-committed", "Non-heap committed", "jvm.memory.committed", tags = mapOf("area" to "nonheap"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("nonheap-metaspace", "Metaspace", "jvm.memory.used", tags = mapOf("id" to "Metaspace"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("nonheap-compressed-class", "Compressed Class", "jvm.memory.used", tags = mapOf("id" to "Compressed Class Space"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("nonheap-code-cache", "Code cache", "jvm.memory.used", tags = mapOf("id" to "CodeHeap 'profiled nmethods'"), render = Render.CHART, unit = Unit.BYTES),
             WidgetSpec("buffers", "Buffers", "jvm.buffer.memory.used", render = Render.CHART, unit = Unit.BYTES),
+            WidgetSpec("buffer-count", "Direct buffers", "jvm.buffer.count", tags = mapOf("id" to "direct"), render = Render.NUMBER, unit = Unit.COUNT),
         ),
     ),
     GroupSpec(
@@ -148,6 +151,16 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
         ),
     ),
     GroupSpec(
+        // Outbound calls this app makes (RestClient/RestTemplate/WebClient); present only if instrumented.
+        "HTTP Client",
+        listOf(
+            WidgetSpec("http-client-rps", "Requests/sec", "http.client.requests", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true, perSecond = true),
+            WidgetSpec("http-client-latency-avg", "Avg latency", "http.client.requests", statistic = "MEAN", render = Render.CHART, unit = Unit.SECONDS),
+            WidgetSpec("http-client-latency-max", "Max latency", "http.client.requests", statistic = "MAX", render = Render.CHART, unit = Unit.SECONDS),
+            WidgetSpec("http-client-server-error", "Server error (5xx)", "http.client.requests", tags = mapOf("outcome" to "SERVER_ERROR"), statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+        ),
+    ),
+    GroupSpec(
         "Logback",
         listOf(
             WidgetSpec("log-error", "Error", "logback.events", tags = mapOf("level" to "error"), statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
@@ -158,19 +171,73 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
     GroupSpec(
         "Data Sources",
         listOf(
-            WidgetSpec("hikari-active", "Active", "hikaricp.connections.active", render = Render.CHART, unit = Unit.COUNT),
-            WidgetSpec("hikari-idle", "Idle", "hikaricp.connections.idle", render = Render.CHART, unit = Unit.COUNT),
-            WidgetSpec("hikari-pending", "Pending", "hikaricp.connections.pending", render = Render.CHART, unit = Unit.COUNT),
+            // HikariCP-specific (hikaricp.*) plus the generic Spring pool metrics (jdbc.connections.*).
+            WidgetSpec("hikari-active", "Hikari active", "hikaricp.connections.active", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("hikari-idle", "Hikari idle", "hikaricp.connections.idle", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("hikari-pending", "Hikari pending", "hikaricp.connections.pending", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("hikari-total", "Hikari total", "hikaricp.connections", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("hikari-max", "Hikari max", "hikaricp.connections.max", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("jdbc-active", "JDBC active", "jdbc.connections.active", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("jdbc-idle", "JDBC idle", "jdbc.connections.idle", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("jdbc-max", "JDBC max", "jdbc.connections.max", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("jdbc-min", "JDBC min", "jdbc.connections.min", render = Render.NUMBER, unit = Unit.COUNT),
         ),
     ),
     GroupSpec(
-        "Web",
+        // Hibernate/JPA stats — present only if spring-data-jpa + hibernate.generate_statistics=true.
+        "JPA / Hibernate",
         listOf(
+            WidgetSpec("hibernate-sessions-open", "Sessions/sec", "hibernate.sessions.open", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true, perSecond = true),
+            WidgetSpec("hibernate-transactions", "Transactions", "hibernate.transactions", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("hibernate-connections-obtained", "Connections obtained", "hibernate.connections.obtained", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("hibernate-statements", "Statements prepared", "hibernate.statements", tags = mapOf("status" to "prepared"), statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("hibernate-query-executions", "Query executions", "hibernate.query.executions", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("hibernate-query-max", "Slowest query", "hibernate.query.executions", statistic = "MAX", render = Render.CHART, unit = Unit.SECONDS),
+            WidgetSpec("hibernate-2lc-hit", "L2 cache hits", "hibernate.second.level.cache.requests", tags = mapOf("result" to "hit"), statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("hibernate-2lc-miss", "L2 cache misses", "hibernate.second.level.cache.requests", tags = mapOf("result" to "miss"), statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("hibernate-flushes", "Flushes", "hibernate.flushes", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+        ),
+    ),
+    GroupSpec(
+        // Spring cache abstraction (Caffeine/Ehcache/etc.) — present only if a MeterBinder-backed cache is used.
+        "Cache",
+        listOf(
+            WidgetSpec("cache-gets-hit", "Hits", "cache.gets", tags = mapOf("result" to "hit"), statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("cache-gets-miss", "Misses", "cache.gets", tags = mapOf("result" to "miss"), statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("cache-puts", "Puts", "cache.puts", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("cache-evictions", "Evictions", "cache.evictions", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("cache-size", "Estimated size", "cache.size", render = Render.NUMBER, unit = Unit.COUNT),
+        ),
+    ),
+    GroupSpec(
+        // Tomcat threads/connections/throughput need server.tomcat.mbeanregistry.enabled=true; sessions don't.
+        "Web (Tomcat)",
+        listOf(
+            WidgetSpec("tomcat-threads-busy", "Threads busy", "tomcat.threads.busy", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("tomcat-threads-current", "Threads current", "tomcat.threads.current", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("tomcat-threads-max", "Threads max", "tomcat.threads.config.max", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("tomcat-connections-current", "Connections", "tomcat.connections.current", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("tomcat-connections-max", "Connections max", "tomcat.connections.max", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("tomcat-global-requests", "Requests/sec", "tomcat.global.request", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true, perSecond = true),
+            WidgetSpec("tomcat-global-request-max", "Slowest request", "tomcat.global.request", statistic = "MAX", render = Render.CHART, unit = Unit.SECONDS),
+            WidgetSpec("tomcat-global-errors", "Request errors", "tomcat.global.error", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
+            WidgetSpec("tomcat-bytes-sent", "Bytes sent/sec", "tomcat.global.sent", statistic = "COUNT", render = Render.CHART, unit = Unit.BYTES, cumulative = true, perSecond = true),
+            WidgetSpec("tomcat-bytes-received", "Bytes recv/sec", "tomcat.global.received", statistic = "COUNT", render = Render.CHART, unit = Unit.BYTES, cumulative = true, perSecond = true),
             WidgetSpec("tomcat-sessions-active", "Sessions active", "tomcat.sessions.active.current", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("tomcat-sessions-active-max", "Sessions active max", "tomcat.sessions.active.max", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("tomcat-sessions-created", "Sessions created", "tomcat.sessions.created", statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("tomcat-sessions-expired", "Sessions expired", "tomcat.sessions.expired", statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("tomcat-sessions-rejected", "Sessions rejected", "tomcat.sessions.rejected", statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
-            WidgetSpec("tomcat-threads-busy", "Threads busy", "tomcat.threads.busy", render = Render.CHART, unit = Unit.COUNT),
+        ),
+    ),
+    GroupSpec(
+        // Spring @Async / task executors (executor.*) — present only if a ThreadPoolTaskExecutor is instrumented.
+        "Task Executors",
+        listOf(
+            WidgetSpec("executor-active", "Active", "executor.active", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("executor-queued", "Queued", "executor.queued", render = Render.CHART, unit = Unit.COUNT),
+            WidgetSpec("executor-pool-size", "Pool size", "executor.pool.size", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("executor-completed", "Completed", "executor.completed", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
         ),
     ),
     GroupSpec(

@@ -111,6 +111,7 @@ const en: Dict = {
   // Metric info panel
   'info.about': 'ⓘ About this metric',
   'info.tip': 'Monitoring tip',
+  'metric.unavailable': 'Not collected on this target',
 
   // Alert section
   'alert.title': '🔔 Alert',
@@ -167,6 +168,8 @@ const en: Dict = {
   'metric.heap-old.desc': 'G1 Old Gen — long-lived objects promoted out of young gen.',
   'metric.heap-old.tip': 'A steadily rising floor that GC never reclaims is the classic memory-leak signature.',
   'metric.heap-survivor.desc': 'G1 Survivor space — objects that survived a minor GC, aging toward old gen.',
+  'metric.heap-committed.desc': 'Heap memory committed (reserved) from the OS — always ≥ used (jvm.memory.committed, area=heap).',
+  'metric.heap-committed.tip': 'A large gap between committed and used is fine; the JVM pre-reserved more than it currently needs. Watch if committed keeps growing after GC.',
 
   // JVM memory — non-heap
   'metric.nonheap-used.desc': 'Non-heap memory: Metaspace, code cache, thread stacks, direct buffers (not bounded by -Xmx).',
@@ -176,8 +179,12 @@ const en: Dict = {
   'metric.nonheap-compressed-class.desc': 'Compressed class space — a sub-region of Metaspace for class pointers.',
   'metric.nonheap-code-cache.desc': 'JIT-compiled native code (CodeHeap).',
   'metric.nonheap-code-cache.tip': 'If it fills, the JIT stops compiling and performance quietly degrades — watch for a plateau at the ceiling.',
+  'metric.nonheap-committed.desc': 'Non-heap memory committed from the OS — Metaspace, code cache, etc. (jvm.memory.committed, area=nonheap).',
+  'metric.nonheap-committed.tip': 'Grows as new classes load and the JIT warms up. A plateau is healthy; continuous growth hints at classloader churn.',
   'metric.buffers.desc': 'Direct/mapped NIO byte buffers (jvm.buffer.memory.used) — off-heap.',
   'metric.buffers.tip': 'Netty/NIO-heavy apps grow this; a leak here shows as rising RSS with flat heap.',
+  'metric.buffer-count.desc': 'Number of direct NIO byte buffers currently allocated (jvm.buffer.count, id=direct).',
+  'metric.buffer-count.tip': 'A rising count with flat capacity = many small buffers created but not released. Correlate with RSS growth.',
 
   // GC
   'metric.gc-pause-count.desc': 'Total GC pauses per interval (jvm.gc.pause count).',
@@ -231,6 +238,16 @@ const en: Dict = {
   'metric.http-server-error.desc': '5xx server-error responses.',
   'metric.http-server-error.tip': 'Your bugs/outages. Any sustained 5xx warrants a look; alert via Error rate.',
 
+  // HTTP client
+  'metric.http-client-rps.desc': 'Outbound HTTP client request rate (http.client.requests count/s).',
+  'metric.http-client-rps.tip': 'Shows how heavily this service calls downstream APIs. A drop while inbound traffic is steady hints at a circuit-breaker open or client timeout.',
+  'metric.http-client-latency-avg.desc': 'Mean latency of outbound HTTP client calls (http.client.requests MEAN).',
+  'metric.http-client-latency-avg.tip': 'Rising mean = a downstream dependency is slowing down. Combine with max to gauge tail impact.',
+  'metric.http-client-latency-max.desc': 'Worst (maximum) latency of outbound HTTP client calls in the window (http.client.requests MAX).',
+  'metric.http-client-latency-max.tip': 'Latency spikes here with flat server-side latency point to a slow upstream dependency, not this service.',
+  'metric.http-client-server-error.desc': '5xx responses received from downstream dependencies (http.client.requests outcome=SERVER_ERROR).',
+  'metric.http-client-server-error.tip': 'Your dependency health signal. Any sustained 5xx from a downstream = that service has a problem; expect cascading failures on critical paths.',
+
   // Logback
   'metric.log-error.desc': 'ERROR-level log events per interval (logback.events).',
   'metric.log-error.tip': 'A burst of ERROR logs usually precedes or accompanies an incident.',
@@ -242,6 +259,44 @@ const en: Dict = {
   'metric.hikari-idle.desc': 'Idle DB connections available in the pool.',
   'metric.hikari-pending.desc': 'Threads waiting to borrow a DB connection.',
   'metric.hikari-pending.tip': 'Anything >0 sustained = pool exhaustion — requests are blocked waiting for a connection. Raise pool size or fix slow queries.',
+  'metric.hikari-total.desc': 'Total connections in the HikariCP pool (hikaricp.connections) — active + idle.',
+  'metric.hikari-max.desc': 'Configured maximum pool size for HikariCP (hikaricp.connections.max).',
+
+  // JDBC
+  'metric.jdbc-active.desc': 'JDBC connections currently in use (jdbc.connections.active) — generic Spring pool metric.',
+  'metric.jdbc-active.tip': 'Near jdbc-max = the pool is about to exhaust. Requests will block waiting for a connection — check for slow queries holding connections.',
+  'metric.jdbc-idle.desc': 'Idle pooled JDBC connections available for checkout (jdbc.connections.idle).',
+  'metric.jdbc-max.desc': 'Configured maximum pool size for the generic Spring JDBC pool (jdbc.connections.max).',
+  'metric.jdbc-min.desc': 'Configured minimum idle connections for the JDBC pool (jdbc.connections.min).',
+
+  // Hibernate
+  'metric.hibernate-sessions-open.desc': 'Hibernate sessions opened per second (hibernate.sessions.open count/s).',
+  'metric.hibernate-sessions-open.tip': 'High rate = many short-lived sessions. Each involves a transaction; rising rate under steady load hints at a session-per-request pattern.',
+  'metric.hibernate-transactions.desc': 'Database transactions executed by Hibernate (hibernate.transactions).',
+  'metric.hibernate-transactions.tip': 'A transaction count far exceeding request count = multiple transactions per request — review @Transactional boundaries.',
+  'metric.hibernate-connections-obtained.desc': 'JDBC connections obtained by Hibernate from the pool (hibernate.connections.obtained).',
+  'metric.hibernate-connections-obtained.tip': 'Closely tracks transactions. If far higher than transactions, check for connection leaks or over-eager connection acquisition.',
+  'metric.hibernate-statements.desc': 'JDBC statements prepared by Hibernate (hibernate.statements, status=prepared).',
+  'metric.hibernate-statements.tip': 'A high per-request count is the N+1 query smell — enable Hibernate SQL logging or a query inspector to find the culprit.',
+  'metric.hibernate-query-executions.desc': 'Total queries executed by Hibernate (hibernate.query.executions).',
+  'metric.hibernate-query-executions.tip': 'Tracks query volume. Compare with transactions to spot queries-per-transaction ratios above expected.',
+  'metric.hibernate-query-max.desc': 'Slowest query execution time observed (hibernate.query.executions MAX).',
+  'metric.hibernate-query-max.tip': 'The worst single query. A large max with normal avg = an occasional rogue query; find it in slow-query logs.',
+  'metric.hibernate-2lc-hit.desc': 'Second-level cache hits (hibernate.second.level.cache.requests, result=hit).',
+  'metric.hibernate-2lc-hit.tip': 'Higher is better. Low hits alongside high misses = the L2 cache is undersized or the entity fetch pattern defeats it.',
+  'metric.hibernate-2lc-miss.desc': 'Second-level cache misses (hibernate.second.level.cache.requests, result=miss).',
+  'metric.hibernate-2lc-miss.tip': 'A high miss ratio (miss / (hit + miss)) means the L2 cache is not effective — review cache region sizes and eviction policies.',
+  'metric.hibernate-flushes.desc': 'Hibernate session flushes — when the persistence context is synced to the DB (hibernate.flushes).',
+
+  // Spring Cache
+  'metric.cache-gets-hit.desc': 'Spring cache hits — requests served from cache (cache.gets, result=hit).',
+  'metric.cache-gets-hit.tip': 'A high hit rate is the goal. Compare hits vs misses to measure cache effectiveness.',
+  'metric.cache-gets-miss.desc': 'Spring cache misses — lookups that fell through to the source (cache.gets, result=miss).',
+  'metric.cache-gets-miss.tip': 'A rising or dominant miss rate erodes the cache benefit and adds load to the backing store. Check TTL, eviction policy, and key cardinality.',
+  'metric.cache-puts.desc': 'Entries written into the Spring cache (cache.puts).',
+  'metric.cache-evictions.desc': 'Entries evicted from the Spring cache (cache.evictions).',
+  'metric.cache-evictions.tip': 'Heavy eviction = the cache is too small for the working set. Increase the max size or review TTL settings.',
+  'metric.cache-size.desc': 'Estimated number of entries currently held in the Spring cache (cache.size).',
 
   // Tomcat
   'metric.tomcat-sessions-active.desc': 'Active HTTP sessions.',
@@ -251,11 +306,37 @@ const en: Dict = {
   'metric.tomcat-sessions-rejected.tip': 'Anything >0 = you hit the session cap — users are being turned away.',
   'metric.tomcat-threads-busy.desc': 'Busy Tomcat worker threads.',
   'metric.tomcat-threads-busy.tip': 'Near the max connector threads = the web tier is saturated; new requests queue.',
+  'metric.tomcat-threads-current.desc': 'Current number of Tomcat worker threads (tomcat.threads.current).',
+  'metric.tomcat-threads-current.tip': 'Compare with tomcat-threads-max: near the maximum means the thread pool is fully utilized and new requests will queue.',
+  'metric.tomcat-threads-max.desc': 'Configured maximum Tomcat worker threads (tomcat.threads.config.max).',
+  'metric.tomcat-connections-current.desc': 'Open connections currently held by Tomcat (tomcat.connections.current).',
+  'metric.tomcat-connections-current.tip': 'Approaching tomcat-connections-max = the web tier is saturating. Clients will start receiving connection-refused errors.',
+  'metric.tomcat-connections-max.desc': 'Maximum simultaneous connections Tomcat will accept (tomcat.connections.max).',
+  'metric.tomcat-global-requests.desc': 'Total request throughput at the Tomcat connector (tomcat.global.request count/s).',
+  'metric.tomcat-global-requests.tip': 'The raw connector-level request rate. Compare with http.server.requests to detect internal routing discrepancies.',
+  'metric.tomcat-global-request-max.desc': 'Slowest request seen at the Tomcat connector (tomcat.global.request MAX).',
+  'metric.tomcat-global-request-max.tip': 'Connector-level worst-case latency. Correlate spikes with GC pause events or downstream timeouts.',
+  'metric.tomcat-global-errors.desc': 'Requests counted as errors at the Tomcat connector level (tomcat.global.error).',
+  'metric.tomcat-global-errors.tip': 'Connector-level errors include network-abort and early-disconnect cases that never reach application code. Any sustained count warrants investigation.',
+  'metric.tomcat-bytes-sent.desc': 'Bytes sent by the Tomcat connector per second (tomcat.global.sent bytes/s).',
+  'metric.tomcat-bytes-sent.tip': 'A sudden spike = large response payloads or a high-bandwidth endpoint. Useful for diagnosing egress saturation.',
+  'metric.tomcat-bytes-received.desc': 'Bytes received by the Tomcat connector per second (tomcat.global.received bytes/s).',
+  'metric.tomcat-bytes-received.tip': 'High inbound traffic with normal RPS = large request bodies (file uploads, bulk payloads).',
+  'metric.tomcat-sessions-active-max.desc': 'Peak concurrent active HTTP sessions observed (tomcat.sessions.active.max).',
 
   // Scheduled tasks
   'metric.sched-exec.desc': 'Scheduled @Scheduled task executions per interval (tasks.scheduled.execution).',
   'metric.sched-active.desc': 'Scheduled tasks currently running.',
   'metric.sched-active.tip': 'A task stuck >0 for long may be hung or overlapping its own schedule.',
+
+  // Task executor (@Async / ThreadPoolTaskExecutor)
+  'metric.executor-active.desc': 'Threads currently executing tasks in the Spring task executor pool (executor.active).',
+  'metric.executor-active.tip': 'Sustained near pool size means the executor is always busy. Combine with executor-queued to see if work is also backing up.',
+  'metric.executor-queued.desc': 'Tasks waiting in the executor queue for a free thread (executor.queued).',
+  'metric.executor-queued.tip': 'Any persistent queue depth = the pool cannot keep up with submitted work. Increase pool size or reduce task duration.',
+  'metric.executor-pool-size.desc': 'Current number of threads in the Spring task executor pool (executor.pool.size).',
+  'metric.executor-completed.desc': 'Total tasks completed by the executor (executor.completed).',
+  'metric.executor-completed.tip': 'The cumulative counter. A rate derived from this metric reveals executor throughput — compare with active to assess utilization.',
 }
 
 const ko: Dict = {
@@ -330,6 +411,7 @@ const ko: Dict = {
   // Metric info panel
   'info.about': 'ⓘ 이 메트릭 정보',
   'info.tip': '모니터링 팁',
+  'metric.unavailable': '이 대상에서 수집 안 됨',
 
   // Alert section
   'alert.title': '🔔 알림',
@@ -386,6 +468,8 @@ const ko: Dict = {
   'metric.heap-old.desc': 'G1 Old Gen — young gen에서 승격된 장수 객체.',
   'metric.heap-old.tip': 'GC가 회수하지 못하는 꾸준히 상승하는 하한선은 메모리 누수의 전형적인 신호입니다.',
   'metric.heap-survivor.desc': 'G1 Survivor 공간 — minor GC에서 살아남아 old gen으로 이동 중인 객체.',
+  'metric.heap-committed.desc': 'OS에서 예약(committed)된 힙 메모리 — 항상 used 이상 (jvm.memory.committed, area=heap).',
+  'metric.heap-committed.tip': 'committed와 used 간의 큰 차이는 정상입니다; JVM이 현재 필요보다 더 많이 예약한 것입니다. GC 이후에도 committed가 계속 증가하면 주의하세요.',
 
   // Non-heap
   'metric.nonheap-used.desc': '비힙 메모리: Metaspace, 코드 캐시, 스레드 스택, direct 버퍼 (-Xmx 제한 외).',
@@ -395,8 +479,12 @@ const ko: Dict = {
   'metric.nonheap-compressed-class.desc': 'Compressed class space — 클래스 포인터용 Metaspace 하위 영역.',
   'metric.nonheap-code-cache.desc': 'JIT 컴파일된 네이티브 코드 (CodeHeap).',
   'metric.nonheap-code-cache.tip': '가득 차면 JIT 컴파일이 중단되고 성능이 조용히 저하됩니다 — 한계에서 정체되는지 확인하세요.',
+  'metric.nonheap-committed.desc': 'OS에서 예약된 비힙 메모리 — Metaspace, 코드 캐시 등 (jvm.memory.committed, area=nonheap).',
+  'metric.nonheap-committed.tip': '새 클래스가 로드되고 JIT가 워밍업되면서 증가합니다. 정체되는 것이 정상이며, 지속적인 증가는 클래스로더 변동을 시사합니다.',
   'metric.buffers.desc': 'Direct/mapped NIO 바이트 버퍼 (jvm.buffer.memory.used) — off-heap.',
   'metric.buffers.tip': 'Netty/NIO 중심 앱에서 증가합니다; 여기서 누수가 있으면 힙은 평탄하지만 RSS가 상승합니다.',
+  'metric.buffer-count.desc': '현재 할당된 direct NIO 바이트 버퍼 수 (jvm.buffer.count, id=direct).',
+  'metric.buffer-count.tip': '용량은 평탄한데 수가 계속 증가하면 해제되지 않은 작은 버퍼가 많은 것입니다. RSS 증가와 연관지어 확인하세요.',
 
   // GC
   'metric.gc-pause-count.desc': '인터벌당 총 GC 일시 정지 횟수 (jvm.gc.pause count).',
@@ -450,6 +538,16 @@ const ko: Dict = {
   'metric.http-server-error.desc': '5xx 서버 오류 응답.',
   'metric.http-server-error.tip': '버그/장애입니다. 지속적인 5xx는 반드시 확인해야 합니다; 오류율로 알림을 설정하세요.',
 
+  // HTTP client
+  'metric.http-client-rps.desc': '아웃바운드 HTTP 클라이언트 요청 속도 (http.client.requests count/s).',
+  'metric.http-client-rps.tip': '이 서비스가 하위 API를 얼마나 많이 호출하는지 보여줍니다. 인바운드 트래픽이 정상인데 감소하면 circuit breaker 오픈 또는 클라이언트 타임아웃을 의심하세요.',
+  'metric.http-client-latency-avg.desc': '아웃바운드 HTTP 클라이언트 호출의 평균 지연 시간 (http.client.requests MEAN).',
+  'metric.http-client-latency-avg.tip': '평균 상승 = 하위 의존성이 느려진 것입니다. max와 함께 테일 영향을 파악하세요.',
+  'metric.http-client-latency-max.desc': '윈도우 내 아웃바운드 HTTP 클라이언트 호출의 최대 지연 시간 (http.client.requests MAX).',
+  'metric.http-client-latency-max.tip': '서버 측 지연은 평탄한데 여기서 스파이크 = 이 서비스가 아닌 느린 업스트림 의존성이 원인입니다.',
+  'metric.http-client-server-error.desc': '하위 의존성으로부터 받은 5xx 응답 (http.client.requests outcome=SERVER_ERROR).',
+  'metric.http-client-server-error.tip': '의존성 상태 신호입니다. 하위 서비스에서 지속적인 5xx = 해당 서비스에 문제가 있는 것; 중요 경로를 담당하면 연쇄 장애가 발생할 수 있습니다.',
+
   // Logback
   'metric.log-error.desc': '인터벌당 ERROR 레벨 로그 이벤트 수 (logback.events).',
   'metric.log-error.tip': 'ERROR 로그 폭발은 보통 장애를 앞서거나 동반합니다.',
@@ -461,6 +559,44 @@ const ko: Dict = {
   'metric.hikari-idle.desc': '풀에서 사용 가능한 유휴 DB 연결 수.',
   'metric.hikari-pending.desc': 'DB 연결을 빌리기 위해 대기 중인 스레드 수.',
   'metric.hikari-pending.tip': '0 이상이 지속되면 풀 소진 — 요청이 연결을 기다리며 차단됩니다. 풀 크기를 늘리거나 느린 쿼리를 수정하세요.',
+  'metric.hikari-total.desc': 'HikariCP 풀의 전체 연결 수 (hikaricp.connections) — 활성 + 유휴.',
+  'metric.hikari-max.desc': 'HikariCP의 구성된 최대 풀 크기 (hikaricp.connections.max).',
+
+  // JDBC
+  'metric.jdbc-active.desc': '현재 사용 중인 JDBC 연결 수 (jdbc.connections.active) — 범용 Spring 풀 메트릭.',
+  'metric.jdbc-active.tip': 'jdbc-max에 근접 = 풀이 곧 소진됩니다. 연결을 기다리며 요청이 차단됩니다 — 연결을 오래 잡고 있는 느린 쿼리를 확인하세요.',
+  'metric.jdbc-idle.desc': '체크아웃 가능한 유휴 JDBC 풀 연결 수 (jdbc.connections.idle).',
+  'metric.jdbc-max.desc': '범용 Spring JDBC 풀의 최대 풀 크기 구성값 (jdbc.connections.max).',
+  'metric.jdbc-min.desc': 'JDBC 풀의 최소 유휴 연결 구성값 (jdbc.connections.min).',
+
+  // Hibernate
+  'metric.hibernate-sessions-open.desc': '초당 열린 Hibernate 세션 수 (hibernate.sessions.open count/s).',
+  'metric.hibernate-sessions-open.tip': '높은 속도 = 짧은 세션이 많음. 각 세션은 트랜잭션을 수반하며, 부하가 일정한데 속도가 오르면 요청당 세션 패턴을 검토하세요.',
+  'metric.hibernate-transactions.desc': 'Hibernate가 실행한 DB 트랜잭션 수 (hibernate.transactions).',
+  'metric.hibernate-transactions.tip': '트랜잭션 수가 요청 수를 훨씬 초과하면 요청당 여러 트랜잭션이 실행되는 것 — @Transactional 경계를 검토하세요.',
+  'metric.hibernate-connections-obtained.desc': 'Hibernate가 풀에서 획득한 JDBC 연결 수 (hibernate.connections.obtained).',
+  'metric.hibernate-connections-obtained.tip': '트랜잭션 수를 밀접하게 따릅니다. 트랜잭션보다 훨씬 높으면 연결 누수 또는 과도한 연결 획득을 확인하세요.',
+  'metric.hibernate-statements.desc': 'Hibernate가 준비한 JDBC statement 수 (hibernate.statements, status=prepared).',
+  'metric.hibernate-statements.tip': '요청당 높은 수는 N+1 쿼리 냄새입니다 — Hibernate SQL 로깅 또는 쿼리 검사기로 원인을 찾으세요.',
+  'metric.hibernate-query-executions.desc': 'Hibernate가 실행한 총 쿼리 수 (hibernate.query.executions).',
+  'metric.hibernate-query-executions.tip': '쿼리 볼륨을 추적합니다. 트랜잭션 대비 쿼리 비율이 예상보다 높은지 비교하세요.',
+  'metric.hibernate-query-max.desc': '관찰된 가장 느린 쿼리 실행 시간 (hibernate.query.executions MAX).',
+  'metric.hibernate-query-max.tip': '단일 최악의 쿼리. 평균은 정상인데 max가 크면 간헐적 이상 쿼리입니다 — slow query 로그에서 찾으세요.',
+  'metric.hibernate-2lc-hit.desc': '2차 레벨 캐시 적중 수 (hibernate.second.level.cache.requests, result=hit).',
+  'metric.hibernate-2lc-hit.tip': '높을수록 좋습니다. 적중이 낮고 미스가 높으면 L2 캐시가 너무 작거나 엔티티 조회 패턴이 캐시를 무력화합니다.',
+  'metric.hibernate-2lc-miss.desc': '2차 레벨 캐시 미스 수 (hibernate.second.level.cache.requests, result=miss).',
+  'metric.hibernate-2lc-miss.tip': '높은 미스 비율 (miss / (hit + miss)) = L2 캐시가 효과적이지 않음 — 캐시 region 크기와 eviction 정책을 검토하세요.',
+  'metric.hibernate-flushes.desc': 'Hibernate 세션 flush — persistence context가 DB에 동기화될 때 (hibernate.flushes).',
+
+  // Spring Cache
+  'metric.cache-gets-hit.desc': 'Spring 캐시 적중 — 캐시에서 제공된 요청 수 (cache.gets, result=hit).',
+  'metric.cache-gets-hit.tip': '높은 적중률이 목표입니다. 적중 vs 미스를 비교하여 캐시 효과를 측정하세요.',
+  'metric.cache-gets-miss.desc': 'Spring 캐시 미스 — 원본으로 통과된 조회 수 (cache.gets, result=miss).',
+  'metric.cache-gets-miss.tip': '증가하거나 지배적인 미스율은 캐시 효과를 감소시키고 backing store에 부하를 가중합니다. TTL, eviction 정책, key 카디널리티를 확인하세요.',
+  'metric.cache-puts.desc': 'Spring 캐시에 쓰인 항목 수 (cache.puts).',
+  'metric.cache-evictions.desc': 'Spring 캐시에서 eviction된 항목 수 (cache.evictions).',
+  'metric.cache-evictions.tip': '심한 eviction 압력 = 캐시가 작업 집합에 비해 너무 작습니다. 최대 크기를 늘리거나 TTL 설정을 검토하세요.',
+  'metric.cache-size.desc': 'Spring 캐시에 현재 보유된 예상 항목 수 (cache.size).',
 
   // Tomcat
   'metric.tomcat-sessions-active.desc': '활성 HTTP 세션 수.',
@@ -470,11 +606,37 @@ const ko: Dict = {
   'metric.tomcat-sessions-rejected.tip': '0 이상 = 세션 한도 도달 — 사용자가 거부되고 있습니다.',
   'metric.tomcat-threads-busy.desc': '바쁜 Tomcat 워커 스레드 수.',
   'metric.tomcat-threads-busy.tip': '최대 커넥터 스레드에 근접 = 웹 티어가 포화됨; 새 요청이 큐에 쌓입니다.',
+  'metric.tomcat-threads-current.desc': '현재 Tomcat 워커 스레드 수 (tomcat.threads.current).',
+  'metric.tomcat-threads-current.tip': 'tomcat-threads-max와 비교하세요: 최대에 근접하면 스레드 풀이 완전히 활용되고 있고 새 요청은 큐에 쌓입니다.',
+  'metric.tomcat-threads-max.desc': '구성된 최대 Tomcat 워커 스레드 수 (tomcat.threads.config.max).',
+  'metric.tomcat-connections-current.desc': 'Tomcat이 현재 보유 중인 열린 연결 수 (tomcat.connections.current).',
+  'metric.tomcat-connections-current.tip': 'tomcat-connections-max에 근접 = 웹 티어가 포화됩니다. 클라이언트가 연결 거부 오류를 받기 시작합니다.',
+  'metric.tomcat-connections-max.desc': 'Tomcat이 허용하는 최대 동시 연결 수 (tomcat.connections.max).',
+  'metric.tomcat-global-requests.desc': 'Tomcat 커넥터의 총 요청 처리량 (tomcat.global.request count/s).',
+  'metric.tomcat-global-requests.tip': '커넥터 수준의 원시 요청 속도입니다. http.server.requests와 비교하여 내부 라우팅 불일치를 감지하세요.',
+  'metric.tomcat-global-request-max.desc': 'Tomcat 커넥터에서 관찰된 가장 느린 요청 (tomcat.global.request MAX).',
+  'metric.tomcat-global-request-max.tip': '커넥터 수준의 최악 케이스 지연 시간. 스파이크를 GC 일시 정지 이벤트 또는 하위 타임아웃과 연관지어 확인하세요.',
+  'metric.tomcat-global-errors.desc': 'Tomcat 커넥터 수준에서 오류로 집계된 요청 수 (tomcat.global.error).',
+  'metric.tomcat-global-errors.tip': '커넥터 수준 오류는 애플리케이션 코드에 도달하지 못한 네트워크 중단 및 조기 연결 해제를 포함합니다. 지속적인 수는 반드시 조사하세요.',
+  'metric.tomcat-bytes-sent.desc': 'Tomcat 커넥터의 초당 전송 바이트 수 (tomcat.global.sent bytes/s).',
+  'metric.tomcat-bytes-sent.tip': '아웃바운드 바이트 급증 = 큰 응답 페이로드 또는 고대역폭 엔드포인트. egress 포화 진단에 유용합니다.',
+  'metric.tomcat-bytes-received.desc': 'Tomcat 커넥터의 초당 수신 바이트 수 (tomcat.global.received bytes/s).',
+  'metric.tomcat-bytes-received.tip': 'RPS는 정상인데 인바운드 트래픽이 높으면 큰 요청 본문 (파일 업로드, 대량 페이로드)입니다.',
+  'metric.tomcat-sessions-active-max.desc': '관찰된 최고 동시 활성 HTTP 세션 수 (tomcat.sessions.active.max).',
 
   // Scheduled tasks
   'metric.sched-exec.desc': '인터벌당 @Scheduled 태스크 실행 수 (tasks.scheduled.execution).',
   'metric.sched-active.desc': '현재 실행 중인 스케줄드 태스크 수.',
   'metric.sched-active.tip': '오래 0 이상이면 태스크가 중단되거나 자체 스케줄과 겹칠 수 있습니다.',
+
+  // Task executor (@Async / ThreadPoolTaskExecutor)
+  'metric.executor-active.desc': 'Spring 태스크 실행기 풀에서 현재 태스크를 실행 중인 스레드 수 (executor.active).',
+  'metric.executor-active.tip': '지속적으로 pool size에 근접하면 실행기가 항상 바쁜 것입니다. executor-queued와 함께 작업이 밀리는지 확인하세요.',
+  'metric.executor-queued.desc': '여유 스레드를 기다리며 실행기 큐에 대기 중인 태스크 수 (executor.queued).',
+  'metric.executor-queued.tip': '큐 깊이가 지속적으로 있으면 풀이 제출된 작업을 따라가지 못하는 것입니다. 풀 크기를 늘리거나 태스크 실행 시간을 줄이세요.',
+  'metric.executor-pool-size.desc': 'Spring 태스크 실행기 풀의 현재 스레드 수 (executor.pool.size).',
+  'metric.executor-completed.desc': '실행기가 완료한 총 태스크 수 (executor.completed).',
+  'metric.executor-completed.tip': '누적 카운터입니다. 이 메트릭에서 도출한 속도는 실행기 처리량을 나타냅니다 — active와 비교하여 활용도를 평가하세요.',
 }
 
 const dicts: Record<Lang, Dict> = { en, ko }
