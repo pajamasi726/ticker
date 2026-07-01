@@ -62,3 +62,11 @@ export interface AlertFire {
   unit: Unit
   at: string
 }
+
+// Per-tag breakdown of a metric, e.g. http.server.requests by uri (endpoint).
+export interface TagStat {
+  value: string
+  count: number | null
+  mean: number | null
+  max: number | null
+}

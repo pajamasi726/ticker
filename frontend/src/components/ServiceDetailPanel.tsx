@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchDetail, fetchAlertRules, updateAlertRule, fetchRecentAlerts } from '../api'
-import type { ServiceDetail, AlertRule, AlertFire } from '../types'
+import type { ServiceDetail, AlertRule, AlertFire, ResolvedWidget } from '../types'
 import { MetricWidget } from './MetricWidget'
-import { AlertDrawer } from './AlertDrawer'
+import { MetricInspector } from './MetricInspector'
 import { formatValue } from '../format'
 
 const MAX_POINTS = 60
@@ -15,7 +15,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   const prevRaw = useRef<Record<string, number>>({})
   const [rules, setRules] = useState<Record<string, AlertRule>>({})
   const [recent, setRecent] = useState<AlertFire[]>([])
-  const [alertConfigKey, setAlertConfigKey] = useState<string | null>(null)
+  const [inspectorKey, setInspectorKey] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -27,7 +27,8 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
           if (!active) return
           for (const group of d.groups) {
             for (const w of group.widgets) {
-              if (w.render !== 'CHART') continue
+              if (w.ratio) continue // ratio value is computed in render, not tracked as a raw series
+              if (w.render !== 'CHART' && w.render !== 'GAUGE') continue // gauges tracked too, for the inspector trend
               const raw = w.value ?? 0
               let point = raw
               if (w.cumulative) {
@@ -110,11 +111,8 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   }
   const myRecent = recent.filter((a) => a.targetId === id).slice(0, 5)
 
-  // The quantity an alert rule compares: ratio (value/max) for gauges with a max, else the raw value.
-  const quantityOf = (w?: { value: number | null; max: number | null }) => {
-    if (!w || w.value == null) return null
-    return w.max != null && w.max > 0 ? w.value / w.max : w.value
-  }
+  // Apply the client-side ratio override (e.g. error rate) before charting/inspecting a widget.
+  const effWidget = (w: ResolvedWidget) => (w.ratio ? { ...w, value: ratioValue(w.ratio) } : w)
 
   return (
     <div className="detail-view">
@@ -151,22 +149,24 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
             {group.widgets.map((w) => (
               <MetricWidget
                 key={w.key}
-                widget={w.ratio ? { ...w, value: ratioValue(w.ratio) } : w}
+                widget={effWidget(w)}
                 series={series.current[w.key] ?? []}
                 alertRule={rules[w.key] ?? null}
-                onAlertOpen={setAlertConfigKey}
+                onOpen={setInspectorKey}
               />
             ))}
           </div>
         </section>
       ))}
-      {alertConfigKey && rules[alertConfigKey] && (
-        <AlertDrawer
-          rule={rules[alertConfigKey]}
-          current={quantityOf(byKey(alertConfigKey))}
-          recent={recent.filter((a) => a.targetId === id && a.ruleKey === alertConfigKey)}
-          onSave={(patch) => onAlertSave(alertConfigKey, patch)}
-          onClose={() => setAlertConfigKey(null)}
+      {inspectorKey && byKey(inspectorKey) && (
+        <MetricInspector
+          serviceId={id}
+          widget={effWidget(byKey(inspectorKey)!)}
+          series={series.current[inspectorKey] ?? []}
+          rule={rules[inspectorKey] ?? null}
+          recent={recent.filter((a) => a.targetId === id && a.ruleKey === inspectorKey)}
+          onSaveAlert={(patch) => onAlertSave(inspectorKey, patch)}
+          onClose={() => setInspectorKey(null)}
         />
       )}
     </div>

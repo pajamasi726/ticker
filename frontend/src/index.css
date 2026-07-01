@@ -281,6 +281,23 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .alert-drawer__actions button:hover { color: var(--text); border-color: var(--border-strong); }
 .alert-drawer__save { background: var(--accent); color: #fff; border-color: var(--accent); }
 
+/* Metric inspector (click a widget → deep view: trend + stats + by-endpoint + alert) */
+.widget--clickable { cursor: pointer; }
+.widget--clickable:hover { border-color: var(--accent); }
+.alert-drawer.mi { width: min(560px, 96vw); }
+.mi__current { font-family: var(--mono); font-weight: 700; font-size: 15px; color: var(--text); margin-right: 8px; }
+.mi__chart { background: var(--bg-0); border: 1px solid var(--border); border-radius: var(--r-md); padding: 8px 8px 2px; }
+.mi__stats { display: flex; gap: 18px; font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+.mi__stats b { color: var(--text); }
+.mi__table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+.mi__table th { text-align: right; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); padding: 4px 6px; text-transform: uppercase; letter-spacing: .5px; font-size: 10px; }
+.mi__table th:first-child { text-align: left; }
+.mi__table td { padding: 4px 6px; border-bottom: 1px solid var(--bg-2); text-align: right; color: var(--text-dim); }
+.mi__table td.mi__uri { text-align: left; color: var(--text); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi__muted { color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
+.mi__alert { border-top: 1px solid var(--border); padding-top: 14px; }
+.mi__fires { display: flex; flex-direction: column; gap: 2px; }
+
 /* Recent alerts strip */
 .recent-alerts {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;

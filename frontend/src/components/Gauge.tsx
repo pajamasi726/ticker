@@ -9,9 +9,10 @@ interface GaugeProps {
   unit: Unit
   higherIsBetter?: boolean
   bell?: ReactNode
+  onClick?: () => void
 }
 
-export function Gauge({ label, value, max, unit, higherIsBetter = false, bell }: GaugeProps) {
+export function Gauge({ label, value, max, unit, higherIsBetter = false, bell, onClick }: GaugeProps) {
   const pct =
     value != null && max != null && max > 0 ? Math.min((value / max) * 100, 100) : null
   // Color by severity. For higher-is-better gauges (e.g. disk free) a full bar is healthy, so invert.
@@ -20,7 +21,13 @@ export function Gauge({ label, value, max, unit, higherIsBetter = false, bell }:
     severity == null ? 'var(--text-faint)' : severity < 70 ? 'var(--up)' : severity < 90 ? 'var(--degraded)' : 'var(--down)'
   const maxText = unit !== 'PERCENT' && max != null && max > 0 ? ` / ${formatValue(max, unit)}` : ''
   return (
-    <div className="widget gauge">
+    <div
+      className={`widget gauge${onClick ? ' widget--clickable' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
+    >
       <div className="widget__head">
         <span className="widget__label">{label}</span>
         <span className="widget__head-end">
