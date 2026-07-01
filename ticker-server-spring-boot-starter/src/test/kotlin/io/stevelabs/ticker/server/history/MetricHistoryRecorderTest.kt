@@ -49,7 +49,7 @@ class MetricHistoryRecorderTest {
 
     @BeforeEach
     fun setUp() {
-        repo.ensureSchema()
+        repo.ensureSchema(HistoryDb.H2)
         jdbc.execute("DELETE FROM metric_sample")
     }
 

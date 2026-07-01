@@ -36,7 +36,7 @@ class MetricHistoryControllerTest(@Autowired val mvc: MockMvc) {
                 maximumPoolSize = 2
             }
             val repo = MetricHistoryRepository(JdbcTemplate(ds))
-            repo.ensureSchema()
+            repo.ensureSchema(HistoryDb.H2)
             // Seed one data point so the "returns points" test has something to return
             repo.saveAll("spring-svc", listOf("heap-used" to 512_000_000.0), System.currentTimeMillis() - 30_000)
             return repo

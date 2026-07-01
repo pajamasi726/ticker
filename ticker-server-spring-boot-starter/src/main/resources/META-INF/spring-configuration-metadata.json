@@ -1,0 +1,87 @@
+{
+  "groups": [
+    {
+      "name": "ticker.history",
+      "type": "io.stevelabs.ticker.server.history.HistoryProperties",
+      "sourceType": "io.stevelabs.ticker.server.history.HistoryProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "ticker.history.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable opt-in persisted metric history (off by default; fully in-memory when false).",
+      "defaultValue": false
+    },
+    {
+      "name": "ticker.history.db",
+      "type": "io.stevelabs.ticker.server.history.HistoryDb",
+      "description": "Which database backs history. H2 = embedded file (default, zero-setup). MYSQL / POSTGRESQL need `url` + credentials.",
+      "defaultValue": "h2"
+    },
+    {
+      "name": "ticker.history.sample-interval",
+      "type": "java.time.Duration",
+      "description": "How often the recorder samples whitelisted metrics.",
+      "defaultValue": "15s"
+    },
+    {
+      "name": "ticker.history.retention",
+      "type": "java.time.Duration",
+      "description": "How long samples are kept before the hourly prune deletes them.",
+      "defaultValue": "7d"
+    },
+    {
+      "name": "ticker.history.h2-path",
+      "type": "java.lang.String",
+      "description": "H2 file path (db=H2 only). A durable path/volume in production — not /tmp.",
+      "defaultValue": "./data/ticker-history"
+    },
+    {
+      "name": "ticker.history.url",
+      "type": "java.lang.String",
+      "description": "JDBC URL. Required when db=MYSQL or POSTGRESQL (e.g. jdbc:mysql://host:3306/ticker). Ignored for H2 unless set."
+    },
+    {
+      "name": "ticker.history.username",
+      "type": "java.lang.String",
+      "description": "DB username — supply via env, never commit (guardrail #5)."
+    },
+    {
+      "name": "ticker.history.password",
+      "type": "java.lang.String",
+      "description": "DB password — supply via env, never commit (guardrail #5)."
+    },
+    {
+      "name": "ticker.history.init-schema",
+      "type": "java.lang.Boolean",
+      "description": "Auto-create the schema at startup (CREATE TABLE IF NOT EXISTS). Set false if a DBA pre-provisions the table on a restricted account.",
+      "defaultValue": true
+    },
+    {
+      "name": "ticker.history.max-buckets",
+      "type": "java.lang.Integer",
+      "description": "Max downsample buckets returned by a range query.",
+      "defaultValue": 240
+    }
+  ],
+  "hints": [
+    {
+      "name": "ticker.history.db",
+      "values": [
+        {
+          "value": "h2",
+          "description": "Embedded H2 file — zero setup, good default."
+        },
+        {
+          "value": "mysql",
+          "description": "MySQL — set ticker.history.url + credentials (env); add the MySQL driver dependency."
+        },
+        {
+          "value": "postgresql",
+          "description": "PostgreSQL — set ticker.history.url + credentials (env); add the PostgreSQL driver dependency."
+        }
+      ]
+    }
+  ]
+}

@@ -4,18 +4,11 @@ import org.springframework.jdbc.core.JdbcTemplate
 
 class MetricHistoryRepository(private val jdbc: JdbcTemplate) {
 
-    fun ensureSchema() {
-        jdbc.execute(
-            """
-            CREATE TABLE IF NOT EXISTS metric_sample (
-                target_id    VARCHAR(128) NOT NULL,
-                metric_key   VARCHAR(128) NOT NULL,
-                ts_millis    BIGINT       NOT NULL,
-                metric_value DOUBLE       NOT NULL,
-                PRIMARY KEY (target_id, metric_key, ts_millis)
-            )
-            """.trimIndent(),
-        )
+    fun ensureSchema(db: HistoryDb) {
+        val resource = "/db/ticker-history-schema-${db.name.lowercase()}.sql"
+        val sql = MetricHistoryRepository::class.java.getResource(resource)?.readText()
+            ?: throw IllegalStateException("Missing bundled schema DDL for $db (expected classpath:$resource)")
+        jdbc.execute(sql)
     }
 
     fun saveAll(targetId: String, samples: List<Pair<String, Double>>, tsMillis: Long) {

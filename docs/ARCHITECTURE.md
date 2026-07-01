@@ -156,16 +156,25 @@ secret-bearing. The whitelist is explicit, code-reviewed, and enforced by a guar
 When enabled, dashboard widget values are written to a `metric_sample` table:
 ```sql
 metric_sample(
-  target_id  VARCHAR(128) NOT NULL,
-  metric_key VARCHAR(128) NOT NULL,   -- dashboard widget key (cpu-process, heap-used, …)
-  ts_millis  BIGINT       NOT NULL,   -- epoch millis
-  value      DOUBLE       NOT NULL,
+  target_id    VARCHAR(128) NOT NULL,
+  metric_key   VARCHAR(128) NOT NULL,   -- dashboard widget key (cpu-process, heap-used, …)
+  ts_millis    BIGINT       NOT NULL,   -- epoch millis
+  metric_value DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (target_id, metric_key, ts_millis)
 )
 ```
-Default storage: **embedded H2 file** (`ticker.history.h2-path`, auto-created). MySQL option:
-set `spring.datasource.*` from env and run `docs/history-schema-mysql.sql`. DB credentials
-come from env only, never committed (guardrail #5). Disabled → no DB, no schema, no recorder.
+Storage backend is selected with `ticker.history.db` (default `H2`):
+
+| `ticker.history.db` | Driver | Notes |
+|---|---|---|
+| `H2` (default) | bundled `com.h2database:h2` | Embedded file at `ticker.history.h2-path`; zero setup |
+| `MYSQL` | add `com.mysql:mysql-connector-j` at runtime | `ticker.history.url` required |
+| `POSTGRESQL` | add `org.postgresql:postgresql` at runtime | `ticker.history.url` required |
+
+Schema is auto-created from the bundled DDL at `classpath:db/ticker-history-schema-<db>.sql`
+(inside the server-starter jar). Set `ticker.history.init-schema=false` to skip auto-creation
+when a DBA pre-provisions the table on a restricted account. DB credentials come from env only,
+never committed (guardrail #5). Disabled → no DB, no schema, no recorder.
 
 ### Deferred: archival to cold storage
 When/if implemented: select aged rows → write+verify cold storage (local or S3) → *only then*
@@ -282,10 +291,11 @@ The collector is a single point of failure for *its own* alerting. Mitigate:
   - Core: `TICKER_POLL_INTERVAL`, `TICKER_FAILURE_THRESHOLD`, `TICKER_HISTORY_WINDOW`, `SPRING_PROFILES_ACTIVE`
   - Alerting: `ticker.alert.enabled`, `ticker.alert.slack-webhook-url` (env `TICKER_ALERT_SLACK_WEBHOOK_URL`),
     `ticker.alert.cooldown`, `ticker.alert.metric-interval`
-  - Metric history: `ticker.history.enabled` (default `false`), `ticker.history.sample-interval` (default 15s),
-    `ticker.history.retention` (default 7d), `ticker.history.h2-path`, `ticker.history.max-buckets` (default 240)
-  - MySQL (opt-in): `spring.datasource.url`, `spring.datasource.username`, `spring.datasource.password` — from
-    env only, never committed (guardrail #5)
+  - Metric history: `ticker.history.enabled` (default `false`), `ticker.history.db` (`H2`/`MYSQL`/`POSTGRESQL`, default `H2`),
+    `ticker.history.sample-interval` (default 15s), `ticker.history.retention` (default 7d),
+    `ticker.history.h2-path`, `ticker.history.url`, `ticker.history.max-buckets` (default 240),
+    `ticker.history.init-schema` (default `true` — set `false` if a DBA pre-provisions the table)
+  - DB credentials (`ticker.history.username`, `ticker.history.password`) — from env only, never committed (guardrail #5)
   - Secrets (webhooks, DB credentials) come from env only, never from committed properties.
 
 ## Key decisions & rationale

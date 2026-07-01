@@ -4,7 +4,6 @@ import com.zaxxer.hikari.HikariDataSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.springframework.jdbc.core.JdbcTemplate
 
 class MetricHistoryRepositoryTest {
 
@@ -12,13 +11,22 @@ class MetricHistoryRepositoryTest {
         jdbcUrl = "jdbc:h2:mem:repo-test;DB_CLOSE_DELAY=-1"
         maximumPoolSize = 2
     }
-    private val jdbc = JdbcTemplate(ds)
+    private val jdbc = org.springframework.jdbc.core.JdbcTemplate(ds)
     private val repo = MetricHistoryRepository(jdbc)
 
     @BeforeEach
     fun setUp() {
-        repo.ensureSchema()
+        repo.ensureSchema(HistoryDb.H2)
         jdbc.execute("DELETE FROM metric_sample")
+    }
+
+    @Test
+    fun `ensureSchema with H2 loads bundled DDL and creates table`() {
+        // Table was created in setUp; inserting a row proves it exists and round-trips.
+        repo.saveAll("ddl-check", listOf("cpu" to 1.0), 1_000L)
+        val points = repo.query("ddl-check", "cpu", 0L, 2_000L)
+        assertThat(points).hasSize(1)
+        assertThat(points[0].v).isEqualTo(1.0)
     }
 
     @Test
