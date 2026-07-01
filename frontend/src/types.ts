@@ -71,3 +71,17 @@ export interface TagStat {
   mean: number | null
   max: number | null
 }
+
+// Downsampled persisted history for a metric over a time range (opt-in DB feature).
+export interface HistoryPoint {
+  t: number // bucket start, epoch millis
+  v: number // averaged value in the bucket
+}
+
+export interface MetricHistory {
+  range: string
+  from: number
+  to: number
+  bucketMs: number
+  points: HistoryPoint[]
+}

@@ -63,8 +63,9 @@ interface Props {
   height?: number
   showTime?: boolean // render a time x-axis
   fullScale?: boolean // fixed y-axis (0-100% for PERCENT, else 0-max) instead of autoscale
-  intervalSec?: number // poll interval, for the time axis
+  intervalSec?: number // poll interval, for the (index-based, live) time axis
   timeFmt?: TimeFmt // x-axis time style: 'relative' (-30s) or absolute clock (HH:mm:ss)
+  timestamps?: number[] // epoch-ms per point; when set the x-axis uses real times (historical ranges)
 }
 
 /**
@@ -72,14 +73,16 @@ interface Props {
  * shape); `fullScale` pins it (0–100% for percent, else 0–max). Area-gradient fill, unit-formatted
  * y ticks, optional relative-time x-axis, and a hover tooltip. Width is responsive.
  */
-export function LiveChart({ data, unit, height = 88, showTime = false, fullScale = false, intervalSec = 5, timeFmt = 'relative' }: Props) {
+export function LiveChart({ data, unit, height = 88, showTime = false, fullScale = false, intervalSec = 5, timeFmt = 'relative', timestamps }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const plot = useRef<uPlot | null>(null)
+  const hasTs = timestamps != null
 
   useEffect(() => {
     if (!el.current) return
     const width = el.current.clientWidth || 240
     const percent = unit === 'PERCENT'
+    const xData = (): number[] => timestamps ?? data.map((_, i) => i)
     const opts: uPlot.Options = {
       width,
       height,
@@ -100,7 +103,7 @@ export function LiveChart({ data, unit, height = 88, showTime = false, fullScale
       },
       axes: [
         showTime
-          ? { show: true, size: 22, stroke: '#5b6472', font: '10px ui-monospace, monospace', ticks: { show: false }, grid: { show: false }, values: timeValues(intervalSec, timeFmt), space: axisTickSpace(timeFmt) }
+          ? { show: true, size: 22, stroke: '#5b6472', font: '10px ui-monospace, monospace', ticks: { show: false }, grid: { show: false }, values: hasTs ? (_u: uPlot, splits: number[]) => splits.map((t) => formatTimeMs(t, timeFmt)) : timeValues(intervalSec, timeFmt), space: axisTickSpace(timeFmt) }
           : { show: false },
         {
           show: true,
@@ -130,7 +133,7 @@ export function LiveChart({ data, unit, height = 88, showTime = false, fullScale
       ],
       plugins: [tooltipPlugin(unit)],
     }
-    plot.current = new uPlot(opts, [data.map((_, i) => i), data], el.current)
+    plot.current = new uPlot(opts, [xData(), data], el.current)
     const ro = new ResizeObserver(() => {
       const w = el.current?.clientWidth ?? 0
       if (w > 0 && plot.current) plot.current.setSize({ width: w, height })
@@ -138,9 +141,9 @@ export function LiveChart({ data, unit, height = 88, showTime = false, fullScale
     ro.observe(el.current)
     return () => { ro.disconnect(); plot.current?.destroy(); plot.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height, unit, showTime, fullScale, intervalSec, timeFmt])
+  }, [height, unit, showTime, fullScale, intervalSec, timeFmt, hasTs])
 
-  useEffect(() => { plot.current?.setData([data.map((_, i) => i), data]) }, [data])
+  useEffect(() => { plot.current?.setData([timestamps ?? data.map((_, i) => i), data]) }, [data, timestamps])
 
   return <div ref={el} className="live-chart-wrap" />
 }

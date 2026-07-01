@@ -306,10 +306,11 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 @media (max-width: 900px) { .metric-view__cols { grid-template-columns: 1fr; } }
 .mi__trendhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .mi__trendctl { display: inline-flex; align-items: center; gap: 8px; }
-.mi__scaletoggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
-.mi__scaletoggle button { background: var(--bg-0); border: none; color: var(--text-dim); font-family: var(--mono); font-size: 10px; padding: 3px 9px; cursor: pointer; text-transform: none; letter-spacing: 0; }
-.mi__scaletoggle button:hover { color: var(--text); }
-.mi__scaletoggle button.on { background: var(--accent); color: #fff; }
+.mi__scaletoggle, .mi__ranges { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+.mi__scaletoggle button, .mi__ranges button { background: var(--bg-0); border: none; color: var(--text-dim); font-family: var(--mono); font-size: 10px; padding: 3px 9px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.mi__scaletoggle button:hover, .mi__ranges button:hover { color: var(--text); }
+.mi__scaletoggle button.on, .mi__ranges button.on { background: var(--accent); color: #fff; }
+.mi__ranges button + button { border-left: 1px solid var(--border); }
 .alert-cond__for { color: var(--text-dim); font-size: 12px; }
 .time-fmt { background: var(--bg-2); border: 1px solid var(--border); color: var(--text-dim); font-family: var(--mono); font-size: 10px; border-radius: var(--r-sm); padding: 2px 4px; cursor: pointer; }
 .time-fmt:hover { color: var(--text); }

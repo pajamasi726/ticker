@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { ResolvedWidget, AlertRule, AlertFire, TagStat } from '../types'
+import type { ResolvedWidget, AlertRule, AlertFire, TagStat, MetricHistory } from '../types'
 import { formatValue } from '../format'
 import { LiveChart } from './LiveChart'
-import { fetchMetricBreakdown } from '../api'
+import { fetchMetricBreakdown, fetchMetricHistory } from '../api'
 import { useTimeFmt, formatTime } from '../timeFormat'
 import { TimeFormatSelect } from './TimeFormatSelect'
 
@@ -25,6 +25,9 @@ const quantity = (w: ResolvedWidget): number | null => {
   return w.max != null && w.max > 0 ? w.value / w.max : w.value
 }
 
+type HistRange = 'live' | '5m' | '15m' | '1h' | '6h' | '24h' | '7d'
+const RANGES: HistRange[] = ['live', '5m', '15m', '1h', '6h', '24h', '7d']
+
 type SavePatch = { enabled?: boolean; threshold?: number; cooldownSeconds?: number; forSeconds?: number }
 
 interface Props {
@@ -43,6 +46,9 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
   const bd = BREAKDOWN[widget.key] ?? null
   const [rows, setRows] = useState<TagStat[] | null>(null)
   const [fullScale, setFullScale] = useState(false)
+  const [range, setRange] = useState<HistRange>('live')
+  const [hist, setHist] = useState<MetricHistory | null>(null)
+  const [histOk, setHistOk] = useState(true)
   const fmt = useTimeFmt()
 
   useEffect(() => {
@@ -54,6 +60,19 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
     return () => { active = false }
   }, [serviceId, bd])
 
+  // Persisted history for a selected range (opt-in DB). 'live' uses the frontend series; a 404
+  // (history disabled) falls back to live and hides the presets.
+  useEffect(() => {
+    if (range === 'live') { setHist(null); return }
+    let active = true
+    const load = () => fetchMetricHistory(serviceId, widget.key, range)
+      .then((h) => { if (active) { setHist(h); setHistOk(true) } })
+      .catch(() => { if (active) { setHistOk(false); setRange('live') } })
+    load()
+    const t = setInterval(load, 15000)
+    return () => { active = false; clearInterval(t) }
+  }, [serviceId, widget.key, range])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -62,7 +81,10 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
 
   // Rate widgets (perSecond) show the current rate (last series point), not the raw cumulative total.
   const currentValue = widget.perSecond ? (series.length ? series[series.length - 1] : null) : widget.value
-  const nums = series.filter((n) => Number.isFinite(n))
+  const historical = range !== 'live'
+  const chartData = historical ? (hist?.points.map((p) => p.v) ?? []) : series
+  const chartTs = historical ? hist?.points.map((p) => p.t) : undefined
+  const nums = chartData.filter((n) => Number.isFinite(n))
   const stats = nums.length
     ? { min: Math.min(...nums), max: Math.max(...nums), avg: nums.reduce((a, b) => a + b, 0) / nums.length }
     : null
@@ -79,30 +101,37 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
 
       <div className="metric-view__cols">
         <div className="metric-view__main">
-          {series.length > 1 ? (
-            <section className="metric-panel">
-              <div className="alert-drawer__label mi__trendhead">
-                <span>Trend · last {series.length} samples{widget.cumulative && !widget.perSecond ? ' (per-poll delta)' : ''}</span>
-                <span className="mi__trendctl">
-                  <TimeFormatSelect />
-                  <span className="mi__scaletoggle">
-                    <button className={!fullScale ? 'on' : ''} onClick={() => setFullScale(false)}>auto</button>
-                    <button className={fullScale ? 'on' : ''} onClick={() => setFullScale(true)}>{widget.unit === 'PERCENT' ? '0–100%' : '0–max'}</button>
-                  </span>
+          <section className="metric-panel">
+            <div className="alert-drawer__label mi__trendhead">
+              <span>{historical ? `${range} · ${nums.length} points` : `live · last ${series.length} samples${widget.cumulative && !widget.perSecond ? ' (per-poll delta)' : ''}`}</span>
+              <span className="mi__trendctl">
+                <span className="mi__ranges">
+                  {RANGES.filter((r) => r === 'live' || histOk).map((r) => (
+                    <button key={r} className={range === r ? 'on' : ''} onClick={() => setRange(r)}>{r}</button>
+                  ))}
                 </span>
-              </div>
-              <div className="mi__chart"><LiveChart data={series} unit={widget.unit} height={260} showTime fullScale={fullScale} intervalSec={5} timeFmt={fmt} /></div>
-              {stats && (
-                <div className="mi__stats">
-                  <span>min <b>{formatValue(stats.min, widget.unit)}</b></span>
-                  <span>avg <b>{formatValue(stats.avg, widget.unit)}</b></span>
-                  <span>max <b>{formatValue(stats.max, widget.unit)}</b></span>
-                </div>
-              )}
-            </section>
-          ) : (
-            <section className="metric-panel"><div className="mi__muted">Collecting samples… the trend appears after a few polls.</div></section>
-          )}
+                <TimeFormatSelect />
+                <span className="mi__scaletoggle">
+                  <button className={!fullScale ? 'on' : ''} onClick={() => setFullScale(false)}>auto</button>
+                  <button className={fullScale ? 'on' : ''} onClick={() => setFullScale(true)}>{widget.unit === 'PERCENT' ? '0–100%' : '0–max'}</button>
+                </span>
+              </span>
+            </div>
+            {chartData.length > 1 ? (
+              <>
+                <div className="mi__chart"><LiveChart data={chartData} timestamps={chartTs} unit={widget.unit} height={260} showTime fullScale={fullScale} intervalSec={5} timeFmt={fmt} /></div>
+                {stats && (
+                  <div className="mi__stats">
+                    <span>min <b>{formatValue(stats.min, widget.unit)}</b></span>
+                    <span>avg <b>{formatValue(stats.avg, widget.unit)}</b></span>
+                    <span>max <b>{formatValue(stats.max, widget.unit)}</b></span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="mi__muted">{historical ? `No history yet for ${range} — the recorder is still filling it in.` : 'Collecting samples… the trend appears after a few polls.'}</div>
+            )}
+          </section>
 
           {bd && (
             <section className="metric-panel">

@@ -1,4 +1,4 @@
-import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat } from './types'
+import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat, MetricHistory } from './types'
 
 export async function fetchServices(): Promise<ServiceView[]> {
   const res = await fetch('/api/services')
@@ -34,6 +34,14 @@ export async function updateAlertRule(
 export async function fetchRecentAlerts(): Promise<AlertFire[]> {
   const res = await fetch('/api/alerts/recent')
   if (!res.ok) throw new Error(`GET /api/alerts/recent: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchMetricHistory(id: string, key: string, range: string): Promise<MetricHistory> {
+  const res = await fetch(
+    `/api/services/${encodeURIComponent(id)}/metric-history?key=${encodeURIComponent(key)}&range=${encodeURIComponent(range)}`,
+  )
+  if (!res.ok) throw new Error(`GET metric-history ${key}/${range}: ${res.status}`)
   return res.json()
 }
 
