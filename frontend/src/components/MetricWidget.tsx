@@ -4,6 +4,7 @@ import { infoFor } from '../metricInfo'
 import { LiveChart } from './LiveChart'
 import { Gauge } from './Gauge'
 import { AlertBell } from './AlertBell'
+import { useT } from '../i18n'
 
 interface MetricWidgetProps {
   widget: ResolvedWidget
@@ -19,12 +20,13 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
   const open = onOpen ? () => onOpen(widget.key) : undefined
   const info = infoFor(widget.key)
   const important = !!info?.important
+  const t = useT()
 
   const infoBtn = info && open ? (
     <button
       type="button"
       className="info-btn"
-      title={info.description}
+      title={t('metric.' + widget.key + '.desc')}
       aria-label="Metric info"
       onClick={(e) => { e.stopPropagation(); open() }}
     >ⓘ</button>

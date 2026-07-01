@@ -317,10 +317,20 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .mi__fireshead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .recent-alerts .time-fmt { margin-left: auto; }
 
+/* Language switcher — fixed top-right, same segmented-button style as scale toggle */
+.app__lang { position: fixed; top: 12px; right: 16px; z-index: 100; }
+.lang-switch { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+.lang-switch button { background: var(--bg-0); border: none; color: var(--text-dim); font-family: var(--mono); font-size: 10px; padding: 4px 10px; cursor: pointer; letter-spacing: 0; }
+.lang-switch button:hover { color: var(--text); }
+.lang-switch button.on { background: var(--accent); color: #fff; }
+.lang-switch button + button { border-left: 1px solid var(--border); }
+
 /* Per-metric info (ⓘ) + emphasis for key signals + inspector Info panel */
 .info-btn { background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 15px; line-height: 1; color: var(--text-dim); }
 .info-btn:hover { color: var(--accent); }
 .widget--important { border-left: 3px solid var(--degraded); }
+.detail-legend { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--text-dim); font-size: 12px; }
+.detail-legend__bar { display: inline-block; width: 3px; height: 13px; background: var(--degraded); border-radius: 2px; }
 .mi__info-desc { margin: 0; font-size: 13px; color: var(--text); line-height: 1.5; }
 .mi__info-tip { margin: 0; font-size: 12px; color: var(--text-dim); line-height: 1.5; background: var(--bg-0); border-left: 2px solid var(--accent); padding: 7px 10px; border-radius: var(--r-sm); }
 .mi__info-tip b { color: var(--accent); }

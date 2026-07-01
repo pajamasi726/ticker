@@ -6,6 +6,7 @@ import { MetricInspector } from './MetricInspector'
 import { TimeFormatSelect } from './TimeFormatSelect'
 import { formatValue } from '../format'
 import { useTimeFmt, formatTime } from '../timeFormat'
+import { useT } from '../i18n'
 
 const MAX_POINTS = 60
 const POLL_MS = 5000
@@ -19,6 +20,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   const [recent, setRecent] = useState<AlertFire[]>([])
   const [inspectorKey, setInspectorKey] = useState<string | null>(null)
   const timeFmt = useTimeFmt()
+  const t = useT()
 
   useEffect(() => {
     let active = true
@@ -49,13 +51,13 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
         })
         .catch(() => {
           // Friendly, not a raw TypeError — the collector may be unreachable or the service deregistered.
-          if (active) setError('Lost connection to the collector — details may be stale.')
+          if (active) setError('detail.staleError')
         })
     load()
-    const t = setInterval(load, POLL_MS)
+    const tmr = setInterval(load, POLL_MS)
     return () => {
       active = false
-      clearInterval(t)
+      clearInterval(tmr)
     }
   }, [id])
 
@@ -75,8 +77,8 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
       .catch(() => { if (active) setRules({}) })
     const loadRecent = () => fetchRecentAlerts().then((a) => { if (active) setRecent(a) }).catch(() => {})
     loadRecent()
-    const t = setInterval(loadRecent, POLL_MS)
-    return () => { active = false; clearInterval(t) }
+    const tmr = setInterval(loadRecent, POLL_MS)
+    return () => { active = false; clearInterval(tmr) }
   }, [id])
 
   const onAlertSave = (key: string, patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number; forSeconds?: number }) => {
@@ -133,18 +135,18 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   return (
     <div className="detail-view">
       <header className="detail-header">
-        <button className="detail-back" onClick={onClose} aria-label="Back to all services">← all services</button>
+        <button className="detail-back" onClick={onClose} aria-label={t('detail.allServicesAria')}>{t('detail.allServices')}</button>
         <h2 className="detail-title">{detail?.name ?? id}</h2>
         <span className={`state state--${(detail?.state ?? 'unknown').toLowerCase()}`}>{detail?.state ?? '…'}</span>
         {detail?.type && <span className="detail-type">{detail.type}</span>}
-        {uptimeText && <span className="detail-uptime">up {uptimeText}</span>}
+        {uptimeText && <span className="detail-uptime">{t('detail.uptime', { v: uptimeText })}</span>}
         {cpu?.value != null && <span className="detail-stat">CPU {formatValue(cpu.value, 'PERCENT')}</span>}
         {heapPct != null && <span className="detail-stat">Heap {heapPct}%</span>}
       </header>
-      {error && <p className="detail-error">{error}</p>}
+      {error && <p className="detail-error">{t(error)}</p>}
       {myRecent.length > 0 && (
         <div className="recent-alerts" role="status">
-          <span className="recent-alerts__title">⚠ Recent alerts</span>
+          <span className="recent-alerts__title">{t('detail.recentAlerts')}</span>
           {myRecent.map((a, i) => (
             <span key={i} className="recent-alerts__item">
               {a.label} <b>{formatValue(a.value, a.unit)}</b> vs {formatValue(a.threshold, a.unit)} · {formatTime(a.at, timeFmt)}
@@ -154,10 +156,13 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
         </div>
       )}
       {detail?.type === 'HTTP' && (
-        <p className="detail-note">HTTP target — no JVM metrics. Latency {detail.latencyMs ?? '—'} ms.</p>
+        <p className="detail-note">{t('detail.httpNote', { n: detail.latencyMs ?? '—' })}</p>
       )}
       {detail?.type === 'SPRING' && detail.groups.length === 0 && (
-        <p className="detail-note">No metrics — unreachable or actuator metrics not exposed.</p>
+        <p className="detail-note">{t('detail.noMetrics')}</p>
+      )}
+      {detail && detail.groups.length > 0 && (
+        <p className="detail-legend"><span className="detail-legend__bar" aria-hidden />{t('legend.important')}</p>
       )}
       {detail?.groups.map((group) => (
         <section key={group.title} className="detail-group">

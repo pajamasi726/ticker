@@ -4,6 +4,8 @@ import { fetchServices } from './api'
 import { StatusWall } from './components/StatusWall'
 import { ServiceDetailPanel } from './components/ServiceDetailPanel'
 import { SummaryBar } from './components/SummaryBar'
+import { LanguageSwitcher } from './components/LanguageSwitcher'
+import { useT } from './i18n'
 
 const POLL_MS = 5000
 
@@ -13,6 +15,7 @@ export default function App() {
   const [lastOkAt, setLastOkAt] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const t = useT()
 
   useEffect(() => {
     let active = true
@@ -38,40 +41,40 @@ export default function App() {
 
   const staleSeconds = lastOkAt != null ? Math.max(0, Math.round((now - lastOkAt) / 1000)) : null
 
-  if (selectedId) {
-    return (
-      <main className="app">
-        <ServiceDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
-      </main>
-    )
-  }
-
   return (
-    <main className="app">
-      <header className="app__header">
-        <h1>Ticker</h1>
-        <span className="app__sub">service liveness</span>
-        <SummaryBar services={services} />
-      </header>
-      {!reachable && (
-        <div className="banner banner--unreachable" role="alert">
-          <span className="banner__glyph" aria-hidden>⚠</span>
-          <span>
-            <strong>Collector unreachable.</strong>{' '}
-            {staleSeconds != null
-              ? `Last good update ${staleSeconds}s ago — the status below may be stale.`
-              : 'No successful update yet — service status cannot be confirmed.'}
-          </span>
-        </div>
-      )}
-      {services.length === 0 && !reachable ? (
-        <p className="empty">
-          Cannot reach the collector at <code>/api/services</code>. Confirm it is running — and that an
-          external probe (k8s liveness + an outside ping) is watching it.
-        </p>
-      ) : (
-        <StatusWall services={services} onSelect={setSelectedId} stale={!reachable} />
-      )}
-    </main>
+    <>
+      <div className="app__lang"><LanguageSwitcher /></div>
+      <main className="app">
+        {selectedId ? (
+          <ServiceDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+        ) : (
+          <>
+            <header className="app__header">
+              <h1>Ticker</h1>
+              <span className="app__sub">{t('app.sub')}</span>
+              <SummaryBar services={services} />
+            </header>
+            {!reachable && (
+              <div className="banner banner--unreachable" role="alert">
+                <span className="banner__glyph" aria-hidden>⚠</span>
+                <span>
+                  <strong>{t('banner.title')}</strong>{' '}
+                  {staleSeconds != null
+                    ? t('banner.stale', { n: staleSeconds })
+                    : t('banner.noUpdate')}
+                </span>
+              </div>
+            )}
+            {services.length === 0 && !reachable ? (
+              <p className="empty">
+                {t('banner.unreachableA')} <code>/api/services</code>{t('banner.unreachableB')}
+              </p>
+            ) : (
+              <StatusWall services={services} onSelect={setSelectedId} stale={!reachable} />
+            )}
+          </>
+        )}
+      </main>
+    </>
   )
 }
