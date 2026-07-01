@@ -159,6 +159,14 @@ charts) · Spring JDBC + H2/MySQL/PostgreSQL (opt-in) · Gradle (Kotlin DSL) · 
 - [`docs/PRD.md`](docs/PRD.md) — product scope & UX direction
 - Project page: **https://stevelabs.io/ticker**
 
+## Status & contributing
+
+Ticker is a **personal, solo-maintained** open-source project — public so you
+can run it, read it, and fork it, but **not accepting pull requests**. Bug
+reports are welcome; features outside [`docs/ROADMAP.md`](docs/ROADMAP.md) are
+usually out of scope by design. Want it to do more? Fork it — that's what
+Apache-2.0 is for. Details in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 ## License
 
 [Apache License 2.0](LICENSE) © SteveLabs.
