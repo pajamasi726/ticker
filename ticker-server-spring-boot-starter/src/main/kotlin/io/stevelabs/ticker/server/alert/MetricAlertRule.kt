@@ -16,6 +16,8 @@ data class MetricAlertRule(
     val threshold: Double,
     val unit: Unit,
     val cooldownSeconds: Long = 300,
+    /** Must breach continuously for this long before firing (0 = fire immediately). */
+    val forSeconds: Long = 0,
     val enabled: Boolean = true,
 ) {
     /** Pure decision — no Spring, no I/O. Quantity is null when the metric could not be resolved. */
@@ -36,6 +38,7 @@ data class MetricAlertRule(
                 comparator = Comparator.GT,
                 threshold = 0.80,
                 unit = Unit.PERCENT,
+                forSeconds = 30,
             ),
             MetricAlertRule(
                 key = "cpu-system",
@@ -44,6 +47,7 @@ data class MetricAlertRule(
                 comparator = Comparator.GT,
                 threshold = 0.90,
                 unit = Unit.PERCENT,
+                forSeconds = 30,
             ),
             MetricAlertRule(
                 key = "heap-used",
@@ -53,6 +57,7 @@ data class MetricAlertRule(
                 comparator = Comparator.GT,
                 threshold = 0.85,
                 unit = Unit.PERCENT,
+                forSeconds = 60,
             ),
             MetricAlertRule(
                 key = "disk-free",
@@ -62,6 +67,7 @@ data class MetricAlertRule(
                 comparator = Comparator.LT,
                 threshold = 0.10,
                 unit = Unit.PERCENT,
+                forSeconds = 0,
             ),
             MetricAlertRule(
                 key = "gc-overhead",
@@ -70,6 +76,7 @@ data class MetricAlertRule(
                 comparator = Comparator.GT,
                 threshold = 0.25,
                 unit = Unit.PERCENT,
+                forSeconds = 60,
             ),
             MetricAlertRule(
                 key = "files-open",
@@ -79,6 +86,7 @@ data class MetricAlertRule(
                 comparator = Comparator.GT,
                 threshold = 0.80,
                 unit = Unit.PERCENT,
+                forSeconds = 0,
             ),
         )
     }

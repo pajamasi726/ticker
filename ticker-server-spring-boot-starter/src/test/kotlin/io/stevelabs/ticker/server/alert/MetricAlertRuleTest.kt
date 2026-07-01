@@ -69,4 +69,20 @@ class MetricAlertRuleTest {
     @Test fun `all DEFAULTS rules are PERCENT unit`() {
         assertThat(MetricAlertRule.DEFAULTS).allSatisfy { assertThat(it.unit).isEqualTo(Unit.PERCENT) }
     }
+
+    // --- forSeconds ---
+
+    @Test fun `forSeconds default is 0`() {
+        assertThat(gtRule(0.80).forSeconds).isEqualTo(0L)
+    }
+
+    @Test fun `DEFAULTS have expected forSeconds per key`() {
+        val byKey = MetricAlertRule.DEFAULTS.associateBy { it.key }
+        assertThat(byKey.getValue("cpu-process").forSeconds).isEqualTo(30L)
+        assertThat(byKey.getValue("cpu-system").forSeconds).isEqualTo(30L)
+        assertThat(byKey.getValue("heap-used").forSeconds).isEqualTo(60L)
+        assertThat(byKey.getValue("gc-overhead").forSeconds).isEqualTo(60L)
+        assertThat(byKey.getValue("disk-free").forSeconds).isEqualTo(0L)
+        assertThat(byKey.getValue("files-open").forSeconds).isEqualTo(0L)
+    }
 }

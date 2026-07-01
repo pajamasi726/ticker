@@ -13,6 +13,7 @@ import io.stevelabs.ticker.server.state.HealthStateStore
 import io.stevelabs.ticker.server.target.Target
 import io.stevelabs.ticker.server.target.TargetDefinition
 import io.stevelabs.ticker.server.target.TargetRegistry
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.TestConfiguration
@@ -24,7 +25,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @WebMvcTest(DetailController::class)
-class DetailControllerTest(@Autowired val mvc: MockMvc) {
+class DetailControllerTest(@Autowired val mvc: MockMvc, @Autowired val metricSource: CapturingMetricSource) {
 
     @TestConfiguration
     class Beans {
@@ -36,22 +37,7 @@ class DetailControllerTest(@Autowired val mvc: MockMvc) {
         )
         @Bean fun healthStateStore(registry: TargetRegistry) = HealthStateStore(registry, PollProperties())
         @Bean fun detailProperties() = DetailProperties()
-        @Bean fun metricSource() = object : MetricSource {
-            override fun fetch(target: Target): List<ResolvedGroup> =
-                if (target.type == ServiceType.SPRING) {
-                    listOf(
-                        ResolvedGroup(
-                            "Threads",
-                            listOf(ResolvedWidget("threads-live", "Live", Render.CHART, Unit.COUNT, 42.0, null, false)),
-                        ),
-                    )
-                } else {
-                    emptyList()
-                }
-
-            override fun tagBreakdown(target: Target, metricName: String, tag: String): List<TagStat> =
-                listOf(TagStat("/api/foo", 100.0, 0.05, 0.2))
-        }
+        @Bean fun metricSource() = CapturingMetricSource()
     }
 
     @Test fun `detail for a SPRING target returns grouped widgets`() {
@@ -111,5 +97,45 @@ class DetailControllerTest(@Autowired val mvc: MockMvc) {
             .param("tag", "configKey"))
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.code").value("TAG_NOT_ALLOWED"))
+    }
+
+    @Test fun `metric-breakdown with filter passes filter map to source and returns rows`() {
+        mvc.perform(get("/api/services/spring-svc/metric-breakdown")
+            .param("metric", "http.server.requests")
+            .param("tag", "uri")
+            .param("filter", "outcome:CLIENT_ERROR"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].value").value("/api/foo"))
+        assertThat(metricSource.lastFilter).isEqualTo(mapOf("outcome" to "CLIENT_ERROR"))
+    }
+
+    @Test fun `metric-breakdown with disallowed filter tag returns 400`() {
+        mvc.perform(get("/api/services/spring-svc/metric-breakdown")
+            .param("metric", "http.server.requests")
+            .param("tag", "uri")
+            .param("filter", "badtag:x"))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("FILTER_NOT_ALLOWED"))
+    }
+}
+
+class CapturingMetricSource : MetricSource {
+    var lastFilter: Map<String, String>? = null
+
+    override fun fetch(target: Target): List<ResolvedGroup> =
+        if (target.type == ServiceType.SPRING) {
+            listOf(
+                ResolvedGroup(
+                    "Threads",
+                    listOf(ResolvedWidget("threads-live", "Live", Render.CHART, Unit.COUNT, 42.0, null, false)),
+                ),
+            )
+        } else {
+            emptyList()
+        }
+
+    override fun tagBreakdown(target: Target, metricName: String, tag: String, filter: Map<String, String>): List<TagStat> {
+        lastFilter = filter
+        return listOf(TagStat("/api/foo", 100.0, 0.05, 0.2))
     }
 }

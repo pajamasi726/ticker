@@ -25,6 +25,7 @@ class MetricAlertService(
 ) {
     private val log = LoggerFactory.getLogger(MetricAlertService::class.java)
     private val lastFiredAt = HashMap<String, Instant>() // key = "$targetId/$ruleKey"
+    private val breachingSince = HashMap<String, Instant>() // key = "$targetId/$ruleKey"
     private var warnedNoSender = false
 
     @Scheduled(fixedRateString = "\${ticker.alert.metric-interval:30s}")
@@ -44,7 +45,15 @@ class MetricAlertService(
                 liveCompositeKeys += compositeKey
 
                 val quantity = resolveQuantity(target, rule)
-                if (!rule.breaches(quantity)) continue
+                if (!rule.breaches(quantity)) {
+                    breachingSince.remove(compositeKey)
+                    continue
+                }
+
+                // Breaching: track start time and check sustained duration
+                val sinceInstant = breachingSince.getOrPut(compositeKey) { now }
+                val sustained = now.epochSecond - sinceInstant.epochSecond
+                if (sustained < rule.forSeconds) continue
 
                 val lastFired = lastFiredAt[compositeKey]
                 val cooldownElapsed = lastFired == null ||
@@ -52,7 +61,7 @@ class MetricAlertService(
 
                 if (!cooldownElapsed) continue
 
-                // Breach confirmed and cooldown elapsed — fire
+                // Sustained breach + cooldown elapsed — fire
                 val displayValue = quantity!!
                 val message = buildMessage(target.name, rule, displayValue)
                 dispatch(message)
@@ -75,6 +84,7 @@ class MetricAlertService(
 
         // Prune entries for targets/rules that no longer exist
         lastFiredAt.keys.retainAll(liveCompositeKeys)
+        breachingSince.keys.retainAll(liveCompositeKeys)
     }
 
     private fun resolveQuantity(target: io.stevelabs.ticker.server.target.Target, rule: MetricAlertRule): Double? {

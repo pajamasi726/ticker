@@ -50,6 +50,7 @@ class DetailController(
         @PathVariable id: String,
         @RequestParam metric: String,
         @RequestParam tag: String,
+        @RequestParam(required = false) filter: String?,
     ): ResponseEntity<Any> {
         val target = registry.all().firstOrNull { it.id == id }
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -70,7 +71,20 @@ class DetailController(
                 .body<Any>(ApiError("TAG_NOT_ALLOWED", "Tag '$tag' is not allowed; permitted: $allowedTags"))
         }
 
-        val stats: List<TagStat> = metricSource.tagBreakdown(target, metric, tag)
+        val filterMap: Map<String, String> = if (filter != null) {
+            val sep = filter.indexOf(':')
+            val tagKey = if (sep >= 0) filter.substring(0, sep) else ""
+            val tagValue = if (sep >= 0) filter.substring(sep + 1) else ""
+            if (tagKey !in allowedTags) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body<Any>(ApiError("FILTER_NOT_ALLOWED", "Filter tag '$tagKey' is not allowed; permitted: $allowedTags"))
+            }
+            mapOf(tagKey to tagValue)
+        } else {
+            emptyMap()
+        }
+
+        val stats: List<TagStat> = metricSource.tagBreakdown(target, metric, tag, filterMap)
         return ResponseEntity.ok<Any>(stats)
     }
 }

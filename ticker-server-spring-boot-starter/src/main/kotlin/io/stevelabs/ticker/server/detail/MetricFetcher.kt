@@ -26,9 +26,10 @@ interface MetricSource {
     /**
      * Return a per-[tag]-value breakdown of [metricName] for a SPRING target.
      * Each row carries count, mean latency, and max latency for one tag value.
+     * [filter] is an optional set of fixed tags that scope the breakdown (e.g. outcome=CLIENT_ERROR).
      * Default returns emptyList() so existing test stubs compile without changes.
      */
-    fun tagBreakdown(target: Target, metricName: String, tag: String): List<TagStat> = emptyList()
+    fun tagBreakdown(target: Target, metricName: String, tag: String, filter: Map<String, String> = emptyMap()): List<TagStat> = emptyList()
 }
 
 /**
@@ -52,16 +53,16 @@ class MetricFetcher(
         return statisticValue(measurements, statistic)
     }
 
-    override fun tagBreakdown(target: Target, metricName: String, tag: String): List<TagStat> {
+    override fun tagBreakdown(target: Target, metricName: String, tag: String, filter: Map<String, String>): List<TagStat> {
         if (target.type != ServiceType.SPRING) return emptyList()
         // Guardrail #4: reject any name that doesn't pass MetricRef validation.
-        val ref = try { MetricRef(metricName) } catch (_: IllegalArgumentException) { return emptyList() }
-        val tagValues = fetchTagValues(target.url, ref, tag)
+        val filterRef = try { MetricRef(metricName, filter) } catch (_: IllegalArgumentException) { return emptyList() }
+        val tagValues = fetchTagValues(target.url, filterRef, tag)
         if (tagValues.isEmpty()) return emptyList()
         val futures = tagValues.map { value ->
             executor.submit<TagStat?> {
                 try {
-                    val tagRef = MetricRef(metricName, mapOf(tag to value))
+                    val tagRef = MetricRef(metricName, filter + (tag to value))
                     val m = fetchMeasurements(target.url, tagRef) ?: return@submit null
                     val count = m["COUNT"]
                     val totalTime = m["TOTAL_TIME"]

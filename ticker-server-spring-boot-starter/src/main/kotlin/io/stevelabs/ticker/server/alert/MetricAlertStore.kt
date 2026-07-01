@@ -19,15 +19,17 @@ class MetricAlertStore {
     fun all(): List<MetricAlertRule> = MetricAlertRule.DEFAULTS.mapNotNull { rules[it.key] }
 
     /**
-     * Update only the mutable fields (enabled, threshold, cooldownSeconds).
+     * Update only the mutable fields (enabled, threshold, cooldownSeconds, forSeconds).
      * Returns the updated rule, or null if the key is unknown.
-     * Throws [IllegalArgumentException] if a PERCENT rule is given a threshold outside [0,1].
+     * Throws [IllegalArgumentException] if a PERCENT rule is given a threshold outside [0,1],
+     * or if forSeconds is negative.
      */
     fun update(
         key: String,
         enabled: Boolean?,
         threshold: Double?,
         cooldownSeconds: Long?,
+        forSeconds: Long? = null,
     ): MetricAlertRule? {
         val current = rules[key] ?: return null
         if (threshold != null && current.unit == Unit.PERCENT && (threshold < 0.0 || threshold > 1.0)) {
@@ -35,10 +37,14 @@ class MetricAlertStore {
                 "Threshold for PERCENT rule '$key' must be in [0,1], got $threshold",
             )
         }
+        if (forSeconds != null && forSeconds < 0) {
+            throw IllegalArgumentException("forSeconds must be >= 0, got $forSeconds")
+        }
         val updated = current.copy(
             enabled = enabled ?: current.enabled,
             threshold = threshold ?: current.threshold,
             cooldownSeconds = cooldownSeconds ?: current.cooldownSeconds,
+            forSeconds = forSeconds ?: current.forSeconds,
         )
         rules[key] = updated
         return updated

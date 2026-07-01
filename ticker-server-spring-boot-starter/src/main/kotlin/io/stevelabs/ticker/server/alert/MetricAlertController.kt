@@ -14,6 +14,7 @@ data class RuleUpdate(
     val enabled: Boolean? = null,
     val threshold: Double? = null,
     val cooldownSeconds: Long? = null,
+    val forSeconds: Long? = null,
 )
 
 @RestController
@@ -29,7 +30,7 @@ class MetricAlertController(private val rules: MetricAlertStore) {
         @RequestBody body: RuleUpdate,
     ): ResponseEntity<Any> {
         val updated = try {
-            rules.update(key, body.enabled, body.threshold, body.cooldownSeconds)
+            rules.update(key, body.enabled, body.threshold, body.cooldownSeconds, body.forSeconds)
         } catch (e: IllegalArgumentException) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body<Any>(ApiError("INVALID_THRESHOLD", e.message ?: "Invalid threshold"))

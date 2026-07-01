@@ -62,6 +62,17 @@ class MetricAlertStoreTest {
         assertThat(store.update("cpu-process", null, 1.0, null)).isNotNull()
     }
 
+    @Test fun `update sets forSeconds`() {
+        val store = store()
+        val updated = store.update("cpu-process", null, null, null, forSeconds = 120)!!
+        assertThat(updated.forSeconds).isEqualTo(120L)
+    }
+
+    @Test fun `negative forSeconds throws IllegalArgumentException`() {
+        assertThatThrownBy { store().update("cpu-process", null, null, null, forSeconds = -1) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
+
     // --- recent-fires bounded log ---
 
     @Test fun `recent fires are returned newest first`() {
