@@ -34,8 +34,9 @@ class MetricFetcherTest {
                 }
                 return when {
                     path == "/actuator/metrics" -> MockResponse().setResponseCode(200).setHeader("Content-Type", "application/json")
-                        .setBody("""{"names":["jvm.threads.live","jvm.memory.used","jvm.memory.max","http.server.requests"]}""")
+                        .setBody("""{"names":["jvm.threads.live","jvm.memory.used","jvm.memory.max","http.server.requests","neg.gauge"]}""")
                     path.startsWith("/actuator/metrics/jvm.threads.live") -> ok("""{"statistic":"VALUE","value":42.0}""")
+                    path.startsWith("/actuator/metrics/neg.gauge") -> ok("""{"statistic":"VALUE","value":-1.0}""")
                     path.startsWith("/actuator/metrics/jvm.memory.used") -> ok("""{"statistic":"VALUE","value":100.0}""")
                     path.startsWith("/actuator/metrics/jvm.memory.max") -> ok("""{"statistic":"VALUE","value":200.0}""")
                     path.startsWith("/actuator/metrics/http.server.requests") ->
@@ -108,6 +109,13 @@ class MetricFetcherTest {
         // jvm.memory.used returns VALUE 100; render=GAUGE + unit=PERCENT + no max -> max defaults to 1.0
         val cpu = fetcher(dashboard).fetch(target())[0].widgets.first()
         assertThat(cpu.max).isEqualTo(1.0)
+    }
+
+    @Test fun `treats a negative value (-1 not-applicable) as unavailable`() {
+        val dashboard = listOf(GroupSpec("G", listOf(WidgetSpec("neg", "Neg", "neg.gauge", render = Render.NUMBER, unit = Unit.COUNT))))
+        val w = fetcher(dashboard).fetch(target())[0].widgets.single()
+        assertThat(w.available).isFalse()
+        assertThat(w.value).isNull()
     }
 
     @Test fun `only ever calls actuator metrics paths (guardrail 4)`() {

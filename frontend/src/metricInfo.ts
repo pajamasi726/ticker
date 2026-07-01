@@ -125,7 +125,7 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
   'tomcat-connections-current': { important: true, hasTip: true },
   'tomcat-connections-max':     {},
   'tomcat-global-requests':     { hasTip: true },
-  'tomcat-global-request-max':  { hasTip: true },
+  'tomcat-global-request-avg':  { hasTip: true },
   'tomcat-global-errors':       { important: true, hasTip: true },
   'tomcat-bytes-sent':          { hasTip: true },
   'tomcat-bytes-received':      { hasTip: true },

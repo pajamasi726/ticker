@@ -138,6 +138,10 @@ class MetricFetcher(
     private fun resolveWidget(baseUrl: String, widget: WidgetSpec): ResolvedWidget {
         val measurements = fetchMeasurements(baseUrl, MetricRef(widget.metric, widget.tags))
         val value = measurements?.let { statisticValue(it, widget.statistic) } ?: return unavailable(widget)
+        // Micrometer reports -1 / NaN for "not applicable" (e.g. tomcat.threads.* under virtual threads,
+        // system.load.average.1m on unsupported OSes). None of our metrics are legitimately negative, so
+        // treat that as not-collected (dimmed) rather than showing a nonsense value.
+        if (value.isNaN() || value < 0) return unavailable(widget)
         val max = resolveMax(baseUrl, widget)
         return ResolvedWidget(widget.key, widget.label, widget.render, widget.unit, value, max, widget.cumulative, widget.higherIsBetter, widget.perSecond, widget.ratio, available = true)
     }

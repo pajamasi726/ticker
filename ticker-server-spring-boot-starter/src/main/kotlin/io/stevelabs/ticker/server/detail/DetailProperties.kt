@@ -219,7 +219,7 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
             WidgetSpec("tomcat-connections-current", "Connections", "tomcat.connections.current", render = Render.CHART, unit = Unit.COUNT),
             WidgetSpec("tomcat-connections-max", "Connections max", "tomcat.connections.max", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("tomcat-global-requests", "Requests/sec", "tomcat.global.request", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true, perSecond = true),
-            WidgetSpec("tomcat-global-request-max", "Slowest request", "tomcat.global.request", statistic = "MAX", render = Render.CHART, unit = Unit.SECONDS),
+            WidgetSpec("tomcat-global-request-avg", "Avg request", "tomcat.global.request", statistic = "MEAN", render = Render.CHART, unit = Unit.SECONDS),
             WidgetSpec("tomcat-global-errors", "Request errors", "tomcat.global.error", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
             WidgetSpec("tomcat-bytes-sent", "Bytes sent/sec", "tomcat.global.sent", statistic = "COUNT", render = Render.CHART, unit = Unit.BYTES, cumulative = true, perSecond = true),
             WidgetSpec("tomcat-bytes-received", "Bytes recv/sec", "tomcat.global.received", statistic = "COUNT", render = Render.CHART, unit = Unit.BYTES, cumulative = true, perSecond = true),
