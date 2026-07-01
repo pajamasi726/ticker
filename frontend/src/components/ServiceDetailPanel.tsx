@@ -3,7 +3,9 @@ import { fetchDetail, fetchAlertRules, updateAlertRule, fetchRecentAlerts } from
 import type { ServiceDetail, AlertRule, AlertFire, ResolvedWidget } from '../types'
 import { MetricWidget } from './MetricWidget'
 import { MetricInspector } from './MetricInspector'
+import { TimeFormatSelect } from './TimeFormatSelect'
 import { formatValue } from '../format'
+import { useTimeFmt, formatTime } from '../timeFormat'
 
 const MAX_POINTS = 60
 const POLL_MS = 5000
@@ -16,6 +18,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   const [rules, setRules] = useState<Record<string, AlertRule>>({})
   const [recent, setRecent] = useState<AlertFire[]>([])
   const [inspectorKey, setInspectorKey] = useState<string | null>(null)
+  const timeFmt = useTimeFmt()
 
   useEffect(() => {
     let active = true
@@ -104,12 +107,6 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     return den > 0 ? num / den : 0
   }
 
-  const timeAgo = (iso: string) => {
-    const t = Date.parse(iso)
-    if (Number.isNaN(t)) return ''
-    const s = Math.max(0, Math.round((Date.now() - t) / 1000))
-    return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`
-  }
   const myRecent = recent.filter((a) => a.targetId === id).slice(0, 5)
 
   // Apply the client-side ratio override (e.g. error rate) before charting/inspecting a widget.
@@ -150,9 +147,10 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
           <span className="recent-alerts__title">⚠ Recent alerts</span>
           {myRecent.map((a, i) => (
             <span key={i} className="recent-alerts__item">
-              {a.label} <b>{formatValue(a.value, a.unit)}</b> vs {formatValue(a.threshold, a.unit)} · {timeAgo(a.at)}
+              {a.label} <b>{formatValue(a.value, a.unit)}</b> vs {formatValue(a.threshold, a.unit)} · {formatTime(a.at, timeFmt)}
             </span>
           ))}
+          <TimeFormatSelect />
         </div>
       )}
       {detail?.type === 'HTTP' && (

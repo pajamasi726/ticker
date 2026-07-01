@@ -3,6 +3,8 @@ import type { ResolvedWidget, AlertRule, AlertFire, TagStat } from '../types'
 import { formatValue } from '../format'
 import { LiveChart } from './LiveChart'
 import { fetchMetricBreakdown } from '../api'
+import { useTimeFmt, formatTime } from '../timeFormat'
+import { TimeFormatSelect } from './TimeFormatSelect'
 
 // Widget keys that support a tag breakdown. All http.server.requests-based → by URI (endpoint).
 // Error/success widgets scope the breakdown to that outcome, so you see WHICH endpoint erred.
@@ -15,13 +17,6 @@ const BREAKDOWN: Record<string, { metric: string; tag: string; filter?: string; 
   'http-success': { metric: 'http.server.requests', tag: 'uri', filter: 'outcome:SUCCESS', title: 'Successful requests by endpoint' },
   'http-client-error': { metric: 'http.server.requests', tag: 'uri', filter: 'outcome:CLIENT_ERROR', title: 'Client errors by endpoint' },
   'http-server-error': { metric: 'http.server.requests', tag: 'uri', filter: 'outcome:SERVER_ERROR', title: 'Server errors by endpoint' },
-}
-
-const ago = (iso: string) => {
-  const t = Date.parse(iso)
-  if (Number.isNaN(t)) return ''
-  const s = Math.max(0, Math.round((Date.now() - t) / 1000))
-  return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`
 }
 
 /** The quantity an alert compares: ratio (value/max) for gauges with a max, else the raw value. */
@@ -154,6 +149,7 @@ function AlertSection({ rule, current, recent, onSave }: { rule: AlertRule; curr
   const [forSecs, setForSecs] = useState(rule.forSeconds)
   const [cooldown, setCooldown] = useState(rule.cooldownSeconds)
   const [saved, setSaved] = useState(false)
+  const fmt = useTimeFmt()
 
   const cmp = rule.comparator === 'GT' ? '>' : '<'
   const thr = fromDisplay(threshold)
@@ -205,9 +201,9 @@ function AlertSection({ rule, current, recent, onSave }: { rule: AlertRule; curr
       </div>
       {recent.length > 0 && (
         <div className="mi__fires">
-          <div className="alert-drawer__label">Recent fires</div>
+          <div className="alert-drawer__label mi__fireshead"><span>Recent fires</span><TimeFormatSelect /></div>
           {recent.slice(0, 6).map((a, i) => (
-            <div key={i} className="alert-drawer__fire"><b>{formatValue(a.value, a.unit)}</b> vs {formatValue(a.threshold, a.unit)} · {ago(a.at)}</div>
+            <div key={i} className="alert-drawer__fire"><b>{formatValue(a.value, a.unit)}</b> vs {formatValue(a.threshold, a.unit)} · {formatTime(a.at, fmt)}</div>
           ))}
         </div>
       )}
