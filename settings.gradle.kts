@@ -12,6 +12,7 @@ rootProject.name = "ticker"
 
 include("ticker-core")
 include("ticker-client-spring-boot-starter")
+include("ticker-client-spring-boot3-starter")
 include("ticker-server-spring-boot-starter")
 include("ticker-server-sample")
 include("ticker-client-sample")

@@ -49,7 +49,7 @@ publishing {
             pom {
                 name.set(project.name)
                 description.set("Ticker — internal service liveness board (SBA-style). Module: ${project.name}.")
-                url.set("https://github.com/stevelabs/ticker")
+                url.set("https://github.com/pajamasi726/ticker")
                 licenses {
                     license {
                         name.set("The Apache License, Version 2.0")
@@ -58,8 +58,8 @@ publishing {
                 }
                 developers { developer { id.set("stevelabs"); name.set("SteveLabs") } }
                 scm {
-                    url.set("https://github.com/stevelabs/ticker")
-                    connection.set("scm:git:https://github.com/stevelabs/ticker.git")
+                    url.set("https://github.com/pajamasi726/ticker")
+                    connection.set("scm:git:https://github.com/pajamasi726/ticker.git")
                 }
             }
         }

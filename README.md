@@ -75,11 +75,21 @@ Start it and open `http://localhost:8080` — the status wall + bundled UI are s
 
 ### 2. Let your services self-register (push)
 
-Add the **client** starter to each monitored Spring Boot app — it only needs the collector URL:
+Add the **client** starter to each monitored Spring Boot app — it only needs the collector URL.
+**Pick the starter that matches the monitored app's Spring Boot version.** The collector itself
+always runs on Boot 4 / Java 21; a Boot 3.2+ app on Java 17+ registers with it over HTTP just fine.
+
+| Monitored app's Spring Boot | Client starter |
+|---|---|
+| **4.x** | `io.stevelabs:ticker-client-spring-boot-starter` |
+| **3.2+** | `io.stevelabs:ticker-client-spring-boot3-starter` |
 
 ```kotlin
 dependencies {
+    // on a Spring Boot 4.x app:
     implementation("io.stevelabs:ticker-client-spring-boot-starter:0.1.0")
+    // …or on a Spring Boot 3.2+ app instead (same config, same behaviour — only the artifact differs):
+    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.1.0")
 }
 ```
 ```yaml

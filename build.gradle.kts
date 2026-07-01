@@ -1,6 +1,16 @@
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 
+// Load the Kotlin plugins once, on the root project's classloader (apply false = don't apply them
+// to the root itself), so every subproject shares a single Kotlin-plugin classloader. Without this,
+// Gradle warns "Kotlin Gradle plugin loaded multiple times in different subprojects" and Kotlin's
+// incremental-compilation classpath snapshotter can fail (BuildUtilKt.clearJarCaches /
+// ClasspathEntrySnapshotter). Versions come from settings.gradle.kts pluginManagement.
+plugins {
+    kotlin("jvm") apply false
+    kotlin("plugin.spring") apply false
+}
+
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"

@@ -6,6 +6,7 @@ import org.springframework.beans.factory.DisposableBean
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.core.env.Environment
+import org.springframework.http.MediaType
 import org.springframework.web.client.RestClient
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -48,9 +49,10 @@ class TickerClientRegistrar(
     }
 
     private fun register(endpoint: String, request: RegistrationRequest) {
+        val json = toJson(request)
         repeat(maxAttempts) { attempt ->
             try {
-                restClient.post().uri(endpoint).body(request).retrieve().toBodilessEntity()
+                restClient.post().uri(endpoint).contentType(MediaType.APPLICATION_JSON).body(json).retrieve().toBodilessEntity()
                 log.info("Registered '{}' with collector {}", request.name, endpoint)
                 return
             } catch (e: Exception) {
@@ -74,11 +76,47 @@ class TickerClientRegistrar(
     /** A single re-POST per beat — the interval IS the retry cadence, so failures just wait for the next beat (logged at debug, not warn). */
     private fun heartbeat(endpoint: String, request: RegistrationRequest) {
         try {
-            restClient.post().uri(endpoint).body(request).retrieve().toBodilessEntity()
+            restClient.post().uri(endpoint).contentType(MediaType.APPLICATION_JSON).body(toJson(request)).retrieve().toBodilessEntity()
             log.debug("Heartbeat re-registered '{}' with {}", request.name, endpoint)
         } catch (e: Exception) {
             log.debug("Heartbeat for '{}' failed ({}); will retry next interval", request.name, e.message)
         }
+    }
+
+    /**
+     * Serialize the registration payload by hand. The payload is a fixed, flat shape
+     * (`{name,type,url,tags}`), so we avoid any JSON library — that keeps the starter free of a
+     * Jackson-version dependency (Boot 3 ships Jackson 2, Boot 4 ships Jackson 3) and lets it work
+     * even in non-web apps that have no HTTP message converters configured.
+     */
+    private fun toJson(request: RegistrationRequest): String = buildString {
+        append('{')
+        append("\"name\":").append(jsonString(request.name)).append(',')
+        append("\"type\":").append(jsonString(request.type.name)).append(',')
+        append("\"url\":").append(jsonString(request.url)).append(',')
+        append("\"tags\":[")
+        request.tags.forEachIndexed { i, tag ->
+            if (i > 0) append(',')
+            append(jsonString(tag))
+        }
+        append("]}")
+    }
+
+    private fun jsonString(value: String): String = buildString {
+        append('"')
+        for (c in value) {
+            when (c) {
+                '"' -> append("\\\"")
+                '\\' -> append("\\\\")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                else -> if (c < ' ') append("\\u%04x".format(c.code)) else append(c)
+            }
+        }
+        append('"')
     }
 
     override fun destroy() {
