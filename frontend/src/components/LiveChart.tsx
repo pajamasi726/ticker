@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import type { Unit } from '../types'
+import type { TimeFmt } from '../timeFormat'
 import { formatValue } from '../format'
 
 const STROKE = '#5b8def'
@@ -11,14 +12,22 @@ function tickValues(unit: Unit) {
   return (_u: uPlot, splits: number[]) => splits.map((v) => formatValue(v, unit).replace(/\s+/g, ''))
 }
 
-/** Relative-time x-axis labels ("now", "-30s", "-2m") derived from the sample index + poll interval. */
-function timeValues(intervalSec: number) {
+/**
+ * X-axis labels from the sample index + poll interval. 'relative' → "now"/"-30s"/"-2m";
+ * any absolute format → wall-clock "HH:mm:ss" (the last sample ≈ now, each step back one interval).
+ */
+function timeValues(intervalSec: number, fmt: TimeFmt) {
+  const pad = (x: number) => String(x).padStart(2, '0')
   return (u: uPlot, splits: number[]) => {
     const n = u.data[0].length
+    const now = Date.now()
     return splits.map((v) => {
-      const back = Math.round((n - 1 - v) * intervalSec)
-      if (back <= 0) return 'now'
-      return back < 60 ? `-${back}s` : `-${Math.round(back / 60)}m`
+      if (fmt === 'relative') {
+        const back = Math.round((n - 1 - v) * intervalSec)
+        return back <= 0 ? 'now' : back < 60 ? `-${back}s` : `-${Math.round(back / 60)}m`
+      }
+      const d = new Date(now - (n - 1 - v) * intervalSec * 1000)
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
     })
   }
 }
@@ -52,9 +61,10 @@ interface Props {
   data: number[]
   unit: Unit
   height?: number
-  showTime?: boolean // render a relative-time x-axis
+  showTime?: boolean // render a time x-axis
   fullScale?: boolean // fixed y-axis (0-100% for PERCENT, else 0-max) instead of autoscale
   intervalSec?: number // poll interval, for the time axis
+  timeFmt?: TimeFmt // x-axis time style: 'relative' (-30s) or absolute clock (HH:mm:ss)
 }
 
 /**
@@ -62,7 +72,7 @@ interface Props {
  * shape); `fullScale` pins it (0–100% for percent, else 0–max). Area-gradient fill, unit-formatted
  * y ticks, optional relative-time x-axis, and a hover tooltip. Width is responsive.
  */
-export function LiveChart({ data, unit, height = 88, showTime = false, fullScale = false, intervalSec = 5 }: Props) {
+export function LiveChart({ data, unit, height = 88, showTime = false, fullScale = false, intervalSec = 5, timeFmt = 'relative' }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const plot = useRef<uPlot | null>(null)
 
@@ -90,7 +100,7 @@ export function LiveChart({ data, unit, height = 88, showTime = false, fullScale
       },
       axes: [
         showTime
-          ? { show: true, size: 22, stroke: '#5b6472', font: '10px ui-monospace, monospace', ticks: { show: false }, grid: { show: false }, values: timeValues(intervalSec), space: 64 }
+          ? { show: true, size: 22, stroke: '#5b6472', font: '10px ui-monospace, monospace', ticks: { show: false }, grid: { show: false }, values: timeValues(intervalSec, timeFmt), space: 64 }
           : { show: false },
         {
           show: true,
@@ -128,7 +138,7 @@ export function LiveChart({ data, unit, height = 88, showTime = false, fullScale
     ro.observe(el.current)
     return () => { ro.disconnect(); plot.current?.destroy(); plot.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height, unit, showTime, fullScale, intervalSec])
+  }, [height, unit, showTime, fullScale, intervalSec, timeFmt])
 
   useEffect(() => { plot.current?.setData([data.map((_, i) => i), data]) }, [data])
 

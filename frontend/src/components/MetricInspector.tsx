@@ -43,6 +43,7 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
   const bd = BREAKDOWN[widget.key] ?? null
   const [rows, setRows] = useState<TagStat[] | null>(null)
   const [fullScale, setFullScale] = useState(false)
+  const fmt = useTimeFmt()
 
   useEffect(() => {
     if (!bd) return
@@ -87,7 +88,7 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
                   <button className={fullScale ? 'on' : ''} onClick={() => setFullScale(true)}>{widget.unit === 'PERCENT' ? '0–100%' : '0–max'}</button>
                 </span>
               </div>
-              <div className="mi__chart"><LiveChart data={series} unit={widget.unit} height={260} showTime fullScale={fullScale} intervalSec={5} /></div>
+              <div className="mi__chart"><LiveChart data={series} unit={widget.unit} height={260} showTime fullScale={fullScale} intervalSec={5} timeFmt={fmt} /></div>
               {stats && (
                 <div className="mi__stats">
                   <span>min <b>{formatValue(stats.min, widget.unit)}</b></span>
