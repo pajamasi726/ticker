@@ -18,6 +18,9 @@ import io.stevelabs.ticker.server.target.TargetRegistry
 import io.stevelabs.ticker.server.target.TargetsProperties
 import io.stevelabs.ticker.server.target.UiTargetStore
 import io.stevelabs.ticker.server.web.SpaCacheControlFilter
+import io.stevelabs.ticker.server.web.SpaShellController
+import io.stevelabs.ticker.server.web.TickerSpaWebConfigurer
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -66,4 +69,12 @@ class TickerServerAutoConfiguration {
     @Bean fun detailController(registry: TargetRegistry, store: HealthStateStore, metricSource: MetricSource, detailProperties: DetailProperties) =
         DetailController(registry, store, metricSource, detailProperties)
     @Bean fun spaCacheControlFilter() = SpaCacheControlFilter()
+
+    /** Relocates UI + API under ticker.server.base-path (no-op when unset). */
+    @Bean fun tickerSpaWebConfigurer(props: TickerServerProperties): WebMvcConfigurer = TickerSpaWebConfigurer(props.basePath)
+
+    /** SPA shell with the base path injected — only when a base path is configured. */
+    @Bean
+    @ConditionalOnProperty(prefix = "ticker.server", name = ["base-path"])
+    fun spaShellController(props: TickerServerProperties) = SpaShellController(props)
 }

@@ -1,5 +1,11 @@
 import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat, MetricHistory } from './types'
 
+/**
+ * Base path the collector is served under. Injected into index.html as `window.__TICKER_BASE__` when
+ * `ticker.server.base-path` is set (e.g. "/ticker"); empty by default, so calls hit "/api/**" as before.
+ */
+const BASE: string = (typeof window !== 'undefined' && (window as { __TICKER_BASE__?: string }).__TICKER_BASE__) || ''
+
 /** Carries the server's {code, message} so the UI can localize by code (e.g. TARGET_NAME_TAKEN). */
 export class ApiError extends Error {
   code: string
@@ -15,14 +21,14 @@ async function asApiError(res: Response): Promise<ApiError> {
 }
 
 export async function fetchServices(): Promise<ServiceView[]> {
-  const res = await fetch('/api/services')
+  const res = await fetch(`${BASE}/api/services`)
   if (!res.ok) throw new Error(`GET /api/services failed: ${res.status}`)
   return res.json()
 }
 
 /** Add an operator-defined HTTP liveness monitor (source=UI). Throws ApiError on 400/409. */
 export async function addHttpMonitor(name: string, url: string): Promise<void> {
-  const res = await fetch('/api/targets/http', {
+  const res = await fetch(`${BASE}/api/targets/http`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, url }),
@@ -32,18 +38,18 @@ export async function addHttpMonitor(name: string, url: string): Promise<void> {
 
 /** Remove a target (UI or client-registered). Static targets return 409. */
 export async function removeTarget(id: string): Promise<void> {
-  const res = await fetch(`/api/targets/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  const res = await fetch(`${BASE}/api/targets/${encodeURIComponent(id)}`, { method: 'DELETE' })
   if (!res.ok) throw await asApiError(res)
 }
 
 export async function fetchDetail(id: string): Promise<ServiceDetail> {
-  const res = await fetch(`/api/services/${encodeURIComponent(id)}/detail`)
+  const res = await fetch(`${BASE}/api/services/${encodeURIComponent(id)}/detail`)
   if (!res.ok) throw new Error(`detail ${id}: ${res.status}`)
   return res.json()
 }
 
 export async function fetchAlertRules(): Promise<AlertRule[]> {
-  const res = await fetch('/api/alerts/rules')
+  const res = await fetch(`${BASE}/api/alerts/rules`)
   if (!res.ok) throw new Error(`GET /api/alerts/rules: ${res.status}`)
   return res.json()
 }
@@ -52,7 +58,7 @@ export async function updateAlertRule(
   key: string,
   patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number; forSeconds?: number },
 ): Promise<AlertRule> {
-  const res = await fetch(`/api/alerts/rules/${encodeURIComponent(key)}`, {
+  const res = await fetch(`${BASE}/api/alerts/rules/${encodeURIComponent(key)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
@@ -62,14 +68,14 @@ export async function updateAlertRule(
 }
 
 export async function fetchRecentAlerts(): Promise<AlertFire[]> {
-  const res = await fetch('/api/alerts/recent')
+  const res = await fetch(`${BASE}/api/alerts/recent`)
   if (!res.ok) throw new Error(`GET /api/alerts/recent: ${res.status}`)
   return res.json()
 }
 
 export async function fetchMetricHistory(id: string, key: string, range: string): Promise<MetricHistory> {
   const res = await fetch(
-    `/api/services/${encodeURIComponent(id)}/metric-history?key=${encodeURIComponent(key)}&range=${encodeURIComponent(range)}`,
+    `${BASE}/api/services/${encodeURIComponent(id)}/metric-history?key=${encodeURIComponent(key)}&range=${encodeURIComponent(range)}`,
   )
   if (!res.ok) throw new Error(`GET metric-history ${key}/${range}: ${res.status}`)
   return res.json()
@@ -78,7 +84,7 @@ export async function fetchMetricHistory(id: string, key: string, range: string)
 export async function fetchMetricBreakdown(id: string, metric: string, tag: string, filter?: string): Promise<TagStat[]> {
   const q = new URLSearchParams({ metric, tag })
   if (filter) q.set('filter', filter)
-  const res = await fetch(`/api/services/${encodeURIComponent(id)}/metric-breakdown?${q.toString()}`)
+  const res = await fetch(`${BASE}/api/services/${encodeURIComponent(id)}/metric-breakdown?${q.toString()}`)
   if (!res.ok) throw new Error(`GET metric-breakdown ${metric}/${tag}: ${res.status}`)
   return res.json()
 }

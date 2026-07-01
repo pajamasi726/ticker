@@ -15,7 +15,7 @@ plugins {
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"
-    version = "0.1.0"   // release version for Maven Central (Central rejects -SNAPSHOT)
+    version = "0.2.0"   // 0.1.0 shipped with the kotlin-reflect binding bug; 0.2.0 = fix + base-path + CPU emphasis
     repositories { mavenCentral() }
 
     apply(plugin = "jacoco")
