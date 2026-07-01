@@ -3,6 +3,7 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import type { Unit } from '../types'
 import type { TimeFmt } from '../timeFormat'
+import { formatTimeMs, axisTickSpace } from '../timeFormat'
 import { formatValue } from '../format'
 
 const STROKE = '#5b8def'
@@ -17,7 +18,6 @@ function tickValues(unit: Unit) {
  * any absolute format → wall-clock "HH:mm:ss" (the last sample ≈ now, each step back one interval).
  */
 function timeValues(intervalSec: number, fmt: TimeFmt) {
-  const pad = (x: number) => String(x).padStart(2, '0')
   return (u: uPlot, splits: number[]) => {
     const n = u.data[0].length
     const now = Date.now()
@@ -26,8 +26,8 @@ function timeValues(intervalSec: number, fmt: TimeFmt) {
         const back = Math.round((n - 1 - v) * intervalSec)
         return back <= 0 ? 'now' : back < 60 ? `-${back}s` : `-${Math.round(back / 60)}m`
       }
-      const d = new Date(now - (n - 1 - v) * intervalSec * 1000)
-      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+      // Absolute clock time per the chosen format (last sample ≈ now, one interval per step back).
+      return formatTimeMs(now - (n - 1 - v) * intervalSec * 1000, fmt)
     })
   }
 }
@@ -100,7 +100,7 @@ export function LiveChart({ data, unit, height = 88, showTime = false, fullScale
       },
       axes: [
         showTime
-          ? { show: true, size: 22, stroke: '#5b6472', font: '10px ui-monospace, monospace', ticks: { show: false }, grid: { show: false }, values: timeValues(intervalSec, timeFmt), space: 64 }
+          ? { show: true, size: 22, stroke: '#5b6472', font: '10px ui-monospace, monospace', ticks: { show: false }, grid: { show: false }, values: timeValues(intervalSec, timeFmt), space: axisTickSpace(timeFmt) }
           : { show: false },
         {
           show: true,

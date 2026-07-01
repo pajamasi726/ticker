@@ -32,10 +32,8 @@ export function useTimeFmt(): TimeFmt {
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/** Format an ISO instant per the chosen format. Locale-stable (built from date parts). */
-export function formatTime(iso: string, fmt: TimeFmt): string {
-  const t = Date.parse(iso)
-  if (Number.isNaN(t)) return ''
+/** Format an epoch-ms instant per the chosen format. Locale-stable (built from date parts). */
+export function formatTimeMs(t: number, fmt: TimeFmt): string {
   if (fmt === 'relative') {
     const s = Math.max(0, Math.round((Date.now() - t) / 1000))
     return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`
@@ -47,5 +45,23 @@ export function formatTime(iso: string, fmt: TimeFmt): string {
     case 'dd HH:mm:ss': return `${pad(d.getDate())} ${time}`
     case 'MM-dd HH:mm:ss': return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`
     case 'yyyy-MM-dd HH:mm:ss': return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`
+  }
+}
+
+/** Format an ISO instant per the chosen format. */
+export function formatTime(iso: string, fmt: TimeFmt): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return ''
+  return formatTimeMs(t, fmt)
+}
+
+/** Suggested min px between x-axis ticks for a format (wider labels → fewer ticks). */
+export function axisTickSpace(fmt: TimeFmt): number {
+  switch (fmt) {
+    case 'relative': return 60
+    case 'HH:mm:ss': return 70
+    case 'dd HH:mm:ss': return 92
+    case 'MM-dd HH:mm:ss': return 112
+    case 'yyyy-MM-dd HH:mm:ss': return 150
   }
 }
