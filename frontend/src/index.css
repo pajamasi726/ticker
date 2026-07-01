@@ -295,8 +295,15 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .mi__table td { padding: 4px 6px; border-bottom: 1px solid var(--bg-2); text-align: right; color: var(--text-dim); }
 .mi__table td.mi__uri { text-align: left; color: var(--text); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mi__muted { color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
-.mi__alert { border-top: 1px solid var(--border); padding-top: 14px; }
-.mi__fires { display: flex; flex-direction: column; gap: 2px; }
+.mi__fires { display: flex; flex-direction: column; gap: 3px; }
+
+/* Full-page metric detail — one level deeper than the dashboard */
+.metric-view { display: flex; flex-direction: column; gap: 18px; }
+.metric-view__cols { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+.metric-view__main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.metric-view__side { display: flex; flex-direction: column; gap: 18px; }
+.metric-panel { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 900px) { .metric-view__cols { grid-template-columns: 1fr; } }
 
 /* Recent alerts strip */
 .recent-alerts {

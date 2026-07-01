@@ -56,12 +56,13 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     }
   }, [id])
 
-  // Full-page view (not an overlay), so Esc is the quick way back to the wall.
+  // Esc steps back one level: it returns to the wall only when no metric inspector is open
+  // (when one is open, the inspector's own Esc handles metric → dashboard).
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !inspectorKey) onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, inspectorKey])
 
   // Alert rules (fetched once) + recent fires (polled). Silently absent if alerting is disabled (404).
   useEffect(() => {
@@ -114,6 +115,24 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
   // Apply the client-side ratio override (e.g. error rate) before charting/inspecting a widget.
   const effWidget = (w: ResolvedWidget) => (w.ratio ? { ...w, value: ratioValue(w.ratio) } : w)
 
+  // One level deeper: clicking a metric opens its full-page detail (replaces the dashboard).
+  const key = inspectorKey
+  const inspected = key ? byKey(key) : undefined
+  if (key && inspected) {
+    return (
+      <MetricInspector
+        serviceId={id}
+        serviceName={detail?.name ?? id}
+        widget={effWidget(inspected)}
+        series={series.current[key] ?? []}
+        rule={rules[key] ?? null}
+        recent={recent.filter((a) => a.targetId === id && a.ruleKey === key)}
+        onSaveAlert={(patch) => onAlertSave(key, patch)}
+        onClose={() => setInspectorKey(null)}
+      />
+    )
+  }
+
   return (
     <div className="detail-view">
       <header className="detail-header">
@@ -158,17 +177,6 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
           </div>
         </section>
       ))}
-      {inspectorKey && byKey(inspectorKey) && (
-        <MetricInspector
-          serviceId={id}
-          widget={effWidget(byKey(inspectorKey)!)}
-          series={series.current[inspectorKey] ?? []}
-          rule={rules[inspectorKey] ?? null}
-          recent={recent.filter((a) => a.targetId === id && a.ruleKey === inspectorKey)}
-          onSaveAlert={(patch) => onAlertSave(inspectorKey, patch)}
-          onClose={() => setInspectorKey(null)}
-        />
-      )}
     </div>
   )
 }

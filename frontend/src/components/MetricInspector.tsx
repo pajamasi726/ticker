@@ -33,6 +33,7 @@ type SavePatch = { enabled?: boolean; threshold?: number; cooldownSeconds?: numb
 
 interface Props {
   serviceId: string
+  serviceName: string
   widget: ResolvedWidget
   series: number[]
   rule: AlertRule | null
@@ -41,8 +42,8 @@ interface Props {
   onClose: () => void
 }
 
-/** Per-metric detail: trend chart + min/avg/max, HTTP by-endpoint breakdown, and alert config. */
-export function MetricInspector({ serviceId, widget, series, rule, recent, onSaveAlert, onClose }: Props) {
+/** Full-page per-metric detail: trend + min/avg/max, HTTP by-endpoint breakdown, and alert config. */
+export function MetricInspector({ serviceId, serviceName, widget, series, rule, recent, onSaveAlert, onClose }: Props) {
   const bd = BREAKDOWN[widget.key] ?? null
   const [rows, setRows] = useState<TagStat[] | null>(null)
 
@@ -56,9 +57,9 @@ export function MetricInspector({ serviceId, widget, series, rule, recent, onSav
   }, [serviceId, bd])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
   const nums = series.filter((n) => Number.isFinite(n))
@@ -67,61 +68,67 @@ export function MetricInspector({ serviceId, widget, series, rule, recent, onSav
     : null
 
   return (
-    <div className="alert-drawer-overlay" onClick={onClose}>
-      <aside className="alert-drawer mi" onClick={(e) => e.stopPropagation()}>
-        <header className="alert-drawer__header">
-          <h3 className="alert-drawer__title">{widget.label}</h3>
-          <span className="mi__current">
-            {formatValue(widget.value, widget.unit)}{widget.perSecond && widget.value != null ? '/s' : ''}
-          </span>
-          <button className="alert-drawer__close" onClick={onClose} aria-label="Close">×</button>
-        </header>
+    <div className="metric-view">
+      <header className="detail-header">
+        <button className="detail-back" onClick={onClose} aria-label="Back to dashboard">← {serviceName}</button>
+        <h2 className="detail-title">{widget.label}</h2>
+        <span className="mi__current">
+          {formatValue(widget.value, widget.unit)}{widget.perSecond && widget.value != null ? '/s' : ''}
+        </span>
+      </header>
 
-        {series.length > 1 && (
-          <section className="alert-drawer__section">
-            <div className="alert-drawer__label">Trend · last {series.length} samples</div>
-            <div className="mi__chart"><LiveChart data={series} unit={widget.unit} height={150} /></div>
-            {stats && (
-              <div className="mi__stats">
-                <span>min <b>{formatValue(stats.min, widget.unit)}</b></span>
-                <span>avg <b>{formatValue(stats.avg, widget.unit)}</b></span>
-                <span>max <b>{formatValue(stats.max, widget.unit)}</b></span>
-              </div>
-            )}
-          </section>
-        )}
+      <div className="metric-view__cols">
+        <div className="metric-view__main">
+          {series.length > 1 ? (
+            <section className="metric-panel">
+              <div className="alert-drawer__label">Trend · last {series.length} samples</div>
+              <div className="mi__chart"><LiveChart data={series} unit={widget.unit} height={260} /></div>
+              {stats && (
+                <div className="mi__stats">
+                  <span>min <b>{formatValue(stats.min, widget.unit)}</b></span>
+                  <span>avg <b>{formatValue(stats.avg, widget.unit)}</b></span>
+                  <span>max <b>{formatValue(stats.max, widget.unit)}</b></span>
+                </div>
+              )}
+            </section>
+          ) : (
+            <section className="metric-panel"><div className="mi__muted">Collecting samples… the trend appears after a few polls.</div></section>
+          )}
 
-        {bd && (
-          <section className="alert-drawer__section">
-            <div className="alert-drawer__label">{bd.title}</div>
-            {rows == null ? (
-              <div className="mi__muted">loading…</div>
-            ) : rows.length === 0 ? (
-              <div className="mi__muted">no per-endpoint data</div>
-            ) : (
-              <table className="mi__table">
-                <thead><tr><th>endpoint</th><th>count</th><th>avg</th><th>max</th></tr></thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.value}>
-                      <td className="mi__uri" title={r.value}>{r.value}</td>
-                      <td>{r.count != null ? Math.round(r.count).toLocaleString() : '—'}</td>
-                      <td>{r.mean != null ? formatValue(r.mean, 'SECONDS') : '—'}</td>
-                      <td>{r.max != null ? formatValue(r.max, 'SECONDS') : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-        )}
+          {bd && (
+            <section className="metric-panel">
+              <div className="alert-drawer__label">{bd.title}</div>
+              {rows == null ? (
+                <div className="mi__muted">loading…</div>
+              ) : rows.length === 0 ? (
+                <div className="mi__muted">no per-endpoint data</div>
+              ) : (
+                <table className="mi__table">
+                  <thead><tr><th>endpoint</th><th>count</th><th>avg</th><th>max</th></tr></thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.value}>
+                        <td className="mi__uri" title={r.value}>{r.value}</td>
+                        <td>{r.count != null ? Math.round(r.count).toLocaleString() : '—'}</td>
+                        <td>{r.mean != null ? formatValue(r.mean, 'SECONDS') : '—'}</td>
+                        <td>{r.max != null ? formatValue(r.max, 'SECONDS') : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </section>
+          )}
+        </div>
 
-        {rule ? (
-          <AlertSection rule={rule} current={quantity(widget)} recent={recent} onSave={onSaveAlert} />
-        ) : (
-          <section className="alert-drawer__section"><div className="mi__muted">No alert available for this metric.</div></section>
-        )}
-      </aside>
+        <div className="metric-view__side">
+          {rule ? (
+            <AlertSection rule={rule} current={quantity(widget)} recent={recent} onSave={onSaveAlert} />
+          ) : (
+            <section className="metric-panel"><div className="alert-drawer__label">🔔 Alert</div><div className="mi__muted">No alert available for this metric.</div></section>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -147,7 +154,7 @@ function AlertSection({ rule, current, recent, onSave }: { rule: AlertRule; curr
   }
 
   return (
-    <section className="alert-drawer__section mi__alert">
+    <section className="metric-panel mi__alert">
       <div className="alert-drawer__label">🔔 Alert</div>
       <div className="alert-cond">
         <span className="alert-cond__metric">{rule.label}</span>
@@ -179,7 +186,8 @@ function AlertSection({ rule, current, recent, onSave }: { rule: AlertRule; curr
       </div>
       {recent.length > 0 && (
         <div className="mi__fires">
-          {recent.slice(0, 5).map((a, i) => (
+          <div className="alert-drawer__label">Recent fires</div>
+          {recent.slice(0, 6).map((a, i) => (
             <div key={i} className="alert-drawer__fire"><b>{formatValue(a.value, a.unit)}</b> vs {formatValue(a.threshold, a.unit)} · {ago(a.at)}</div>
           ))}
         </div>
