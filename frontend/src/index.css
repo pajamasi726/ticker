@@ -318,7 +318,7 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .recent-alerts .time-fmt { margin-left: auto; }
 
 /* Per-metric info (ⓘ) + emphasis for key signals + inspector Info panel */
-.info-btn { background: none; border: none; cursor: pointer; padding: 0 1px; font-size: 11px; line-height: 1; color: var(--text-faint); }
+.info-btn { background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 15px; line-height: 1; color: var(--text-dim); }
 .info-btn:hover { color: var(--accent); }
 .widget--important { border-left: 3px solid var(--degraded); }
 .mi__info-desc { margin: 0; font-size: 13px; color: var(--text); line-height: 1.5; }
