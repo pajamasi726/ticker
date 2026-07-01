@@ -1,2 +1,3 @@
 io.stevelabs.ticker.server.TickerServerAutoConfiguration
 io.stevelabs.ticker.server.alert.AlertAutoConfiguration
+io.stevelabs.ticker.server.history.HistoryAutoConfiguration

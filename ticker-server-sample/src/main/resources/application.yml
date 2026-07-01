@@ -22,6 +22,10 @@ ticker:
   alert:
     enabled: true         # metric-threshold alerts active (no webhook -> fires log + /api/alerts/recent)
     metric-interval: 5s   # snappy demo; production default is 30s
+  history:
+    enabled: true
+    sample-interval: 5s
+    h2-path: /tmp/ticker-history
   targets:
     - name: self
       type: SPRING
