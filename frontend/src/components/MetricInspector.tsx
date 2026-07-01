@@ -83,9 +83,12 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
             <section className="metric-panel">
               <div className="alert-drawer__label mi__trendhead">
                 <span>Trend · last {series.length} samples{widget.cumulative && !widget.perSecond ? ' (per-poll delta)' : ''}</span>
-                <span className="mi__scaletoggle">
-                  <button className={!fullScale ? 'on' : ''} onClick={() => setFullScale(false)}>auto</button>
-                  <button className={fullScale ? 'on' : ''} onClick={() => setFullScale(true)}>{widget.unit === 'PERCENT' ? '0–100%' : '0–max'}</button>
+                <span className="mi__trendctl">
+                  <TimeFormatSelect />
+                  <span className="mi__scaletoggle">
+                    <button className={!fullScale ? 'on' : ''} onClick={() => setFullScale(false)}>auto</button>
+                    <button className={fullScale ? 'on' : ''} onClick={() => setFullScale(true)}>{widget.unit === 'PERCENT' ? '0–100%' : '0–max'}</button>
+                  </span>
                 </span>
               </div>
               <div className="mi__chart"><LiveChart data={series} unit={widget.unit} height={260} showTime fullScale={fullScale} intervalSec={5} timeFmt={fmt} /></div>
