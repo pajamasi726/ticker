@@ -119,6 +119,7 @@ All properties are `@ConfigurationProperties` with IDE hints; off-by-default bey
 | Property | Default | Notes |
 |---|---|---|
 | `ticker.server.enabled` | `true` | Activate the collector + UI. |
+| `ticker.server.base-path` | — | Relocate the UI + API under a prefix, e.g. `/ticker` (UI at `/ticker/`, API at `/ticker/api/**`) — for when a bare `/api` clashes behind a shared gateway. `/actuator` stays put. |
 | `ticker.poll.interval` | `10s` | How often targets are polled (virtual-thread fan-out). |
 | `ticker.poll.failure-threshold` | `3` | Consecutive failures before `DOWN` (debounce). |
 | `ticker.alert.enabled` | `false` | Metric-threshold alerting. |
@@ -133,6 +134,48 @@ MySQL/PostgreSQL the schema auto-creates from the bundled `classpath:db/ticker-h
 or a DBA can pre-provision it (`init-schema=false`). See
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full config surface, history sizing/backup, and
 restore commands.
+
+## Operating the history store (disk, retention, backup)
+
+Persisted history is **opt-in** (`ticker.history.enabled=false`). When on, a scheduled recorder writes
+one row per resolved dashboard widget per sample into `metric_sample` — so the table grows roughly with
+`targets × ~90 widgets × sample-rate`. Keeping it bounded:
+
+- **Retention prune (automatic).** An hourly job deletes samples older than `ticker.history.retention`
+  (default `7d`), capping the time window and thus total size. A secondary index on `ts_millis` makes the
+  prune a range scan, not a full-table scan.
+- **H2 (default, embedded file).** Zero-setup file at `ticker.history.h2-path`. It grows with the
+  retention window; pruning keeps it bounded, but H2's file **does not auto-shrink** on delete (freed
+  space is reused, not returned to the OS). To reclaim disk after lowering retention, stop the app and
+  delete the `*.mv.db` file — you lose history, which is fine (opt-in, and it just rebuilds). There's no
+  "rolling file" like Logback; **retention + the archive job below are the equivalents**.
+- **Archive-before-prune (cold storage).** With `ticker.history.archive.enabled=true`, aged rows are
+  exported to a gzip CSV under `ticker.history.archive.dir` and **verified before** the prune deletes them
+  (guardrail #5 — a failed export retries, never drops data). The archive dir is itself bounded, Logback
+  rolling-style: `archive.file-retention` (default `90d`) + `archive.max-total-size-mb`. Restore is a
+  per-DB CSV import (H2 `CSVREAD`, MySQL `LOAD DATA`, PostgreSQL `\copy`).
+- **MySQL / PostgreSQL (scale / shared ops).** Set `ticker.history.db=MYSQL` (or `POSTGRESQL`) plus
+  `ticker.history.url` / `username` / `password` (**credentials from env only**). The schema auto-creates
+  from the bundled DDL, or a DBA pre-provisions it with `ticker.history.init-schema=false`. At high volume,
+  prefer **RANGE partitioning by `ts_millis`** with `DROP PARTITION` for retention (instant vs row-by-row
+  DELETE). Upgrading a table first created by 0.1.x? Add the index once:
+  `ALTER TABLE metric_sample ADD INDEX idx_metric_sample_ts (ts_millis);` (MySQL) or the equivalent
+  `CREATE INDEX` (PostgreSQL).
+
+## Deploying behind a path / gateway
+
+By default the UI is at `/` and the API at `/api/**`. If a bare `/api` would clash (shared host, ingress,
+another app), set `ticker.server.base-path` to relocate the whole thing under a prefix:
+
+```yaml
+ticker:
+  server:
+    base-path: /ticker      # UI → /ticker/ , API → /ticker/api/** , assets → /ticker/assets/**
+```
+
+`/` then 302-redirects to `/ticker/`. The collector's own `/actuator/health` **stays put** on purpose, so
+your external liveness probe (guardrail #1) keeps a stable, predictable path. Self-registering clients
+just point `ticker.client.collector-url` at the based URL (e.g. `http://collector:8080/ticker`).
 
 ## Guardrails (fintech)
 
