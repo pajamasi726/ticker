@@ -19,3 +19,6 @@ frontend/dist/
 
 # Playwright MCP scratch
 .playwright-mcp/
+
+# local Maven signing key / token backups — never commit
+keys/
