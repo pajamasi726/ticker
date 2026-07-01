@@ -27,4 +27,14 @@ data class HistoryProperties(
     val initSchema: Boolean = true,
     /** Max downsample buckets returned by a range query. */
     val maxBuckets: Int = 240,
-)
+    /** Archive cold-storage settings (guardrail #5 — write+verify before prune). */
+    val archive: ArchiveProperties = ArchiveProperties(),
+) {
+    /** Configuration for the archive-before-prune guardrail (#5). */
+    data class ArchiveProperties(
+        /** Archive rows to cold storage BEFORE the retention prune deletes them (guardrail #5). */
+        val enabled: Boolean = false,
+        /** Directory for archive files (gzip CSV, one per prune batch). Use a durable path/volume. */
+        val dir: String = "./data/ticker-history-archive",
+    )
+}

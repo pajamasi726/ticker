@@ -148,6 +148,17 @@ and the dashboard is already a comprehensive server-curated default; revisit if 
 rule reflects the override); server-starter suite green (158 tests, JaCoCo 85.7%). README usage doc
 still pending (no README yet — see release prep).
 
+## Phase 10 — History archival to cold storage ✓ (done 2026-07-01)
+Delivers guardrail #5's deferred "archive before delete". Opt-in via `ticker.history.archive.enabled`
++ `ticker.history.archive.dir`. Before the hourly retention prune deletes aged rows, it **exports them
+to a gzip CSV** (`metric_sample-<ts>.csv.gz`, cols `target_id,metric_key,ts_millis,metric_value`) in the
+archive dir, **verifies the written row count, and deletes only after the archive verifies** — a failed
+write/verify skips the delete and retries next cycle, so data is never dropped un-archived. Backend-
+agnostic (exports rows, so it also covers MySQL/PostgreSQL). Restore is a per-DB CSV import (`CSVREAD` /
+`LOAD DATA` / `\copy`), documented in ARCHITECTURE. Verified: archive→verify→delete round-trips, and a
+forced verify-failure leaves the rows intact. **Deferred still:** S3/remote cold storage + a one-click
+restore endpoint (local-dir archival covers the guardrail; remote is an ops-driven add-on).
+
 ## Maven Central publishing
 Publish `ticker-core`, `ticker-client-spring-boot-starter`, and `ticker-server-spring-boot-starter` to Maven Central (`io.stevelabs`). Requires Sonatype OSSRH account, signing config, and DNS-verified domain (`stevelabs.io`). Local-publish path (`publishToMavenLocal`) is verified in Phase 0.5; the Central push is a separate release step done once the API is stable.
 **Done when:** the three artifacts are available on Maven Central and the README has coordinates.

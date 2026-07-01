@@ -53,12 +53,17 @@ class HistoryAutoConfiguration {
         }
 
     @Bean
+    fun historyArchiver(props: HistoryProperties): HistoryArchiver =
+        HistoryArchiver(java.nio.file.Path.of(props.archive.dir))
+
+    @Bean
     fun metricHistoryRecorder(
         store: HealthStateStore,
         metricSource: MetricSource,
         metricHistoryRepository: MetricHistoryRepository,
+        historyArchiver: HistoryArchiver,
         props: HistoryProperties,
-    ): MetricHistoryRecorder = MetricHistoryRecorder(store, metricSource, metricHistoryRepository, props)
+    ): MetricHistoryRecorder = MetricHistoryRecorder(store, metricSource, metricHistoryRepository, historyArchiver, props)
 
     @Bean
     fun metricHistoryController(

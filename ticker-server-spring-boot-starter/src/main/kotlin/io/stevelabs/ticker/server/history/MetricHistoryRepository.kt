@@ -2,6 +2,13 @@ package io.stevelabs.ticker.server.history
 
 import org.springframework.jdbc.core.JdbcTemplate
 
+data class MetricSampleRow(
+    val targetId: String,
+    val metricKey: String,
+    val tsMillis: Long,
+    val value: Double,
+)
+
 class MetricHistoryRepository(private val jdbc: JdbcTemplate) {
 
     fun ensureSchema(db: HistoryDb) {
@@ -37,6 +44,16 @@ class MetricHistoryRepository(private val jdbc: JdbcTemplate) {
             """.trimIndent(),
             { rs, _ -> HistoryPoint(t = fromMillis + rs.getLong("b") * bucketMs, v = rs.getDouble("v")) },
             fromMillis, bucketMs, targetId, metricKey, fromMillis,
+        )
+
+    /** Rows older than [beforeMillis] (the ones the prune is about to delete). Ordered by ts. */
+    fun selectBefore(beforeMillis: Long): List<MetricSampleRow> =
+        jdbc.query(
+            "SELECT target_id, metric_key, ts_millis, metric_value FROM metric_sample WHERE ts_millis < ? ORDER BY ts_millis",
+            { rs, _ ->
+                MetricSampleRow(rs.getString(1), rs.getString(2), rs.getLong(3), rs.getDouble(4))
+            },
+            beforeMillis,
         )
 
     fun prune(beforeMillis: Long): Int =

@@ -4,6 +4,12 @@
       "name": "ticker.history",
       "type": "io.stevelabs.ticker.server.history.HistoryProperties",
       "sourceType": "io.stevelabs.ticker.server.history.HistoryProperties"
+    },
+    {
+      "name": "ticker.history.archive",
+      "type": "io.stevelabs.ticker.server.history.HistoryProperties$ArchiveProperties",
+      "sourceType": "io.stevelabs.ticker.server.history.HistoryProperties",
+      "sourceMethod": "getArchive()"
     }
   ],
   "properties": [
@@ -63,6 +69,18 @@
       "type": "java.lang.Integer",
       "description": "Max downsample buckets returned by a range query.",
       "defaultValue": 240
+    },
+    {
+      "name": "ticker.history.archive.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Archive rows to cold storage BEFORE the retention prune deletes them (guardrail #5). When true, prune only runs after a successful write+verify.",
+      "defaultValue": false
+    },
+    {
+      "name": "ticker.history.archive.dir",
+      "type": "java.lang.String",
+      "description": "Directory for archive files (gzip CSV, one per prune batch). Use a durable path/volume in production.",
+      "defaultValue": "./data/ticker-history-archive"
     }
   ],
   "hints": [

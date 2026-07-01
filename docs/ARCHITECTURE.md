@@ -176,10 +176,18 @@ Schema is auto-created from the bundled DDL at `classpath:db/ticker-history-sche
 when a DBA pre-provisions the table on a restricted account. DB credentials come from env only,
 never committed (guardrail #5). Disabled → no DB, no schema, no recorder.
 
-### Deferred: archival to cold storage
-When/if implemented: select aged rows → write+verify cold storage (local or S3) → *only then*
-delete from DB. A failed upload keeps rows and retries next run. AWS keys from IAM role /
-default credential chain; never committed properties. `@ConditionalOnProperty(s3.enabled)`.
+### Archival to cold storage (archive-before-prune) — `ticker.history.archive.enabled`
+Guardrail #5. When enabled, the hourly prune first **exports the rows it is about to delete** to
+`ticker.history.archive.dir` as gzip CSV (`metric_sample-<ts>.csv.gz`; columns
+`target_id,metric_key,ts_millis,metric_value`, no header), **verifies** the written row count, and
+deletes from the DB *only after* the archive verifies. If the write or verify fails, nothing is
+deleted and it retries next cycle — data is never dropped un-archived. Backend-agnostic (exports rows,
+not the DB file), so it also covers MySQL/PostgreSQL. Use a durable `dir` (a mounted volume).
+
+**Restore** a batch (`gunzip metric_sample-<ts>.csv.gz` first):
+- **H2:** `INSERT INTO metric_sample SELECT * FROM CSVREAD('metric_sample-<ts>.csv', 'target_id,metric_key,ts_millis,metric_value');`
+- **MySQL:** `LOAD DATA INFILE 'metric_sample-<ts>.csv' INTO TABLE metric_sample FIELDS TERMINATED BY ',' (target_id,metric_key,ts_millis,metric_value);`
+- **PostgreSQL:** `\copy metric_sample(target_id,metric_key,ts_millis,metric_value) FROM 'metric_sample-<ts>.csv' CSV`
 
 ## Retention
 **In-memory sparkline window:** bounded per target (`ticker.history.window`, default last 100
@@ -192,6 +200,19 @@ for the status wall sparkline and short-term incident context.
 by `GET /api/services/{id}/metric-history` for the drill-down range picker.
 
 (The collector's *own application logs* use standard Logback rolling — separate and free.)
+
+### Operations: sizing, clearing, backup
+- **Sizing:** rows ≈ (recorded metrics per target) × (targets) × (retention ÷ sample-interval). Bound it
+  by shortening `retention` or lengthening `sample-interval` (15s → 60s = 4× fewer rows); the hourly
+  prune caps growth at the retention window.
+- **H2 file size:** prune frees space for reuse but does **not** shrink the `.mv.db` file online (H2
+  compacts on clean shutdown) — the file plateaus near the retention working set and drops on restart.
+- **Clearing:** shorten `retention` (auto-prunes); or `TRUNCATE TABLE metric_sample` (online, rows only);
+  or full wipe — **stop the app**, delete the H2 `*.mv.db` file, restart (schema auto-recreates). Never
+  delete the file while running (H2 holds a lock).
+- **Backup:** H2 — `BACKUP TO 'ticker-history.zip'` (online, consistent) or a volume snapshot; do **not**
+  `cp` a live `.mv.db`. MySQL/PostgreSQL — `mysqldump` / `pg_dump` / snapshots. Or enable archival
+  (above) to keep restorable cold-storage batches independent of the live DB.
 
 ## REST API
 | Method | Path | Purpose |
@@ -295,6 +316,7 @@ The collector is a single point of failure for *its own* alerting. Mitigate:
     `ticker.history.sample-interval` (default 15s), `ticker.history.retention` (default 7d),
     `ticker.history.h2-path`, `ticker.history.url`, `ticker.history.max-buckets` (default 240),
     `ticker.history.init-schema` (default `true` — set `false` if a DBA pre-provisions the table)
+  - Archival: `ticker.history.archive.enabled` (default `false`), `ticker.history.archive.dir` (durable path/volume) — archive-before-prune to gzip CSV (guardrail #5)
   - DB credentials (`ticker.history.username`, `ticker.history.password`) — from env only, never committed (guardrail #5)
   - Secrets (webhooks, DB credentials) come from env only, never from committed properties.
 

@@ -11,6 +11,7 @@ class MetricHistoryRecorder(
     private val store: HealthStateStore,
     private val metricSource: MetricSource,
     private val repo: MetricHistoryRepository,
+    private val archiver: HistoryArchiver,
     private val props: HistoryProperties,
 ) {
     private val log = LoggerFactory.getLogger(MetricHistoryRecorder::class.java)
@@ -36,7 +37,31 @@ class MetricHistoryRecorder(
 
     @Scheduled(fixedRate = 3_600_000L)
     fun prune() {
-        val pruned = repo.prune(System.currentTimeMillis() - props.retention.toMillis())
+        val cutoff = System.currentTimeMillis() - props.retention.toMillis()
+        if (props.archive.enabled) {
+            val rows = repo.selectBefore(cutoff)
+            if (rows.isNotEmpty()) {
+                try {
+                    val file = archiver.archive(rows, System.currentTimeMillis())
+                    if (!archiver.verify(file, rows.size)) {
+                        log.warn(
+                            "History archive verify failed for {} rows ({}). NOT pruning — will retry next cycle.",
+                            rows.size,
+                            file,
+                        )
+                        return
+                    }
+                    log.info("Archived {} metric_sample rows to {} before prune.", rows.size, file)
+                } catch (e: Exception) {
+                    log.warn(
+                        "History archive failed ({}). NOT pruning — will retry next cycle.",
+                        e.message,
+                    )
+                    return
+                }
+            }
+        }
+        val pruned = repo.prune(cutoff)
         log.debug("Pruned {} metric_sample rows", pruned)
     }
 }
