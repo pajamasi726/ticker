@@ -184,10 +184,36 @@ deletes from the DB *only after* the archive verifies. If the write or verify fa
 deleted and it retries next cycle — data is never dropped un-archived. Backend-agnostic (exports rows,
 not the DB file), so it also covers MySQL/PostgreSQL. Use a durable `dir` (a mounted volume).
 
+**Rolling cap (Logback-style):** the archive dir is bounded, not unbounded —
+`ticker.history.archive.file-retention` (default 90d) deletes archive files older than that on each
+prune cycle, and `ticker.history.archive.max-total-size-mb` (0 = unlimited) trims the dir oldest-first
+to stay under a size cap. So cold storage doesn't grow forever either.
+
 **Restore** a batch (`gunzip metric_sample-<ts>.csv.gz` first):
 - **H2:** `INSERT INTO metric_sample SELECT * FROM CSVREAD('metric_sample-<ts>.csv', 'target_id,metric_key,ts_millis,metric_value');`
 - **MySQL:** `LOAD DATA INFILE 'metric_sample-<ts>.csv' INTO TABLE metric_sample FIELDS TERMINATED BY ',' (target_id,metric_key,ts_millis,metric_value);`
 - **PostgreSQL:** `\copy metric_sample(target_id,metric_key,ts_millis,metric_value) FROM 'metric_sample-<ts>.csv' CSV`
+
+### Scaling MySQL / PostgreSQL: partition by time
+The app DML-writes and row-prunes `metric_sample` — fine at small/medium scale. At high volume, have a
+DBA **RANGE-partition the table by `ts_millis`** and drop whole partitions rather than relying on row
+DELETE (instant space reclaim, no churn / no file bloat). Set `ticker.history.init-schema=false` and
+pre-provision, e.g. MySQL:
+```sql
+CREATE TABLE metric_sample (
+  target_id VARCHAR(128) NOT NULL, metric_key VARCHAR(128) NOT NULL,
+  ts_millis BIGINT NOT NULL, metric_value DOUBLE NOT NULL,
+  PRIMARY KEY (target_id, metric_key, ts_millis)
+) PARTITION BY RANGE (ts_millis) (
+  PARTITION p2026_07 VALUES LESS THAN (UNIX_TIMESTAMP('2026-08-01')*1000),
+  PARTITION p2026_08 VALUES LESS THAN (UNIX_TIMESTAMP('2026-09-01')*1000),
+  PARTITION pmax      VALUES LESS THAN MAXVALUE
+);
+-- monthly rollover reclaims space instantly (vs a slow DELETE):
+ALTER TABLE metric_sample DROP PARTITION p2026_07;
+```
+PostgreSQL is equivalent with declarative `PARTITION BY RANGE (ts_millis)` child tables + `DROP TABLE`
+on the oldest child. (Ticker's hourly prune still runs harmlessly; partition-drop does the heavy reclaim.)
 
 ## Retention
 **In-memory sparkline window:** bounded per target (`ticker.history.window`, default last 100
@@ -316,7 +342,7 @@ The collector is a single point of failure for *its own* alerting. Mitigate:
     `ticker.history.sample-interval` (default 15s), `ticker.history.retention` (default 7d),
     `ticker.history.h2-path`, `ticker.history.url`, `ticker.history.max-buckets` (default 240),
     `ticker.history.init-schema` (default `true` — set `false` if a DBA pre-provisions the table)
-  - Archival: `ticker.history.archive.enabled` (default `false`), `ticker.history.archive.dir` (durable path/volume) — archive-before-prune to gzip CSV (guardrail #5)
+  - Archival: `ticker.history.archive.enabled` (default `false`), `ticker.history.archive.dir` (durable path/volume) — archive-before-prune to gzip CSV (guardrail #5); rolling cap `ticker.history.archive.file-retention` (default 90d) + `ticker.history.archive.max-total-size-mb` (0 = unlimited)
   - DB credentials (`ticker.history.username`, `ticker.history.password`) — from env only, never committed (guardrail #5)
   - Secrets (webhooks, DB credentials) come from env only, never from committed properties.
 

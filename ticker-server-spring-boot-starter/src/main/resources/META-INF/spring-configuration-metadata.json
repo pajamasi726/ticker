@@ -81,6 +81,18 @@
       "type": "java.lang.String",
       "description": "Directory for archive files (gzip CSV, one per prune batch). Use a durable path/volume in production.",
       "defaultValue": "./data/ticker-history-archive"
+    },
+    {
+      "name": "ticker.history.archive.file-retention",
+      "type": "java.time.Duration",
+      "description": "Rolling cap (Logback-style): delete archive files older than this.",
+      "defaultValue": "90d"
+    },
+    {
+      "name": "ticker.history.archive.max-total-size-mb",
+      "type": "java.lang.Long",
+      "description": "Rolling cap (Logback totalSizeCap): keep the archive dir under this many MB, deleting oldest first. 0 = unlimited.",
+      "defaultValue": 0
     }
   ],
   "hints": [

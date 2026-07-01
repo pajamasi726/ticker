@@ -36,5 +36,10 @@ data class HistoryProperties(
         val enabled: Boolean = false,
         /** Directory for archive files (gzip CSV, one per prune batch). Use a durable path/volume. */
         val dir: String = "./data/ticker-history-archive",
+        /** Rolling cap (Logback-style): delete archive files older than this. Default 90 days. */
+        val fileRetention: Duration = Duration.ofDays(90),
+        /** Rolling cap (Logback-style totalSizeCap): keep the archive dir under this many MB, deleting
+         *  oldest files first. 0 = unlimited (only fileRetention applies). */
+        val maxTotalSizeMb: Long = 0,
     )
 }

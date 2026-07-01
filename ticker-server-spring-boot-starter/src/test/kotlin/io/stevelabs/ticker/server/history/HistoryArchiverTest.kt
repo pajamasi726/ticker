@@ -87,4 +87,46 @@ class HistoryArchiverTest {
         assertThat(archiver.verify(file, 0)).isTrue()
         assertThat(archiver.verify(file, 1)).isFalse()
     }
+
+    @Test
+    fun `enforceRetention deletes archive files older than maxAge`() {
+        val archiver = HistoryArchiver(tempDir)
+        val now = 2_000_000_000_000L
+        val day = 86_400_000L
+        val old = archiver.archive(sampleRows, now - 100 * day)
+        val recent = archiver.archive(sampleRows, now - 10 * day)
+
+        archiver.enforceRetention(maxAgeMillis = 90 * day, maxTotalBytes = 0, now = now)
+
+        assertThat(old).doesNotExist()
+        assertThat(recent).exists()
+    }
+
+    @Test
+    fun `enforceRetention with a size cap deletes oldest first`() {
+        val archiver = HistoryArchiver(tempDir)
+        val f1 = archiver.archive(sampleRows, 1_000L)
+        val f2 = archiver.archive(sampleRows, 2_000L)
+        val f3 = archiver.archive(sampleRows, 3_000L)
+        // Identical rows → identical gzip size; cap = two files → the oldest must be evicted.
+        val cap = Files.size(f2) + Files.size(f3)
+
+        archiver.enforceRetention(maxAgeMillis = Long.MAX_VALUE / 2, maxTotalBytes = cap, now = 10_000L)
+
+        assertThat(f1).doesNotExist()
+        assertThat(f2).exists()
+        assertThat(f3).exists()
+    }
+
+    @Test
+    fun `enforceRetention leaves non-archive files untouched`() {
+        val archiver = HistoryArchiver(tempDir)
+        val unrelated = tempDir.resolve("readme.txt")
+        Files.writeString(unrelated, "keep me")
+        archiver.archive(sampleRows, 1_000L)
+
+        archiver.enforceRetention(maxAgeMillis = 0, maxTotalBytes = 1, now = 10_000_000L)
+
+        assertThat(unrelated).exists() // only metric_sample-*.csv.gz are managed
+    }
 }

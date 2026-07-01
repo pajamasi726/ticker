@@ -156,8 +156,11 @@ archive dir, **verifies the written row count, and deletes only after the archiv
 write/verify skips the delete and retries next cycle, so data is never dropped un-archived. Backend-
 agnostic (exports rows, so it also covers MySQL/PostgreSQL). Restore is a per-DB CSV import (`CSVREAD` /
 `LOAD DATA` / `\copy`), documented in ARCHITECTURE. Verified: archive→verify→delete round-trips, and a
-forced verify-failure leaves the rows intact. **Deferred still:** S3/remote cold storage + a one-click
-restore endpoint (local-dir archival covers the guardrail; remote is an ops-driven add-on).
+forced verify-failure leaves the rows intact. The archive dir is itself bounded (Logback-style rolling
+cap: `archive.file-retention` default 90d + `archive.max-total-size-mb`), and ARCHITECTURE documents
+RANGE-partition-by-`ts_millis` + drop-partition as the MySQL/PostgreSQL scale pattern (with
+`init-schema=false`). **Deferred still:** S3/remote cold storage + a one-click restore endpoint
+(local-dir archival covers the guardrail; remote is an ops-driven add-on).
 
 ## Maven Central publishing
 Publish `ticker-core`, `ticker-client-spring-boot-starter`, and `ticker-server-spring-boot-starter` to Maven Central (`io.stevelabs`). Requires Sonatype OSSRH account, signing config, and DNS-verified domain (`stevelabs.io`). Local-publish path (`publishToMavenLocal`) is verified in Phase 0.5; the Central push is a separate release step done once the API is stable.

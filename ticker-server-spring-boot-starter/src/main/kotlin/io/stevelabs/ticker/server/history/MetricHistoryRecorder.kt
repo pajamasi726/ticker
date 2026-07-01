@@ -63,5 +63,13 @@ class MetricHistoryRecorder(
         }
         val pruned = repo.prune(cutoff)
         log.debug("Pruned {} metric_sample rows", pruned)
+        if (props.archive.enabled) {
+            // Rolling cap on the archive dir (Logback-style age + total-size), so cold storage is bounded too.
+            archiver.enforceRetention(
+                props.archive.fileRetention.toMillis(),
+                props.archive.maxTotalSizeMb * 1024L * 1024L,
+                System.currentTimeMillis(),
+            )
+        }
     }
 }
