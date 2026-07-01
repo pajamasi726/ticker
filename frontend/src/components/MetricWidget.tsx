@@ -5,6 +5,8 @@ import { LiveChart } from './LiveChart'
 import { Gauge } from './Gauge'
 import { AlertBell } from './AlertBell'
 import { useT } from '../i18n'
+import { useStarred, toggleStar } from '../starred'
+import { severityOf } from '../severity'
 
 interface MetricWidgetProps {
   widget: ResolvedWidget
@@ -14,14 +16,26 @@ interface MetricWidgetProps {
 }
 
 /** Generic renderer: GAUGE -> Gauge, CHART -> LiveChart + current value, NUMBER -> big value.
- *  Card is clickable → metric inspector; head shows ⓘ (info) and 🔔 (alert). `important` metrics
- *  (e.g. Full GC, GC overhead, error rate) get an accent so they stand out. */
+ *  Card is clickable → metric inspector; head shows ★ (star/important toggle), ⓘ (info), 🔔 (alert).
+ *  The colored left bar means SEVERITY (warn/crit), driven by the alert threshold or gauge value/max. */
 export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidgetProps) {
   const open = onOpen ? () => onOpen(widget.key) : undefined
   const info = infoFor(widget.key)
-  const important = !!info?.important
   const t = useT()
+  const starred = useStarred().includes(widget.key)
+  const sev = severityOf(widget, alertRule)
 
+  // ★ = "important to me" (a persisted user toggle) — distinct from the severity bar, which is value-driven.
+  const starBtn = (
+    <button
+      type="button"
+      className={`widget__star${starred ? ' on' : ''}`}
+      title={t(starred ? 'star.on' : 'star.off')}
+      aria-label={t(starred ? 'star.on' : 'star.off')}
+      aria-pressed={starred}
+      onClick={(e) => { e.stopPropagation(); toggleStar(widget.key) }}
+    >{starred ? '★' : '☆'}</button>
+  )
   const infoBtn = info && open ? (
     <button
       type="button"
@@ -32,7 +46,7 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
     >ⓘ</button>
   ) : null
   const bell = alertRule && onOpen ? <AlertBell rule={alertRule} onOpen={onOpen} /> : null
-  const controls = infoBtn || bell ? <>{infoBtn}{bell}</> : null
+  const controls = <>{starBtn}{infoBtn}{bell}</>
 
   const interactive = open
     ? {
@@ -42,7 +56,8 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
         onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') open() },
       }
     : {}
-  const cls = `${open ? ' widget--clickable' : ''}${important ? ' widget--important' : ''}`
+  const sevCls = sev === 'crit' ? ' widget--crit' : sev === 'warn' ? ' widget--warn' : ''
+  const cls = `${open ? ' widget--clickable' : ''}${sevCls}`
 
   // Not collected on this target: show the widget dimmed with a note (keeps the full catalog visible)
   // instead of hiding it. Still clickable + ⓘ so its "about" info explains what you're missing.
@@ -51,7 +66,7 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
       <div className={`widget widget--number widget--unavailable${open ? ' widget--clickable' : ''}`} {...interactive}>
         <div className="widget__head">
           <span className="widget__label">{widget.label}</span>
-          {infoBtn}
+          <span className="widget__head-end">{starBtn}{infoBtn}</span>
         </div>
         <div className="widget__na">{t('metric.unavailable')}</div>
       </div>
@@ -68,7 +83,7 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
         higherIsBetter={widget.higherIsBetter}
         controls={controls}
         onClick={open}
-        important={important}
+        severity={sev}
       />
     )
   }

@@ -79,7 +79,11 @@ const en: Dict = {
   'detail.httpNote': 'HTTP target — no JVM metrics. Latency {n} ms.',
   'detail.noMetrics': 'No metrics — unreachable or actuator metrics not exposed.',
   'detail.uptime': 'up {v}',
-  'legend.important': 'Key signal — watch these first when diagnosing',
+  'legend.star': 'Important (click ★ to toggle)',
+  'legend.warn': 'warning',
+  'legend.crit': 'critical — near/over threshold',
+  'star.on': 'Starred as important — click to unstar',
+  'star.off': 'Star as important',
 
   // Metric inspector — trend panel
   'trend.live': 'live · last {n} samples',
@@ -379,7 +383,11 @@ const ko: Dict = {
   'detail.httpNote': 'HTTP 대상 — JVM 메트릭 없음. 지연 시간 {n} ms.',
   'detail.noMetrics': '메트릭 없음 — 연결 불가 또는 actuator 메트릭이 노출되지 않음.',
   'detail.uptime': '가동 {v}',
-  'legend.important': '핵심 지표 — 장애 진단 시 먼저 확인하세요',
+  'legend.star': '중요 (★ 클릭해 켜기/끄기)',
+  'legend.warn': '경고',
+  'legend.crit': '위험 — 임계값 근접/초과',
+  'star.on': '중요 표시됨 — 클릭해 해제',
+  'star.off': '중요로 표시',
 
   // Metric inspector — trend panel
   'trend.live': '실시간 · 최근 {n} 샘플',

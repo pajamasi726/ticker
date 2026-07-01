@@ -351,9 +351,18 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 /* Per-metric info (ⓘ) + emphasis for key signals + inspector Info panel */
 .info-btn { background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 15px; line-height: 1; color: var(--text-dim); }
 .info-btn:hover { color: var(--accent); }
-.widget--important { border-left: 3px solid var(--degraded); }
-.detail-legend { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--text-dim); font-size: 12px; }
-.detail-legend__bar { display: inline-block; width: 3px; height: 13px; background: var(--degraded); border-radius: 2px; }
+/* Severity bar (value-driven): warn = amber, crit = red. Distinct from the ★ importance toggle. */
+.widget--warn { border-left: 3px solid var(--degraded); }
+.widget--crit { border-left: 3px solid var(--down); }
+.widget__star { background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 14px; line-height: 1; color: var(--text-faint); }
+.widget__star.on { color: #f5c518; }
+.widget__star:hover { color: #f5c518; }
+.detail-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 6px; color: var(--text-dim); font-size: 12px; }
+.detail-legend span[aria-hidden] { margin-right: 5px; }
+.detail-legend__star { color: #f5c518; }
+.detail-legend__bar { display: inline-block; width: 3px; height: 12px; border-radius: 2px; vertical-align: middle; }
+.detail-legend__bar--warn { background: var(--degraded); }
+.detail-legend__bar--crit { background: var(--down); }
 .mi__info-desc { margin: 0; font-size: 13px; color: var(--text); line-height: 1.5; }
 .mi__info-tip { margin: 0; font-size: 12px; color: var(--text-dim); line-height: 1.5; background: var(--bg-0); border-left: 2px solid var(--accent); padding: 7px 10px; border-radius: var(--r-sm); }
 .mi__info-tip b { color: var(--accent); }

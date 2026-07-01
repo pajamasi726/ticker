@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Unit } from '../types'
+import type { Severity } from '../severity'
 import { formatValue } from '../format'
 
 interface GaugeProps {
@@ -10,20 +11,20 @@ interface GaugeProps {
   higherIsBetter?: boolean
   controls?: ReactNode
   onClick?: () => void
-  important?: boolean
+  severity?: Severity
 }
 
-export function Gauge({ label, value, max, unit, higherIsBetter = false, controls, onClick, important = false }: GaugeProps) {
+export function Gauge({ label, value, max, unit, higherIsBetter = false, controls, onClick, severity = 'none' }: GaugeProps) {
   const pct =
     value != null && max != null && max > 0 ? Math.min((value / max) * 100, 100) : null
-  // Color by severity. For higher-is-better gauges (e.g. disk free) a full bar is healthy, so invert.
-  const severity = pct == null ? null : higherIsBetter ? 100 - pct : pct
+  // Fill color by how full the gauge is. For higher-is-better gauges (e.g. disk free) a full bar is healthy, so invert.
+  const fillLevel = pct == null ? null : higherIsBetter ? 100 - pct : pct
   const color =
-    severity == null ? 'var(--text-faint)' : severity < 70 ? 'var(--up)' : severity < 90 ? 'var(--degraded)' : 'var(--down)'
+    fillLevel == null ? 'var(--text-faint)' : fillLevel < 70 ? 'var(--up)' : fillLevel < 90 ? 'var(--degraded)' : 'var(--down)'
   const maxText = unit !== 'PERCENT' && max != null && max > 0 ? ` / ${formatValue(max, unit)}` : ''
   return (
     <div
-      className={`widget gauge${onClick ? ' widget--clickable' : ''}${important ? ' widget--important' : ''}`}
+      className={`widget gauge${onClick ? ' widget--clickable' : ''}${severity === 'crit' ? ' widget--crit' : severity === 'warn' ? ' widget--warn' : ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}

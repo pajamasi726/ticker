@@ -69,15 +69,16 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, inspectorKey])
 
-  // Alert rules (fetched once) + recent fires (polled). Silently absent if alerting is disabled (404).
+  // Alert rules + recent fires, both polled — so the severity bars react when a rule is edited
+  // (here or elsewhere) without a reload. Silently absent if alerting is disabled (404).
   useEffect(() => {
     let active = true
-    fetchAlertRules()
+    const loadRules = () => fetchAlertRules()
       .then((rs) => { if (active) setRules(Object.fromEntries(rs.map((r) => [r.key, r]))) })
       .catch(() => { if (active) setRules({}) })
     const loadRecent = () => fetchRecentAlerts().then((a) => { if (active) setRecent(a) }).catch(() => {})
-    loadRecent()
-    const tmr = setInterval(loadRecent, POLL_MS)
+    loadRules(); loadRecent()
+    const tmr = setInterval(() => { loadRules(); loadRecent() }, POLL_MS)
     return () => { active = false; clearInterval(tmr) }
   }, [id])
 
@@ -162,7 +163,11 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
         <p className="detail-note">{t('detail.noMetrics')}</p>
       )}
       {detail && detail.groups.length > 0 && (
-        <p className="detail-legend"><span className="detail-legend__bar" aria-hidden />{t('legend.important')}</p>
+        <p className="detail-legend">
+          <span><span className="detail-legend__star" aria-hidden>★</span>{t('legend.star')}</span>
+          <span><span className="detail-legend__bar detail-legend__bar--warn" aria-hidden />{t('legend.warn')}</span>
+          <span><span className="detail-legend__bar detail-legend__bar--crit" aria-hidden />{t('legend.crit')}</span>
+        </p>
       )}
       {detail?.groups.map((group) => (
         <section key={group.title} className="detail-group">
