@@ -32,3 +32,11 @@ data class ServiceDetail(
     val sparkline: List<Int?>,
     val groups: List<ResolvedGroup>,
 )
+
+/** One row in a per-tag metric breakdown (e.g. http.server.requests by uri). */
+data class TagStat(
+    val value: String,
+    val count: Double?,
+    val mean: Double?,
+    val max: Double?,
+)

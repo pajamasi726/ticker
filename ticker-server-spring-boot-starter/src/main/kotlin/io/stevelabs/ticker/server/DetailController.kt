@@ -1,8 +1,10 @@
 package io.stevelabs.ticker.server
 
 import io.stevelabs.ticker.core.ServiceType
+import io.stevelabs.ticker.server.detail.DetailProperties
 import io.stevelabs.ticker.server.detail.MetricSource
 import io.stevelabs.ticker.server.detail.ServiceDetail
+import io.stevelabs.ticker.server.detail.TagStat
 import io.stevelabs.ticker.server.state.HealthStateStore
 import io.stevelabs.ticker.server.state.ServiceState
 import io.stevelabs.ticker.server.target.TargetRegistry
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
@@ -20,6 +23,7 @@ class DetailController(
     private val registry: TargetRegistry,
     private val store: HealthStateStore,
     private val metricSource: MetricSource,
+    private val detailProperties: DetailProperties,
 ) {
     @GetMapping("/{id}/detail")
     fun detail(@PathVariable id: String): ResponseEntity<Any> {
@@ -39,5 +43,34 @@ class DetailController(
                 groups = groups,
             ),
         )
+    }
+
+    @GetMapping("/{id}/metric-breakdown")
+    fun metricBreakdown(
+        @PathVariable id: String,
+        @RequestParam metric: String,
+        @RequestParam tag: String,
+    ): ResponseEntity<Any> {
+        val target = registry.all().firstOrNull { it.id == id }
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body<Any>(ApiError("SERVICE_NOT_FOUND", "No target with id '$id'"))
+
+        val allowedMetrics = detailProperties.dashboard
+            .flatMap { group -> group.widgets }
+            .flatMap { widget -> listOfNotNull(widget.metric, widget.max?.name) }
+            .toSet()
+        if (metric !in allowedMetrics) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body<Any>(ApiError("METRIC_NOT_ALLOWED", "Metric '$metric' is not in the allowed whitelist"))
+        }
+
+        val allowedTags = setOf("uri", "method", "status", "outcome")
+        if (tag !in allowedTags) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body<Any>(ApiError("TAG_NOT_ALLOWED", "Tag '$tag' is not allowed; permitted: $allowedTags"))
+        }
+
+        val stats: List<TagStat> = metricSource.tagBreakdown(target, metric, tag)
+        return ResponseEntity.ok<Any>(stats)
     }
 }

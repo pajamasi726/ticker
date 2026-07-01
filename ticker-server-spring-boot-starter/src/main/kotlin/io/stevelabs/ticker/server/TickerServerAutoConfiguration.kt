@@ -44,7 +44,7 @@ class TickerServerAutoConfiguration {
         MetricFetcher(restClient, detailProperties, executor, poll)
     @Bean fun serviceController(store: HealthStateStore) = ServiceController(store)
     @Bean fun targetController(registry: TargetRegistry, store: HealthStateStore) = TargetController(registry, store)
-    @Bean fun detailController(registry: TargetRegistry, store: HealthStateStore, metricSource: MetricSource) =
-        DetailController(registry, store, metricSource)
+    @Bean fun detailController(registry: TargetRegistry, store: HealthStateStore, metricSource: MetricSource, detailProperties: DetailProperties) =
+        DetailController(registry, store, metricSource, detailProperties)
     @Bean fun spaCacheControlFilter() = SpaCacheControlFilter()
 }

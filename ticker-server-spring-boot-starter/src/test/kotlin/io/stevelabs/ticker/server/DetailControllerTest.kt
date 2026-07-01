@@ -1,10 +1,12 @@
 package io.stevelabs.ticker.server
 
 import io.stevelabs.ticker.core.ServiceType
+import io.stevelabs.ticker.server.detail.DetailProperties
 import io.stevelabs.ticker.server.detail.MetricSource
 import io.stevelabs.ticker.server.detail.Render
 import io.stevelabs.ticker.server.detail.ResolvedGroup
 import io.stevelabs.ticker.server.detail.ResolvedWidget
+import io.stevelabs.ticker.server.detail.TagStat
 import io.stevelabs.ticker.server.detail.Unit
 import io.stevelabs.ticker.server.poll.PollProperties
 import io.stevelabs.ticker.server.state.HealthStateStore
@@ -33,6 +35,7 @@ class DetailControllerTest(@Autowired val mvc: MockMvc) {
             ),
         )
         @Bean fun healthStateStore(registry: TargetRegistry) = HealthStateStore(registry, PollProperties())
+        @Bean fun detailProperties() = DetailProperties()
         @Bean fun metricSource() = object : MetricSource {
             override fun fetch(target: Target): List<ResolvedGroup> =
                 if (target.type == ServiceType.SPRING) {
@@ -45,6 +48,9 @@ class DetailControllerTest(@Autowired val mvc: MockMvc) {
                 } else {
                     emptyList()
                 }
+
+            override fun tagBreakdown(target: Target, metricName: String, tag: String): List<TagStat> =
+                listOf(TagStat("/api/foo", 100.0, 0.05, 0.2))
         }
     }
 
@@ -68,5 +74,42 @@ class DetailControllerTest(@Autowired val mvc: MockMvc) {
         mvc.perform(get("/api/services/ghost/detail"))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.code").value("TARGET_NOT_FOUND"))
+    }
+
+    // --- metric-breakdown ---
+
+    @Test fun `metric-breakdown for whitelisted metric and tag returns stub rows`() {
+        mvc.perform(get("/api/services/spring-svc/metric-breakdown")
+            .param("metric", "http.server.requests")
+            .param("tag", "uri"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].value").value("/api/foo"))
+            .andExpect(jsonPath("$[0].count").value(100.0))
+            .andExpect(jsonPath("$[0].mean").value(0.05))
+            .andExpect(jsonPath("$[0].max").value(0.2))
+    }
+
+    @Test fun `metric-breakdown for unknown service id returns 404`() {
+        mvc.perform(get("/api/services/ghost/metric-breakdown")
+            .param("metric", "http.server.requests")
+            .param("tag", "uri"))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.code").value("SERVICE_NOT_FOUND"))
+    }
+
+    @Test fun `metric-breakdown for non-whitelisted metric returns 400`() {
+        mvc.perform(get("/api/services/spring-svc/metric-breakdown")
+            .param("metric", "env.secrets")
+            .param("tag", "uri"))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("METRIC_NOT_ALLOWED"))
+    }
+
+    @Test fun `metric-breakdown for disallowed tag returns 400`() {
+        mvc.perform(get("/api/services/spring-svc/metric-breakdown")
+            .param("metric", "http.server.requests")
+            .param("tag", "configKey"))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("TAG_NOT_ALLOWED"))
     }
 }

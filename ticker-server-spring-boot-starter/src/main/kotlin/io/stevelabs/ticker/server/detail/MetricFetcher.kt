@@ -22,6 +22,13 @@ interface MetricSource {
      * Default returns null so existing test stubs don't require changes.
      */
     fun resolveValue(target: Target, ref: MetricRef, statistic: String): Double? = null
+
+    /**
+     * Return a per-[tag]-value breakdown of [metricName] for a SPRING target.
+     * Each row carries count, mean latency, and max latency for one tag value.
+     * Default returns emptyList() so existing test stubs compile without changes.
+     */
+    fun tagBreakdown(target: Target, metricName: String, tag: String): List<TagStat> = emptyList()
 }
 
 /**
@@ -43,6 +50,47 @@ class MetricFetcher(
         if (target.type != ServiceType.SPRING) return null
         val measurements = fetchMeasurements(target.url, ref) ?: return null
         return statisticValue(measurements, statistic)
+    }
+
+    override fun tagBreakdown(target: Target, metricName: String, tag: String): List<TagStat> {
+        if (target.type != ServiceType.SPRING) return emptyList()
+        // Guardrail #4: reject any name that doesn't pass MetricRef validation.
+        val ref = try { MetricRef(metricName) } catch (_: IllegalArgumentException) { return emptyList() }
+        val tagValues = fetchTagValues(target.url, ref, tag)
+        if (tagValues.isEmpty()) return emptyList()
+        val futures = tagValues.map { value ->
+            executor.submit<TagStat?> {
+                try {
+                    val tagRef = MetricRef(metricName, mapOf(tag to value))
+                    val m = fetchMeasurements(target.url, tagRef) ?: return@submit null
+                    val count = m["COUNT"]
+                    val totalTime = m["TOTAL_TIME"]
+                    val max = m["MAX"]
+                    val mean = when {
+                        totalTime == null || count == null -> null
+                        count > 0 -> totalTime / count
+                        else -> null
+                    }
+                    TagStat(value, count, mean, max)
+                } catch (e: Exception) {
+                    log.debug("tagBreakdown value {} failed: {}", value, e.javaClass.simpleName)
+                    null
+                }
+            }
+        }
+        return futures.mapNotNull { future ->
+            try {
+                future.get(awaitMs, TimeUnit.MILLISECONDS)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                future.cancel(true)
+                null
+            } catch (e: Exception) {
+                future.cancel(true)
+                log.debug("tagBreakdown future did not complete: {}", e.javaClass.simpleName)
+                null
+            }
+        }.sortedWith(compareBy(nullsLast(reverseOrder<Double>())) { it.count })
     }
 
     override fun fetch(target: Target): List<ResolvedGroup> {
@@ -123,5 +171,28 @@ class MetricFetcher(
         }
         val suffix = if (query.isEmpty()) "" else "?$query"
         return URI.create("${baseUrl.trimEnd('/')}/actuator/metrics/${ref.name}$suffix")
+    }
+
+    /** Fetches the raw JSON body map from [uri]; returns null on any error. */
+    private fun fetchBody(uri: URI): Map<String, Any?>? =
+        try {
+            @Suppress("UNCHECKED_CAST")
+            restClient.get().uri(uri).retrieve().body(Map::class.java) as? Map<String, Any?>
+        } catch (e: Exception) {
+            log.debug("Fetch failed for {}: {}", uri, e.javaClass.simpleName)
+            null
+        }
+
+    /**
+     * Fetches /actuator/metrics/{ref.name} (no query tags) and returns the string values
+     * for [tag] found in the `availableTags` array, or emptyList() if absent/unreachable.
+     */
+    private fun fetchTagValues(baseUrl: String, ref: MetricRef, tag: String): List<String> {
+        val body = fetchBody(metricUri(baseUrl, ref)) ?: return emptyList()
+        val availableTags = (body["availableTags"] as? List<*>).orEmpty()
+        val tagEntry = availableTags.firstOrNull { entry ->
+            (entry as? Map<*, *>)?.get("tag")?.toString() == tag
+        } as? Map<*, *> ?: return emptyList()
+        return (tagEntry["values"] as? List<*>).orEmpty().mapNotNull { it?.toString() }
     }
 }
