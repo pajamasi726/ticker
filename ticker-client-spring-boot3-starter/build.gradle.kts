@@ -13,13 +13,12 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.spring")
     `java-library`
-    `maven-publish`
+    id("com.vanniktech.maven.publish")
     id("io.spring.dependency-management")
 }
 
 java {
     toolchain { languageVersion = JavaLanguageVersion.of(21) }
-    withSourcesJar()
 }
 
 // Java 17 bytecode: Boot 3.x apps commonly run on Java 17.
@@ -69,27 +68,3 @@ dependencies {
 }
 
 tasks.withType<Test> { useJUnitPlatform() }
-
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            pom {
-                name.set(project.name)
-                description.set("Ticker client starter for Spring Boot 3.x apps (self-registration + heartbeat). Module: ${project.name}.")
-                url.set("https://github.com/pajamasi726/ticker")
-                licenses {
-                    license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers { developer { id.set("stevelabs"); name.set("SteveLabs") } }
-                scm {
-                    url.set("https://github.com/pajamasi726/ticker")
-                    connection.set("scm:git:https://github.com/pajamasi726/ticker.git")
-                }
-            }
-        }
-    }
-}
