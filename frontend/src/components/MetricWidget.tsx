@@ -108,7 +108,7 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
     <div className={`widget widget--number${cls}`} {...interactive}>
       <div className="widget__head">
         <span className="widget__label">{widget.label}</span>
-        {controls}
+        <span className="widget__head-end">{controls}</span>
       </div>
       <div className="widget__value widget__value--big">{formatValue(widget.value, widget.unit)}</div>
     </div>
