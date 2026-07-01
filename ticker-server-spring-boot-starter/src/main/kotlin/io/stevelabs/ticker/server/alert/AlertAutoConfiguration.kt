@@ -1,6 +1,7 @@
 package io.stevelabs.ticker.server.alert
 
 import io.stevelabs.ticker.server.TickerServerAutoConfiguration
+import io.stevelabs.ticker.server.config.TickerConfig
 import io.stevelabs.ticker.server.detail.MetricSource
 import io.stevelabs.ticker.server.state.HealthStateStore
 import org.springframework.beans.factory.ObjectProvider
@@ -53,7 +54,7 @@ class AlertAutoConfiguration {
     ): AlertService = AlertService(store, decider, properties, sender.ifAvailable, executor)
 
     @Bean
-    fun metricAlertStore(): MetricAlertStore = MetricAlertStore()
+    fun metricAlertStore(config: TickerConfig): MetricAlertStore = MetricAlertStore(config.alertRules())
 
     @Bean
     fun metricAlertService(

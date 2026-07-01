@@ -1,5 +1,6 @@
 package io.stevelabs.ticker.server.alert
 
+import io.stevelabs.ticker.server.detail.MetricRef
 import io.stevelabs.ticker.server.detail.Unit
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -103,6 +104,32 @@ class MetricAlertStoreTest {
 
     @Test fun `empty store returns empty recent list`() {
         assertThat(store().recent()).isEmpty()
+    }
+
+    // --- custom seed ---
+
+    @Test fun `custom seed with a new rule key appears in all()`() {
+        val customRule = MetricAlertRule(
+            key = "custom-new-rule",
+            label = "Custom New Rule",
+            metric = MetricRef("custom.metric"),
+            comparator = Comparator.GT,
+            threshold = 0.5,
+            unit = Unit.PERCENT,
+        )
+        val store = MetricAlertStore(seed = listOf(customRule))
+        assertThat(store.all().map { it.key }).containsExactly("custom-new-rule")
+    }
+
+    @Test fun `custom seed order is preserved in all()`() {
+        val make = { key: String -> MetricAlertRule(key = key, label = key, metric = MetricRef("m"), comparator = Comparator.GT, threshold = 0.5, unit = Unit.PERCENT) }
+        val store = MetricAlertStore(seed = listOf(make("r2"), make("r3"), make("r1")))
+        assertThat(store.all().map { it.key }).containsExactly("r2", "r3", "r1")
+    }
+
+    @Test fun `default constructor still returns DEFAULTS`() {
+        val store = MetricAlertStore()
+        assertThat(store.all().map { it.key }).containsExactlyElementsOf(MetricAlertRule.DEFAULTS.map { it.key })
     }
 
     private fun fire(key: String, at: Instant) = AlertFire(

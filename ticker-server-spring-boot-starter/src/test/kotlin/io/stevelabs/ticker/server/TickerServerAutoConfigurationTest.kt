@@ -1,7 +1,10 @@
 package io.stevelabs.ticker.server
 
+import io.stevelabs.ticker.core.ServiceType
+import io.stevelabs.ticker.server.config.TickerConfigurer
 import io.stevelabs.ticker.server.poll.Poller
 import io.stevelabs.ticker.server.state.HealthStateStore
+import io.stevelabs.ticker.server.target.TargetRegistry
 import io.stevelabs.ticker.server.target.UiTargetStore
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -35,5 +38,17 @@ class TickerServerAutoConfigurationTest {
         runner.withPropertyValues("ticker.server.enabled=false").run {
             assertThat(it).doesNotHaveBean(Poller::class.java)
         }
+    }
+
+    @Test fun `TickerConfigurer bean adds target to registry`() {
+        runner
+            .withBean(
+                TickerConfigurer::class.java,
+                { TickerConfigurer { t -> t.addTarget("x", ServiceType.HTTP, "http://x.example.com") } },
+            )
+            .run { ctx ->
+                val registry = ctx.getBean(TargetRegistry::class.java)
+                assertThat(registry.all().map { it.name }).contains("x")
+            }
     }
 }

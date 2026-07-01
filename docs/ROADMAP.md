@@ -132,17 +132,21 @@ i18n'd (ko/en); server `{code}` errors localize inline (`TARGET_NAME_TAKEN` → 
 `ticker.poll.interval`, and per-target scheduling is a large lift; and a configurable expected
 status — the HTTP checker already treats any 2xx as healthy. No scripting/assertions, by design.
 
-## Phase 9 — Programmatic (code-level) configuration — PLANNED
-Everything set via `application.yml` (targets, dashboard def, alert rules) should also be
-configurable **in code**, the way most Spring starters allow — a `*Customizer`/`*Configurer` bean
-pattern. e.g. `@Bean fun tickerCustomizer() = TickerConfigurer { it.addTarget(...);
-it.alertRule("cpu-process", threshold = 0.7); it.dashboardGroup(...) }`, applied by the
-auto-configuration after binding properties. Keeps YAML as the default while giving library users
-type-safe, conditional, env-driven config. Design: define `TickerConfigurer` (and/or
-`DashboardCustomizer`, `AlertRuleCustomizer`) interfaces; collect `ObjectProvider<...>` in the
-autoconfig and apply over the property-derived defaults.
-**Done when:** a sample `@Bean` customizer adds a target + tweaks an alert rule with no YAML, and it
-composes with YAML config; documented in the README.
+## Phase 9 — Programmatic (code-level) configuration ✓ (done 2026-07-01)
+Everything set via `application.yml` is also configurable **in code**, the way most Spring starters
+allow. **Shipped:** a `fun interface TickerConfigurer` bean. The auto-config collects all
+`TickerConfigurer` beans (`ObjectProvider`, `@Order`-aware), seeds a mutable `TickerConfig` from the
+bound properties + defaults, applies each configurer, then builds `TargetRegistry` / `MetricAlertStore`
+from the result. API: `addTarget(name, type, url, tags)`,
+`configureAlert(key, threshold? / enabled? / cooldownSeconds? / forSeconds?)`, `putAlertRule(rule)`.
+Code is additive and YAML wins on a target-name collision; `MetricAlertStore` now takes a seed list so
+code-added rules surface (and its `all()` iterates the seed, not just the built-in defaults).
+**Deferred:** code-level dashboard-group config — it entangles `MetricFetcher`/`DetailController`/history,
+and the dashboard is already a comprehensive server-curated default; revisit if a user needs it.
+**Done:** `ticker-server-sample` ships a `@Bean TickerConfigurer` that adds a `code-configured` target
+(no YAML entry) + tweaks the `cpu-process` alert (0.75 / 15s); verified live (target UP on the wall,
+rule reflects the override); server-starter suite green (158 tests, JaCoCo 85.7%). README usage doc
+still pending (no README yet — see release prep).
 
 ## Maven Central publishing
 Publish `ticker-core`, `ticker-client-spring-boot-starter`, and `ticker-server-spring-boot-starter` to Maven Central (`io.stevelabs`). Requires Sonatype OSSRH account, signing config, and DNS-verified domain (`stevelabs.io`). Local-publish path (`publishToMavenLocal`) is verified in Phase 0.5; the Central push is a separate release step done once the API is stable.

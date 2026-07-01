@@ -5,18 +5,18 @@ import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * In-memory store for metric-alert rules (seeded from defaults) and the recent-fires log.
+ * In-memory store for metric-alert rules (seeded from defaults or a custom list) and the recent-fires log.
  * Thread-safe: rules are stored in a ConcurrentHashMap; the fires log is synchronised.
  */
-class MetricAlertStore {
-    // LinkedHashMap wrapped for insertion-order iteration, stored as a ConcurrentHashMap value by key
+class MetricAlertStore(seed: List<MetricAlertRule> = MetricAlertRule.DEFAULTS) {
+    private val order = seed.map { it.key }
     private val rules: ConcurrentHashMap<String, MetricAlertRule> =
         ConcurrentHashMap<String, MetricAlertRule>().also { map ->
-            MetricAlertRule.DEFAULTS.forEach { map[it.key] = it }
+            seed.forEach { map[it.key] = it }
         }
 
-    /** Ordered snapshot of all rules (insertion order of DEFAULTS). */
-    fun all(): List<MetricAlertRule> = MetricAlertRule.DEFAULTS.mapNotNull { rules[it.key] }
+    /** Ordered snapshot of all rules (insertion order of seed). */
+    fun all(): List<MetricAlertRule> = order.mapNotNull { rules[it] }
 
     /**
      * Update only the mutable fields (enabled, threshold, cooldownSeconds, forSeconds).

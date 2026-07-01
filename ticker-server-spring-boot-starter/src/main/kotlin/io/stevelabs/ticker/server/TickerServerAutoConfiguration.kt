@@ -1,8 +1,11 @@
 package io.stevelabs.ticker.server
 
+import io.stevelabs.ticker.server.alert.MetricAlertRule
 import io.stevelabs.ticker.server.check.HealthChecker
 import io.stevelabs.ticker.server.check.HttpHealthChecker
 import io.stevelabs.ticker.server.check.SpringHealthChecker
+import io.stevelabs.ticker.server.config.TickerConfig
+import io.stevelabs.ticker.server.config.TickerConfigurer
 import io.stevelabs.ticker.server.detail.DetailProperties
 import io.stevelabs.ticker.server.detail.MetricFetcher
 import io.stevelabs.ticker.server.detail.MetricSource
@@ -15,6 +18,7 @@ import io.stevelabs.ticker.server.target.TargetRegistry
 import io.stevelabs.ticker.server.target.TargetsProperties
 import io.stevelabs.ticker.server.target.UiTargetStore
 import io.stevelabs.ticker.server.web.SpaCacheControlFilter
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -35,7 +39,14 @@ class TickerServerAutoConfiguration {
     @Bean fun uiTargetStore(props: TargetsProperties, objectMapper: ObjectMapper): UiTargetStore =
         props.uiTargetsStorePath?.let { JsonFileUiTargetStore(Path.of(it), objectMapper) } ?: InMemoryUiTargetStore()
 
-    @Bean fun targetRegistry(props: TargetsProperties, uiTargetStore: UiTargetStore) = TargetRegistry(props.targets, uiTargetStore)
+    @Bean
+    fun tickerConfig(targetsProps: TargetsProperties, configurers: ObjectProvider<TickerConfigurer>): TickerConfig {
+        val config = TickerConfig(targetsProps.targets, MetricAlertRule.DEFAULTS)
+        configurers.orderedStream().forEach { it.configure(config) }
+        return config
+    }
+
+    @Bean fun targetRegistry(config: TickerConfig, uiTargetStore: UiTargetStore) = TargetRegistry(config.targets(), uiTargetStore)
     @Bean fun healthStateStore(registry: TargetRegistry, poll: PollProperties) = HealthStateStore(registry, poll)
     @Bean fun tickerRestClient(poll: PollProperties): RestClient {
         val factory = SimpleClientHttpRequestFactory().apply {

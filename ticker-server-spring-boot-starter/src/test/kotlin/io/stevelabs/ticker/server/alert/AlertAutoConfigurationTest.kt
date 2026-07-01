@@ -1,5 +1,6 @@
 package io.stevelabs.ticker.server.alert
 
+import io.stevelabs.ticker.server.config.TickerConfig
 import io.stevelabs.ticker.server.detail.MetricSource
 import io.stevelabs.ticker.server.detail.ResolvedGroup
 import io.stevelabs.ticker.server.poll.PollProperties
@@ -20,6 +21,7 @@ class AlertAutoConfigurationTest {
         .withConfiguration(AutoConfigurations.of(AlertAutoConfiguration::class.java))
         .withBean(HealthStateStore::class.java, { HealthStateStore(TargetRegistry(emptyList()), PollProperties()) })
         .withBean(MetricSource::class.java, { noopMetricSource })
+        .withBean(TickerConfig::class.java, { TickerConfig(emptyList(), MetricAlertRule.DEFAULTS) })
 
     @Test fun `no alert beans by default`() {
         runner.run { ctx -> assertThat(ctx).doesNotHaveBean(AlertService::class.java) }

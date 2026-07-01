@@ -65,6 +65,22 @@ A target has: `id`, `name`, `type` (`SPRING` | `HTTP`), `url`, optional `tags`,
 - **HTTP:** `url` is any endpoint; the checker does `GET`, success = 2xx within timeout. This
   is how nginx and non-Spring services get "is it alive."
 
+## Programmatic configuration (`TickerConfigurer`)
+Anything YAML-configurable is also settable in code, the Spring-starter way. Declare a
+`fun interface TickerConfigurer` bean; the auto-config collects all of them (`ObjectProvider`,
+`@Order`-aware), seeds a mutable `TickerConfig` from the bound properties + defaults, applies each
+configurer, then builds `TargetRegistry` / `MetricAlertStore` from the result — so code composes
+over YAML (code is additive; YAML wins on a target-name collision). API: `addTarget(name, type, url,
+tags)`, `configureAlert(key, threshold?/enabled?/cooldownSeconds?/forSeconds?)`, `putAlertRule(rule)`.
+Dashboard-group config in code is intentionally out of scope (the dashboard is a curated server-owned
+default). Example:
+```kotlin
+@Bean fun tickerConfig() = TickerConfigurer { t ->
+    t.addTarget("payments-api", ServiceType.HTTP, "https://payments/health", tags = listOf("prod"))
+    t.configureAlert("cpu-process", threshold = 0.70, forSeconds = 15)
+}
+```
+
 ## Registration (push) + static (pull-config)
 **Push — preferred; the app only needs the collector URL:**
 ```
