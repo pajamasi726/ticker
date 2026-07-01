@@ -108,6 +108,9 @@ private val DEFAULT_DASHBOARD: List<GroupSpec> = listOf(
         listOf(
             WidgetSpec("gc-pause-count", "GC pauses", "jvm.gc.pause", statistic = "COUNT", render = Render.CHART, unit = Unit.COUNT, cumulative = true),
             WidgetSpec("gc-pause-max", "GC pause max", "jvm.gc.pause", statistic = "MAX", render = Render.CHART, unit = Unit.SECONDS),
+            // Split GC by action so Full (major) GCs — the ones that hurt — are called out separately.
+            WidgetSpec("gc-full", "Full GC", "jvm.gc.pause", tags = mapOf("action" to "end of major GC"), statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
+            WidgetSpec("gc-minor", "Minor GC", "jvm.gc.pause", tags = mapOf("action" to "end of minor GC"), statistic = "COUNT", render = Render.NUMBER, unit = Unit.COUNT),
             WidgetSpec("gc-allocated", "Allocated", "jvm.gc.memory.allocated", statistic = "COUNT", render = Render.CHART, unit = Unit.BYTES, cumulative = true),
             WidgetSpec("gc-promoted", "Promoted", "jvm.gc.memory.promoted", statistic = "COUNT", render = Render.CHART, unit = Unit.BYTES, cumulative = true),
             WidgetSpec("gc-live-data", "Live data", "jvm.gc.live.data.size", render = Render.NUMBER, unit = Unit.BYTES),

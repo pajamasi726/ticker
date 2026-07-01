@@ -3,6 +3,7 @@ import type { ResolvedWidget, AlertRule, AlertFire, TagStat, MetricHistory } fro
 import { formatValue } from '../format'
 import { LiveChart } from './LiveChart'
 import { fetchMetricBreakdown, fetchMetricHistory } from '../api'
+import { infoFor } from '../metricInfo'
 import { useTimeFmt, formatTime } from '../timeFormat'
 import { TimeFormatSelect } from './TimeFormatSelect'
 
@@ -44,6 +45,7 @@ interface Props {
 /** Full-page per-metric detail: trend (auto/fixed scale + time axis) + min/avg/max, HTTP by-endpoint, alert. */
 export function MetricInspector({ serviceId, serviceName, widget, series, rule, recent, onSaveAlert, onClose }: Props) {
   const bd = BREAKDOWN[widget.key] ?? null
+  const info = infoFor(widget.key)
   const [rows, setRows] = useState<TagStat[] | null>(null)
   const [fullScale, setFullScale] = useState(false)
   const [range, setRange] = useState<HistRange>('live')
@@ -160,6 +162,13 @@ export function MetricInspector({ serviceId, serviceName, widget, series, rule, 
         </div>
 
         <div className="metric-view__side">
+          {info && (
+            <section className="metric-panel mi__info">
+              <div className="alert-drawer__label">ⓘ About this metric</div>
+              <p className="mi__info-desc">{info.description}</p>
+              {info.tip && <p className="mi__info-tip"><b>Monitoring tip</b> — {info.tip}</p>}
+            </section>
+          )}
           {rule ? (
             <AlertSection rule={rule} current={quantity(widget)} recent={recent} onSave={onSaveAlert} />
           ) : (

@@ -317,6 +317,14 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .mi__fireshead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .recent-alerts .time-fmt { margin-left: auto; }
 
+/* Per-metric info (ⓘ) + emphasis for key signals + inspector Info panel */
+.info-btn { background: none; border: none; cursor: pointer; padding: 0 1px; font-size: 11px; line-height: 1; color: var(--text-faint); }
+.info-btn:hover { color: var(--accent); }
+.widget--important { border-left: 3px solid var(--degraded); }
+.mi__info-desc { margin: 0; font-size: 13px; color: var(--text); line-height: 1.5; }
+.mi__info-tip { margin: 0; font-size: 12px; color: var(--text-dim); line-height: 1.5; background: var(--bg-0); border-left: 2px solid var(--accent); padding: 7px 10px; border-radius: var(--r-sm); }
+.mi__info-tip b { color: var(--accent); }
+
 /* Recent alerts strip */
 .recent-alerts {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;

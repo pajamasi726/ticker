@@ -8,11 +8,12 @@ interface GaugeProps {
   max: number | null
   unit: Unit
   higherIsBetter?: boolean
-  bell?: ReactNode
+  controls?: ReactNode
   onClick?: () => void
+  important?: boolean
 }
 
-export function Gauge({ label, value, max, unit, higherIsBetter = false, bell, onClick }: GaugeProps) {
+export function Gauge({ label, value, max, unit, higherIsBetter = false, controls, onClick, important = false }: GaugeProps) {
   const pct =
     value != null && max != null && max > 0 ? Math.min((value / max) * 100, 100) : null
   // Color by severity. For higher-is-better gauges (e.g. disk free) a full bar is healthy, so invert.
@@ -22,7 +23,7 @@ export function Gauge({ label, value, max, unit, higherIsBetter = false, bell, o
   const maxText = unit !== 'PERCENT' && max != null && max > 0 ? ` / ${formatValue(max, unit)}` : ''
   return (
     <div
-      className={`widget gauge${onClick ? ' widget--clickable' : ''}`}
+      className={`widget gauge${onClick ? ' widget--clickable' : ''}${important ? ' widget--important' : ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -32,7 +33,7 @@ export function Gauge({ label, value, max, unit, higherIsBetter = false, bell, o
         <span className="widget__label">{label}</span>
         <span className="widget__head-end">
           {pct != null && <span className="gauge__pct" style={{ color }}>{Math.round(pct)}%</span>}
-          {bell}
+          {controls}
         </span>
       </div>
       <div className="widget__value">

@@ -1,5 +1,6 @@
 import type { ResolvedWidget, AlertRule } from '../types'
 import { formatValue } from '../format'
+import { infoFor } from '../metricInfo'
 import { LiveChart } from './LiveChart'
 import { Gauge } from './Gauge'
 import { AlertBell } from './AlertBell'
@@ -12,10 +13,25 @@ interface MetricWidgetProps {
 }
 
 /** Generic renderer: GAUGE -> Gauge, CHART -> LiveChart + current value, NUMBER -> big value.
- *  The whole card is clickable → opens the metric inspector; the 🔔 opens it too (to the alert). */
+ *  Card is clickable → metric inspector; head shows ⓘ (info) and 🔔 (alert). `important` metrics
+ *  (e.g. Full GC, GC overhead, error rate) get an accent so they stand out. */
 export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidgetProps) {
   const open = onOpen ? () => onOpen(widget.key) : undefined
+  const info = infoFor(widget.key)
+  const important = !!info?.important
+
+  const infoBtn = info && open ? (
+    <button
+      type="button"
+      className="info-btn"
+      title={info.description}
+      aria-label="Metric info"
+      onClick={(e) => { e.stopPropagation(); open() }}
+    >ⓘ</button>
+  ) : null
   const bell = alertRule && onOpen ? <AlertBell rule={alertRule} onOpen={onOpen} /> : null
+  const controls = infoBtn || bell ? <>{infoBtn}{bell}</> : null
+
   const interactive = open
     ? {
         onClick: open,
@@ -24,7 +40,7 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
         onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') open() },
       }
     : {}
-  const clickable = open ? ' widget--clickable' : ''
+  const cls = `${open ? ' widget--clickable' : ''}${important ? ' widget--important' : ''}`
 
   if (widget.render === 'GAUGE') {
     return (
@@ -34,22 +50,23 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
         max={widget.max}
         unit={widget.unit}
         higherIsBetter={widget.higherIsBetter}
-        bell={bell}
+        controls={controls}
         onClick={open}
+        important={important}
       />
     )
   }
   if (widget.render === 'CHART') {
     const current = series.length > 0 ? series[series.length - 1] : widget.value
     return (
-      <div className={`widget widget--chart${clickable}`} {...interactive}>
+      <div className={`widget widget--chart${cls}`} {...interactive}>
         <div className="widget__head">
           <span className="widget__label">{widget.label}</span>
           <span className="widget__head-end">
             <span className="widget__value">
               {formatValue(current ?? null, widget.unit)}{widget.perSecond && current != null ? '/s' : ''}
             </span>
-            {bell}
+            {controls}
           </span>
         </div>
         <LiveChart data={series} unit={widget.unit} />
@@ -57,10 +74,10 @@ export function MetricWidget({ widget, series, alertRule, onOpen }: MetricWidget
     )
   }
   return (
-    <div className={`widget widget--number${clickable}`} {...interactive}>
+    <div className={`widget widget--number${cls}`} {...interactive}>
       <div className="widget__head">
         <span className="widget__label">{widget.label}</span>
-        {bell}
+        {controls}
       </div>
       <div className="widget__value widget__value--big">{formatValue(widget.value, widget.unit)}</div>
     </div>
