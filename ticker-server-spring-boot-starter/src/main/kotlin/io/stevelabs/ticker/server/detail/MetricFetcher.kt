@@ -10,6 +10,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
 /** Resolves a target's curated dashboard. The seam that lets DetailController be tested without HTTP. */
@@ -47,6 +48,17 @@ class MetricFetcher(
 ) : MetricSource {
     private val log = LoggerFactory.getLogger(MetricFetcher::class.java)
     private val awaitMs = (pollProperties.timeout.toMillis() * 2).coerceAtLeast(1000)
+
+    // Cap concurrent metric GETs. Resolving the ~60-widget dashboard must not open dozens of
+    // connections to a target at once — a lighter footprint, and it stops the collector's own fan-out
+    // from inflating a target's tomcat.connections.current (an observer effect: it read ~75 vs ~10 real).
+    private val fetchGate = Semaphore(8)
+
+    /** Run a single HTTP fetch under the concurrency gate (bounds simultaneous connections per target). */
+    private fun <T> gated(block: () -> T): T {
+        fetchGate.acquire()
+        return try { block() } finally { fetchGate.release() }
+    }
 
     override fun resolveValue(target: Target, ref: MetricRef, statistic: String): Double? {
         if (target.type != ServiceType.SPRING) return null
@@ -172,7 +184,7 @@ class MetricFetcher(
     private fun fetchMeasurements(baseUrl: String, ref: MetricRef): Map<String, Double>? {
         return try {
             @Suppress("UNCHECKED_CAST")
-            val body = restClient.get().uri(metricUri(baseUrl, ref)).retrieve().body(Map::class.java) as? Map<String, Any?>
+            val body = gated { restClient.get().uri(metricUri(baseUrl, ref)).retrieve().body(Map::class.java) } as? Map<String, Any?>
                 ?: return null
             val measurements = (body["measurements"] as? List<*>).orEmpty().mapNotNull { m ->
                 val mm = m as? Map<*, *> ?: return@mapNotNull null
@@ -200,7 +212,7 @@ class MetricFetcher(
     private fun fetchBody(uri: URI): Map<String, Any?>? =
         try {
             @Suppress("UNCHECKED_CAST")
-            restClient.get().uri(uri).retrieve().body(Map::class.java) as? Map<String, Any?>
+            gated { restClient.get().uri(uri).retrieve().body(Map::class.java) } as? Map<String, Any?>
         } catch (e: Exception) {
             log.debug("Fetch failed for {}: {}", uri, e.javaClass.simpleName)
             null
