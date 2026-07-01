@@ -15,7 +15,15 @@ class MetricHistoryRepository(private val jdbc: JdbcTemplate) {
         val resource = "/db/ticker-history-schema-${db.name.lowercase()}.sql"
         val sql = MetricHistoryRepository::class.java.getResource(resource)?.readText()
             ?: throw IllegalStateException("Missing bundled schema DDL for $db (expected classpath:$resource)")
-        jdbc.execute(sql)
+        // Run each statement separately: JdbcTemplate.execute takes a single statement and most JDBC
+        // drivers reject multi-statement strings — so strip `--` line comments and split on ';'.
+        sql.lineSequence()
+            .filterNot { it.trim().startsWith("--") }
+            .joinToString("\n")
+            .split(";")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .forEach { jdbc.execute(it) }
     }
 
     fun saveAll(targetId: String, samples: List<Pair<String, Double>>, tsMillis: Long) {
