@@ -33,6 +33,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-autoconfigure")
     implementation("org.springframework:spring-web")
     implementation("org.slf4j:slf4j-api")
+    // Spring Boot binds this starter's Kotlin @ConfigurationProperties data class via CONSTRUCTOR
+    // binding, which needs kotlin-reflect at runtime. Bundle it so binding works in ANY consumer
+    // (incl. Java apps, or Kotlin apps without reflect); otherwise binding falls back to setters and
+    // fails with "No setter found for property: collector-url".
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     // No JSON library on the client: the registrar hand-builds its tiny JSON payload, so the

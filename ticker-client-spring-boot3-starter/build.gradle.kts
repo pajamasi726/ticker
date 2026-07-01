@@ -61,6 +61,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-autoconfigure")
     implementation("org.springframework:spring-web")
     implementation("org.slf4j:slf4j-api")
+    // kotlin-reflect: needed for constructor-binding this starter's Kotlin @ConfigurationProperties
+    // in the consumer app (see the Boot 4 starter). Forced to the plugin's Kotlin version above.
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     // No JSON library: the registrar hand-builds its payload (see the Boot 4 starter).
