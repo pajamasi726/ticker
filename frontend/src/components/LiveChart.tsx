@@ -11,6 +11,18 @@ function tickValues(unit: Unit) {
   return (_u: uPlot, splits: number[]) => splits.map((v) => formatValue(v, unit).replace(/\s+/g, ''))
 }
 
+/** Relative-time x-axis labels ("now", "-30s", "-2m") derived from the sample index + poll interval. */
+function timeValues(intervalSec: number) {
+  return (u: uPlot, splits: number[]) => {
+    const n = u.data[0].length
+    return splits.map((v) => {
+      const back = Math.round((n - 1 - v) * intervalSec)
+      if (back <= 0) return 'now'
+      return back < 60 ? `-${back}s` : `-${Math.round(back / 60)}m`
+    })
+  }
+}
+
 /** Floating value tooltip on hover — the Grafana "point at the line, read the value" feel. */
 function tooltipPlugin(unit: Unit): uPlot.Plugin {
   let tip: HTMLDivElement | null = null
@@ -36,20 +48,28 @@ function tooltipPlugin(unit: Unit): uPlot.Plugin {
   }
 }
 
-interface Props { data: number[]; unit: Unit; height?: number }
+interface Props {
+  data: number[]
+  unit: Unit
+  height?: number
+  showTime?: boolean // render a relative-time x-axis
+  fullScale?: boolean // fixed y-axis (0-100% for PERCENT, else 0-max) instead of autoscale
+  intervalSec?: number // poll interval, for the time axis
+}
 
 /**
- * Live time-series panel. Autoscales Y to the data range (with padding) so near-constant series
- * keep their shape; 0-anchored when the data is non-negative. Area-gradient fill, subtle gridlines,
- * unit-formatted y ticks, and a hover tooltip. Width is responsive via ResizeObserver.
+ * Live time-series panel. Default y-axis autoscales to the data range (near-constant series keep
+ * shape); `fullScale` pins it (0–100% for percent, else 0–max). Area-gradient fill, unit-formatted
+ * y ticks, optional relative-time x-axis, and a hover tooltip. Width is responsive.
  */
-export function LiveChart({ data, unit, height = 88 }: Props) {
+export function LiveChart({ data, unit, height = 88, showTime = false, fullScale = false, intervalSec = 5 }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const plot = useRef<uPlot | null>(null)
 
   useEffect(() => {
     if (!el.current) return
     const width = el.current.clientWidth || 240
+    const percent = unit === 'PERCENT'
     const opts: uPlot.Options = {
       width,
       height,
@@ -60,6 +80,7 @@ export function LiveChart({ data, unit, height = 88 }: Props) {
         x: { time: false },
         y: {
           range: (_u, min, max) => {
+            if (fullScale) return percent ? [0, 1] : [0, max > 0 ? max : 1]
             if (min === max) { const p = Math.abs(min) * 0.1 || 1; return [Math.min(0, min), max + p] }
             const pad = (max - min) * 0.14
             const lo = min - pad
@@ -68,10 +89,12 @@ export function LiveChart({ data, unit, height = 88 }: Props) {
         },
       },
       axes: [
-        { show: false },
+        showTime
+          ? { show: true, size: 22, stroke: '#5b6472', font: '10px ui-monospace, monospace', ticks: { show: false }, grid: { show: false }, values: timeValues(intervalSec), space: 64 }
+          : { show: false },
         {
           show: true,
-          size: 42,
+          size: 44,
           gap: 3,
           stroke: '#5b6472',
           font: '10px ui-monospace, monospace',
@@ -105,7 +128,7 @@ export function LiveChart({ data, unit, height = 88 }: Props) {
     ro.observe(el.current)
     return () => { ro.disconnect(); plot.current?.destroy(); plot.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height, unit])
+  }, [height, unit, showTime, fullScale, intervalSec])
 
   useEffect(() => { plot.current?.setData([data.map((_, i) => i), data]) }, [data])
 

@@ -76,7 +76,7 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
     return () => { active = false; clearInterval(t) }
   }, [id])
 
-  const onAlertSave = (key: string, patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number }) => {
+  const onAlertSave = (key: string, patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number; forSeconds?: number }) => {
     updateAlertRule(key, patch)
       .then((r) => setRules((prev) => ({ ...prev, [r.key]: r })))
       .catch(() => {})

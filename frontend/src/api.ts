@@ -20,7 +20,7 @@ export async function fetchAlertRules(): Promise<AlertRule[]> {
 
 export async function updateAlertRule(
   key: string,
-  patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number },
+  patch: { enabled?: boolean; threshold?: number; cooldownSeconds?: number; forSeconds?: number },
 ): Promise<AlertRule> {
   const res = await fetch(`/api/alerts/rules/${encodeURIComponent(key)}`, {
     method: 'PUT',
@@ -37,10 +37,10 @@ export async function fetchRecentAlerts(): Promise<AlertFire[]> {
   return res.json()
 }
 
-export async function fetchMetricBreakdown(id: string, metric: string, tag: string): Promise<TagStat[]> {
-  const res = await fetch(
-    `/api/services/${encodeURIComponent(id)}/metric-breakdown?metric=${encodeURIComponent(metric)}&tag=${encodeURIComponent(tag)}`,
-  )
+export async function fetchMetricBreakdown(id: string, metric: string, tag: string, filter?: string): Promise<TagStat[]> {
+  const q = new URLSearchParams({ metric, tag })
+  if (filter) q.set('filter', filter)
+  const res = await fetch(`/api/services/${encodeURIComponent(id)}/metric-breakdown?${q.toString()}`)
   if (!res.ok) throw new Error(`GET metric-breakdown ${metric}/${tag}: ${res.status}`)
   return res.json()
 }

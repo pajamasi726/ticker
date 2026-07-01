@@ -49,6 +49,7 @@ export interface AlertRule {
   threshold: number // ratio 0-1 for PERCENT rules
   unit: Unit
   cooldownSeconds: number
+  forSeconds: number // must breach continuously this long before firing (0 = immediate)
   enabled: boolean
 }
 
