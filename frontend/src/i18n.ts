@@ -57,6 +57,19 @@ const en: Dict = {
   // Status wall
   'wall.empty': "No services yet — point an app's ticker.client.collector-url here.",
 
+  // Add HTTP monitor + remove
+  'addmon.add': '+ Add HTTP monitor',
+  'addmon.name': 'name',
+  'addmon.url': 'https://host/health',
+  'addmon.submit': 'Add',
+  'addmon.cancel': 'Cancel',
+  'addmon.hint': 'Polled like any target — GET, a 2xx response means up.',
+  'addmon.errTaken': 'That name is already in use.',
+  'addmon.errInvalid': 'Enter a name and a http(s):// URL.',
+  'addmon.errGeneric': 'Could not add the monitor.',
+  'tile.remove': 'Remove monitor',
+  'tile.removeConfirm': 'Remove monitor "{name}"?',
+
   // Service detail panel
   'detail.allServices': '← all services',
   'detail.allServicesAria': 'Back to all services',
@@ -262,6 +275,19 @@ const ko: Dict = {
 
   // Status wall
   'wall.empty': "등록된 서비스 없음 — 앱의 ticker.client.collector-url을 이 수집기로 설정하세요.",
+
+  // Add HTTP monitor + remove
+  'addmon.add': '+ HTTP 모니터 추가',
+  'addmon.name': '이름',
+  'addmon.url': 'https://host/health',
+  'addmon.submit': '추가',
+  'addmon.cancel': '취소',
+  'addmon.hint': '다른 대상처럼 폴링됩니다 — GET 요청에 2xx 응답이면 정상.',
+  'addmon.errTaken': '이미 사용 중인 이름입니다.',
+  'addmon.errInvalid': '이름과 http(s):// URL을 입력하세요.',
+  'addmon.errGeneric': '모니터를 추가할 수 없습니다.',
+  'tile.remove': '모니터 삭제',
+  'tile.removeConfirm': '"{name}" 모니터를 삭제할까요?',
 
   // Service detail panel
   'detail.allServices': '← 전체 서비스',

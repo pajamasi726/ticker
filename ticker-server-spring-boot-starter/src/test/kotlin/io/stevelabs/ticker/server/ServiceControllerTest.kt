@@ -44,9 +44,11 @@ class ServiceControllerTest(@Autowired val mockMvc: MockMvc) {
             .andExpect { jsonPath("$[0].state") { value("UP") } }
             .andExpect { jsonPath("$[0].latencyMs") { value(42) } }
             .andExpect { jsonPath("$[0].tags[0]") { value("payments") } }
+            .andExpect { jsonPath("$[0].source") { value("STATIC") } }
             // 'edge' had 1 failure; default threshold 3 -> still UNKNOWN (debounce), latency null
             .andExpect { jsonPath("$[1].id") { value("edge") } }
             .andExpect { jsonPath("$[1].state") { value("UNKNOWN") } }
             .andExpect { jsonPath("$[1].latencyMs") { value(null as Any?) } }
+            .andExpect { jsonPath("$[1].source") { value("STATIC") } }
     }
 }

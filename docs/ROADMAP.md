@@ -109,17 +109,21 @@ alerts"; tests green; Playwright shows the 🔔 popover + fired strip. (`docs/qa
 > product-owner scope calls made during development; both stay within the prime directive
 > (fixed curated dashboard, not a configurable builder or TSDB).*
 
-## Phase 8 — UI-managed HTTP/endpoint monitors (pull / health-check + warm-up) — PLANNED
-Let an operator add a **plain HTTP target** from the UI (not just `targets.yml`): name + URL (or
-host/domain + port + path) → the existing poller GETs it expecting 2xx → alive/DOWN, debounced.
-Doubles as a **warm-up** pinger (keeps an endpoint hot). NOTE: plain HTTP polling targets already
-exist (static `targets.yml` + the poller); this phase is the **UI + lifecycle**. Design care:
-UI-added targets have no client heartbeat, so they must be treated as **persistent/STATIC-like**, not
-heartbeat-expiring REGISTERED targets — i.e. a new `TargetSource.UI` kept until explicitly removed
-(optional file persistence so they survive restart, consistent with the no-DB stance / opt-in).
-Reuse `POST/DELETE /api/targets`; add an "Add monitor" form on the wall.
-**Recommended:** small scope — name, URL, interval, expected-2xx; no scripting/assertions (that's
-out of the liveness-board spirit).
+## Phase 8 — UI-managed HTTP/endpoint monitors (pull / health-check + warm-up) ✓ (done 2026-07-01)
+Let an operator add a **plain HTTP target** from the UI (not just `targets.yml`): name + URL → the
+existing poller GETs it expecting 2xx → alive/DOWN, debounced. Doubles as a **warm-up** pinger.
+**Shipped:** `POST /api/targets/http` `{name,url}` creates a target with a new `TargetSource.UI`
+(kept until explicitly removed — persistent/STATIC-like, *not* heartbeat-expiring). `DELETE
+/api/targets/{id}` removes UI + registered targets; static targets stay `409`. `ServiceView` gained
+a `source` field so the wall shows a remove (×) only on non-STATIC tiles. **Opt-in file
+persistence** via `ticker.ui-targets-store-path` (default off = in-memory, lost on restart; set → a
+JSON file that survives restart and degrades gracefully on any IO error — a flat file, consistent
+with the no-DB stance). The wall gained a collapsible "Add HTTP monitor" form (name + URL), fully
+i18n'd (ko/en); server `{code}` errors localize inline (`TARGET_NAME_TAKEN` → 409, `INVALID_REQUEST`
+→ 400).
+**Deferred (YAGNI for a liveness board):** per-target poll interval — the poller uses one global
+`ticker.poll.interval`, and per-target scheduling is a large lift; and a configurable expected
+status — the HTTP checker already treats any 2xx as healthy. No scripting/assertions, by design.
 
 ## Phase 9 — Programmatic (code-level) configuration — PLANNED
 Everything set via `application.yml` (targets, dashboard def, alert rules) should also be

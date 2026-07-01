@@ -1,5 +1,8 @@
 export type ServiceState = 'UP' | 'DEGRADED' | 'DOWN' | 'UNKNOWN'
 export type ServiceType = 'SPRING' | 'HTTP'
+// How a target got here: STATIC (targets.yml, not removable), REGISTERED (client heartbeat),
+// UI (operator-added HTTP monitor, removable from the wall).
+export type TargetSource = 'STATIC' | 'REGISTERED' | 'UI'
 export type Render = 'GAUGE' | 'CHART' | 'NUMBER'
 export type Unit = 'BYTES' | 'PERCENT' | 'COUNT' | 'SECONDS' | 'MILLIS' | 'TIMESTAMP'
 
@@ -26,6 +29,7 @@ export interface ServiceView {
   name: string
   type: ServiceType
   state: ServiceState
+  source: TargetSource
   tags: string[]
   latencyMs: number | null
   sparkline: (number | null)[]

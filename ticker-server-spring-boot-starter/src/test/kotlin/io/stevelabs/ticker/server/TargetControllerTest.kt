@@ -67,4 +67,70 @@ class TargetControllerTest(@Autowired val mvc: MockMvc) {
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
     }
+
+    // ---- POST /api/targets/http tests ----
+
+    @Test fun `POST http with valid name and url returns 201 with source UI and type HTTP`() {
+        mvc.perform(
+            post("/api/targets/http").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"ui-monitor","url":"https://example.com/health"}"""),
+        ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.id").value("ui-monitor"))
+            .andExpect(jsonPath("$.source").value("UI"))
+            .andExpect(jsonPath("$.type").value("HTTP"))
+    }
+
+    @Test fun `POST http with blank name returns 400 with INVALID_REQUEST`() {
+        mvc.perform(
+            post("/api/targets/http").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"  ","url":"https://example.com/health"}"""),
+        ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+    }
+
+    @Test fun `POST http with blank url returns 400 with INVALID_REQUEST`() {
+        mvc.perform(
+            post("/api/targets/http").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"my-svc","url":""}"""),
+        ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+    }
+
+    @Test fun `POST http without http(s) scheme returns 400 with INVALID_REQUEST`() {
+        mvc.perform(
+            post("/api/targets/http").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"my-svc","url":"ftp://example.com"}"""),
+        ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+    }
+
+    @Test fun `POST http with duplicate name returns 409 with TARGET_NAME_TAKEN`() {
+        mvc.perform(
+            post("/api/targets/http").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"dup-monitor","url":"https://example.com"}"""),
+        ).andExpect(status().isCreated)
+
+        mvc.perform(
+            post("/api/targets/http").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"dup-monitor","url":"https://other.com"}"""),
+        ).andExpect(status().isConflict)
+            .andExpect(jsonPath("$.code").value("TARGET_NAME_TAKEN"))
+    }
+
+    @Test fun `POST http with name colliding with static target returns 409`() {
+        mvc.perform(
+            post("/api/targets/http").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"static-svc","url":"https://example.com"}"""),
+        ).andExpect(status().isConflict)
+            .andExpect(jsonPath("$.code").value("TARGET_NAME_TAKEN"))
+    }
+
+    @Test fun `DELETE a UI target returns 204`() {
+        mvc.perform(
+            post("/api/targets/http").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"ui-to-delete","url":"https://example.com"}"""),
+        ).andExpect(status().isCreated)
+        mvc.perform(delete("/api/targets/ui-to-delete")).andExpect(status().isNoContent)
+        mvc.perform(get("/api/targets")).andExpect(jsonPath("$[?(@.id=='ui-to-delete')]").doesNotExist())
+    }
 }

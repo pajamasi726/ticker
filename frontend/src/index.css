@@ -50,6 +50,20 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .sparkline polyline { stroke: var(--accent); stroke-width: 1.5; fill: none; }
+
+/* Add-monitor control + tile remove (UI-managed HTTP monitors) */
+.addmon__toggle { background: var(--bg-1); border: 1px dashed var(--border); color: var(--text-dim); border-radius: var(--r-md); padding: 8px 12px; cursor: pointer; font-size: 13px; margin-bottom: 12px; }
+.addmon__toggle:hover { border-color: var(--accent); color: var(--text); }
+.addmon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.addmon__input { background: var(--bg-0); border: 1px solid var(--border); color: var(--text); border-radius: var(--r-sm); padding: 7px 9px; font-size: 13px; }
+.addmon__input--url { flex: 1; min-width: 220px; font-family: var(--mono); }
+.addmon__submit { background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: var(--r-sm); padding: 7px 14px; cursor: pointer; font-size: 13px; }
+.addmon__submit:disabled { opacity: 0.6; cursor: default; }
+.addmon__cancel { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--r-sm); padding: 7px 12px; cursor: pointer; font-size: 13px; }
+.addmon__hint { color: var(--text-faint); font-size: 12px; }
+.addmon__err { color: var(--down); font-size: 12px; }
+.tile__remove { margin-left: auto; background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+.tile__remove:hover { color: var(--down); }
 .sparkline__fail { stroke: var(--down); stroke-width: 2; }
 .sparkline--empty line { stroke: var(--border-strong); stroke-width: 1; }
 

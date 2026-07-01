@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
+/** Request body for UI-created HTTP liveness monitors. Defaults ensure a missing field deserializes before failing validation. */
+data class HttpMonitorRequest(val name: String = "", val url: String = "")
+
 @RestController
 @RequestMapping("/api/targets")
 class TargetController(
@@ -28,6 +31,23 @@ class TargetController(
 
     @PostMapping
     fun register(@RequestBody request: RegistrationRequest): Target = registry.register(request)
+
+    @PostMapping("/http")
+    fun addHttpMonitor(@RequestBody req: HttpMonitorRequest): ResponseEntity<Any> {
+        val name = req.name.trim()
+        val url = req.url.trim()
+        if (name.isBlank() || url.isBlank() || !(url.startsWith("http://") || url.startsWith("https://"))) {
+            return ResponseEntity.badRequest()
+                .body(ApiError("INVALID_REQUEST", "name and a http(s):// url are required"))
+        }
+        return when (val r = registry.addUiTarget(name, url)) {
+            is TargetRegistry.AddUiResult.Added ->
+                ResponseEntity.status(HttpStatus.CREATED).body(r.target)
+            TargetRegistry.AddUiResult.NameTaken ->
+                ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiError("TARGET_NAME_TAKEN", "A target named '$name' already exists"))
+        }
+    }
 
     @DeleteMapping("/{id}")
     fun remove(@PathVariable id: String): ResponseEntity<Any> = when (registry.remove(id)) {

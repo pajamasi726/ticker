@@ -58,7 +58,7 @@
 
 ## Targets
 A target has: `id`, `name`, `type` (`SPRING` | `HTTP`), `url`, optional `tags`,
-`source` (`REGISTERED` | `STATIC`), and check config (interval / failure-threshold overrides).
+`source` (`STATIC` | `REGISTERED` | `UI`), and check config (interval / failure-threshold overrides).
 - **SPRING:** `url` is the app base; the checker hits `{url}/actuator/health` plus a metric
   whitelist (below).
 - **HTTP:** `url` is any endpoint; the checker does `GET`, success = 2xx within timeout. This
@@ -159,10 +159,11 @@ by `GET /api/services/{id}/metric-history` for the drill-down range picker.
 ## REST API
 | Method | Path | Purpose |
 |---|---|---|
-| `POST`   | `/api/targets`                                  | self-register / upsert a target |
-| `GET`    | `/api/targets`                                  | list registered + static targets |
-| `DELETE` | `/api/targets/{id}`                             | remove a registered target (static → 409) |
-| `GET`    | `/api/services`                                 | **UI feed:** every target + current state + sparkline |
+| `POST`   | `/api/targets`                                  | self-register / upsert a target (client heartbeat → `REGISTERED`) |
+| `POST`   | `/api/targets/http`                             | add a UI HTTP monitor `{name,url}` → `TargetSource.UI` (dup → 409 `TARGET_NAME_TAKEN`) |
+| `GET`    | `/api/targets`                                  | list static + registered + UI targets |
+| `DELETE` | `/api/targets/{id}`                             | remove a UI or registered target (static → 409) |
+| `GET`    | `/api/services`                                 | **UI feed:** every target + current state + `source` + sparkline |
 | `GET`    | `/api/services/{id}/detail`                     | grouped dashboard detail (SPRING: resolved widgets; HTTP: empty groups) |
 | `GET`    | `/api/services/{id}/metric-breakdown`           | tag-breakdown for a whitelisted metric (`?metric=&tag=&filter=`); guardrail #4 enforced |
 | `GET`    | `/api/services/{id}/metric-history`             | server-side avg-downsampled history (`?key=&range=5m\|15m\|1h\|6h\|24h\|7d`); requires `ticker.history.enabled` |

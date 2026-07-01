@@ -9,8 +9,11 @@ import io.stevelabs.ticker.server.detail.MetricSource
 import io.stevelabs.ticker.server.poll.PollProperties
 import io.stevelabs.ticker.server.poll.Poller
 import io.stevelabs.ticker.server.state.HealthStateStore
+import io.stevelabs.ticker.server.target.InMemoryUiTargetStore
+import io.stevelabs.ticker.server.target.JsonFileUiTargetStore
 import io.stevelabs.ticker.server.target.TargetRegistry
 import io.stevelabs.ticker.server.target.TargetsProperties
+import io.stevelabs.ticker.server.target.UiTargetStore
 import io.stevelabs.ticker.server.web.SpaCacheControlFilter
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -19,6 +22,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.web.client.RestClient
+import java.nio.file.Path
+import tools.jackson.databind.ObjectMapper
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -27,7 +32,10 @@ import java.util.concurrent.Executors
 @EnableScheduling
 @ConditionalOnProperty(prefix = "ticker.server", name = ["enabled"], matchIfMissing = true)
 class TickerServerAutoConfiguration {
-    @Bean fun targetRegistry(props: TargetsProperties) = TargetRegistry(props.targets)
+    @Bean fun uiTargetStore(props: TargetsProperties, objectMapper: ObjectMapper): UiTargetStore =
+        props.uiTargetsStorePath?.let { JsonFileUiTargetStore(Path.of(it), objectMapper) } ?: InMemoryUiTargetStore()
+
+    @Bean fun targetRegistry(props: TargetsProperties, uiTargetStore: UiTargetStore) = TargetRegistry(props.targets, uiTargetStore)
     @Bean fun healthStateStore(registry: TargetRegistry, poll: PollProperties) = HealthStateStore(registry, poll)
     @Bean fun tickerRestClient(poll: PollProperties): RestClient {
         val factory = SimpleClientHttpRequestFactory().apply {

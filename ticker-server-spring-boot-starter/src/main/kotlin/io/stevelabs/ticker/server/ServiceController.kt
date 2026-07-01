@@ -16,6 +16,7 @@ class ServiceController(private val store: HealthStateStore) {
             name = th.target.name,
             type = th.target.type,
             state = th.state,
+            source = th.target.source,
             tags = th.target.tags,
             latencyMs = th.latencyMs,
             sparkline = th.sparkline,

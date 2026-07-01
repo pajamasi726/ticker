@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ServiceView } from './types'
-import { fetchServices } from './api'
+import { fetchServices, removeTarget } from './api'
 import { StatusWall } from './components/StatusWall'
 import { ServiceDetailPanel } from './components/ServiceDetailPanel'
 import { SummaryBar } from './components/SummaryBar'
+import { AddMonitor } from './components/AddMonitor'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { useT } from './i18n'
 
@@ -17,20 +18,19 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const t = useT()
 
+  // Guardrail #1: a dead collector must be visible, not silently trusted as "all healthy".
+  // On failure keep the last-known data so the operator sees what *was* true, but flag it unconfirmed.
+  const reload = useCallback(() =>
+    fetchServices()
+      .then((s) => { setServices(s); setReachable(true); setLastOkAt(Date.now()) })
+      .catch(() => { setReachable(false) }),
+  [])
+
   useEffect(() => {
-    let active = true
-    const load = () =>
-      fetchServices()
-        .then((s) => {
-          if (active) { setServices(s); setReachable(true); setLastOkAt(Date.now()) }
-        })
-        // Guardrail #1: a dead collector must be visible, not silently trusted as "all healthy".
-        // Keep the last-known data so the operator sees what *was* true, but flag it unconfirmed.
-        .catch(() => { if (active) setReachable(false) })
-    load()
-    const id = setInterval(load, POLL_MS)
-    return () => { active = false; clearInterval(id) }
-  }, [])
+    reload()
+    const id = setInterval(reload, POLL_MS)
+    return () => clearInterval(id)
+  }, [reload])
 
   // Tick once a second so the "stale Ns ago" banner counts up while unreachable (idle when healthy).
   useEffect(() => {
@@ -70,7 +70,15 @@ export default function App() {
                 {t('banner.unreachableA')} <code>/api/services</code>{t('banner.unreachableB')}
               </p>
             ) : (
-              <StatusWall services={services} onSelect={setSelectedId} stale={!reachable} />
+              <>
+                <AddMonitor onAdded={reload} />
+                <StatusWall
+                  services={services}
+                  onSelect={setSelectedId}
+                  onRemove={(id) => { removeTarget(id).finally(reload) }}
+                  stale={!reachable}
+                />
+              </>
             )}
           </>
         )}

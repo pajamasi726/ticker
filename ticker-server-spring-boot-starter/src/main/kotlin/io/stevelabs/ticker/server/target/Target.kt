@@ -2,7 +2,7 @@ package io.stevelabs.ticker.server.target
 
 import io.stevelabs.ticker.core.ServiceType
 
-enum class TargetSource { STATIC, REGISTERED }
+enum class TargetSource { STATIC, REGISTERED, UI }
 
 data class Target(
     val id: String,

@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 @ConfigurationProperties(prefix = "ticker")
 data class TargetsProperties(
     val targets: List<TargetDefinition> = emptyList(),
+    val uiTargetsStorePath: String? = null,
 )
 
 data class TargetDefinition(
