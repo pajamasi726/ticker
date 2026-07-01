@@ -185,6 +185,9 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
   gap: 10px;
   align-items: stretch;
+  /* Uniform widget height across all groups/rows, responsive to viewport height.
+     Width still varies (charts span 2 cols); only height is pinned. */
+  grid-auto-rows: clamp(126px, 13vh, 160px);
 }
 .widget {
   background: var(--bg-1);
@@ -223,6 +226,8 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 
 /* Live chart */
 .live-chart-wrap { width: 100%; position: relative; }
+/* Fill mode (dashboard widgets): grow into the widget's uniform height instead of a fixed px. */
+.live-chart-wrap--fill { flex: 1 1 auto; min-height: 0; }
 .live-chart-wrap .u-over { cursor: crosshair; }
 .uchart-tip {
   position: absolute;

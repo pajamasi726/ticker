@@ -73,19 +73,22 @@ interface Props {
  * shape); `fullScale` pins it (0–100% for percent, else 0–max). Area-gradient fill, unit-formatted
  * y ticks, optional relative-time x-axis, and a hover tooltip. Width is responsive.
  */
-export function LiveChart({ data, unit, height = 88, showTime = false, fullScale = false, intervalSec = 5, timeFmt = 'relative', timestamps }: Props) {
+export function LiveChart({ data, unit, height, showTime = false, fullScale = false, intervalSec = 5, timeFmt = 'relative', timestamps }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const plot = useRef<uPlot | null>(null)
   const hasTs = timestamps != null
+  const fill = height == null // no explicit height → fill the flex container (keeps widget heights uniform)
 
   useEffect(() => {
     if (!el.current) return
     const width = el.current.clientWidth || 240
+    // Fill mode reads the (flex-sized) container height so charts match the grid's uniform row height.
+    const resolveHeight = () => height ?? (el.current?.clientHeight || 88)
     const percent = unit === 'PERCENT'
     const xData = (): number[] => timestamps ?? data.map((_, i) => i)
     const opts: uPlot.Options = {
       width,
-      height,
+      height: resolveHeight(),
       class: 'live-chart',
       cursor: { show: true, x: true, y: false, points: { show: true, size: 6 } },
       legend: { show: false },
@@ -136,7 +139,8 @@ export function LiveChart({ data, unit, height = 88, showTime = false, fullScale
     plot.current = new uPlot(opts, [xData(), data], el.current)
     const ro = new ResizeObserver(() => {
       const w = el.current?.clientWidth ?? 0
-      if (w > 0 && plot.current) plot.current.setSize({ width: w, height })
+      const h = resolveHeight()
+      if (w > 0 && h > 0 && plot.current) plot.current.setSize({ width: w, height: h })
     })
     ro.observe(el.current)
     return () => { ro.disconnect(); plot.current?.destroy(); plot.current = null }
@@ -145,5 +149,5 @@ export function LiveChart({ data, unit, height = 88, showTime = false, fullScale
 
   useEffect(() => { plot.current?.setData([timestamps ?? data.map((_, i) => i), data]) }, [data, timestamps])
 
-  return <div ref={el} className="live-chart-wrap" />
+  return <div ref={el} className={`live-chart-wrap${fill ? ' live-chart-wrap--fill' : ''}`} />
 }
