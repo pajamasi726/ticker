@@ -38,7 +38,8 @@ at a glance — not arbitrary-metric exploration.
 - **Per-metric ★ favourites + value-driven severity** — star the signals you care about; the
   card's bar turns amber/red as a value nears/breaches its alert threshold (or a gauge's max).
 - **Two kinds of alerting** — incident (event-driven DOWN/recovery, with cooldown) and
-  metric-threshold rules (per-metric, UI- or code-configurable), dispatched to **Slack** or logged.
+  metric-threshold rules (per-metric, UI- or code-configurable), dispatched to **Slack** or logged;
+  replicas are identified per instance. Webhook setup walkthrough: [`docs/slack-alerts.md`](docs/slack-alerts.md).
 - **Opt-in persisted history** — H2 (embedded file, zero-setup) / MySQL / PostgreSQL via Spring JDBC,
   with server-side downsampled range queries (5m–7d), retention pruning, and **archive-before-prune**
   to cold storage (guardrail #5).
@@ -225,6 +226,7 @@ charts) · Spring JDBC + H2/MySQL/PostgreSQL (opt-in) · Gradle (Kotlin DSL) · 
 ## Docs
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — components, API, data model, history, alerting
+- [`docs/slack-alerts.md`](docs/slack-alerts.md) — Slack webhook setup (with screenshots) + wiring + verification
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased build plan
 - [`docs/PRD.md`](docs/PRD.md) — product scope & UX direction
 - Project page: **https://stevelabs.io/ticker**
