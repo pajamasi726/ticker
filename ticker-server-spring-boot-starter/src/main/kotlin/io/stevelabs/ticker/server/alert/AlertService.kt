@@ -83,43 +83,41 @@ class AlertService(
         suppressedDown.retainAll(liveIds)
     }
 
-    // Card layout rule: the title carries the whole sentence (name, instance, what happened);
-    // fields only add NEW information — repeating the title as fields reads as clutter.
+    // Card layout rule: a SHORT headline (what happened to which app), then one labelled item per
+    // line (Instance / IP / URL / Downtime) — scannable top-to-bottom, nothing repeated.
 
     private fun downMessage(th: TargetHealth): AlertMessage {
         val t = th.target
-        val plain = "🔴 *${t.name}*${instanceSuffix(t.instance)} is DOWN"
         return AlertMessage(
             severity = AlertSeverity.DOWN,
-            title = plain,
+            title = "🔴 *${t.name}* is DOWN",
             fields = buildList {
+                t.instance?.let { add("Instance" to it) }
                 t.ip?.let { add("IP" to it) }
                 add("URL" to t.url)
             },
-            context = contextLine(TextSparkline.of(th.sparkline.map { it?.toDouble() }).takeIf { it.isNotEmpty() }?.let { "latency $it" }),
-            fallback = plain,
+            context = boardLink(),
+            fallback = "🔴 *${t.name}*${instanceSuffix(t.instance)} is DOWN",
         )
     }
 
     private fun recoveryMessage(th: TargetHealth, downSince: Instant?, now: Instant): AlertMessage {
         val t = th.target
         val downtime = downSince?.let { humanDuration(Duration.between(it, now)) }
-        val plain = "🟢 *${t.name}*${instanceSuffix(t.instance)} recovered" +
-            (downtime?.let { " · down $it" } ?: "")
         return AlertMessage(
             severity = AlertSeverity.RECOVERED,
-            title = plain,
-            context = contextLine(null),
-            fallback = plain,
+            title = "🟢 *${t.name}* recovered",
+            fields = buildList {
+                t.instance?.let { add("Instance" to it) }
+                downtime?.let { add("Downtime" to it) }
+            },
+            context = boardLink(),
+            fallback = "🟢 *${t.name}*${instanceSuffix(t.instance)} recovered" + (downtime?.let { " · down $it" } ?: ""),
         )
     }
 
-    /** Joins the trend snippet with an optional board link into the dim footer line. */
-    private fun contextLine(trend: String?): String? {
-        val board = properties.boardUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" }
-        val parts = listOfNotNull(trend, board)
-        return parts.joinToString("  ·  ").ifBlank { null }
-    }
+    private fun boardLink(): String? =
+        properties.boardUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" }
 
     private fun instanceSuffix(instance: String?): String =
         if (instance.isNullOrBlank()) "" else " [$instance]"

@@ -26,15 +26,15 @@ class SlackSender(
     }
 
     private fun payload(message: AlertMessage): Map<String, Any> {
-        val blocks = mutableListOf<Map<String, Any>>(
-            mapOf("type" to "section", "text" to mrkdwn(message.title)),
-        )
-        if (message.fields.isNotEmpty()) {
-            blocks += mapOf(
-                "type" to "section",
-                "fields" to message.fields.take(10).map { (label, value) -> mrkdwn("*$label*\n$value") },
-            )
+        // One labelled item per line under the headline — scannable top-to-bottom. (Slack's
+        // two-column "fields" grid reads jumbled for this kind of data, so we don't use it.)
+        val body = buildString {
+            append(message.title)
+            for ((label, value) in message.fields) append("\n*$label:*  $value")
         }
+        val blocks = mutableListOf<Map<String, Any>>(
+            mapOf("type" to "section", "text" to mrkdwn(body)),
+        )
         message.context?.let {
             blocks += mapOf("type" to "context", "elements" to listOf(mrkdwn(it)))
         }

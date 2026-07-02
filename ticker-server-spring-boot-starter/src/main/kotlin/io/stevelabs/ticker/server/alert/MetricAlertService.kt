@@ -28,13 +28,7 @@ class MetricAlertService(
     private val log = LoggerFactory.getLogger(MetricAlertService::class.java)
     private val lastFiredAt = HashMap<String, Instant>() // key = "$targetId/$ruleKey"
     private val breachingSince = HashMap<String, Instant>() // key = "$targetId/$ruleKey"
-    /** Recent evaluated values per (target,rule) — fuels the trend sparkline in the alert message. */
-    private val recentValues = HashMap<String, ArrayDeque<Double>>()
     private var warnedNoSender = false
-
-    private companion object {
-        const val TREND_SAMPLES = 12
-    }
 
     @Scheduled(fixedRateString = "\${ticker.alert.metric-interval:30s}")
     fun evaluate() {
@@ -53,12 +47,6 @@ class MetricAlertService(
                 liveCompositeKeys += compositeKey
 
                 val quantity = resolveQuantity(target, rule)
-                quantity?.let { q ->
-                    recentValues.getOrPut(compositeKey) { ArrayDeque() }.let { ring ->
-                        ring.addLast(q)
-                        while (ring.size > TREND_SAMPLES) ring.removeFirst()
-                    }
-                }
                 if (!rule.breaches(quantity)) {
                     breachingSince.remove(compositeKey)
                     continue
@@ -81,7 +69,7 @@ class MetricAlertService(
 
                 // Sustained breach + cooldown elapsed — fire
                 val displayValue = quantity!!
-                dispatch(buildMessage(target, rule, displayValue, recentValues[compositeKey]))
+                dispatch(buildMessage(target, rule, displayValue))
 
                 rules.record(
                     AlertFire(
@@ -102,7 +90,6 @@ class MetricAlertService(
         // Prune entries for targets/rules that no longer exist
         lastFiredAt.keys.retainAll(liveCompositeKeys)
         breachingSince.keys.retainAll(liveCompositeKeys)
-        recentValues.keys.retainAll(liveCompositeKeys)
     }
 
     private fun resolveQuantity(target: io.stevelabs.ticker.server.target.Target, rule: MetricAlertRule): Double? {
@@ -117,24 +104,22 @@ class MetricAlertService(
         target: io.stevelabs.ticker.server.target.Target,
         rule: MetricAlertRule,
         quantity: Double,
-        trend: List<Double>?,
     ): AlertMessage {
         val formattedValue = formatByUnit(quantity, rule.unit)
         val formattedThreshold = formatByUnit(rule.threshold, rule.unit)
-        val direction = if (rule.comparator == Comparator.GT) "exceeds" else "is below"
+        val direction = if (rule.comparator == Comparator.GT) ">" else "<"
         val who = if (target.instance.isNullOrBlank()) target.name else "${target.name} [${target.instance}]"
-        // Title = the whole sentence; no fields repeating it (clutter). Trend + link live in the footer.
-        val plain = "⚠️ *$who* ${rule.label} $formattedValue $direction $formattedThreshold threshold"
-        val sparkline = trend?.takeIf { it.size >= 2 }?.let { TextSparkline.of(it) }
-        val sustained = rule.forSeconds.takeIf { it > 0 }?.let { "sustained ${it}s" }
-        val board = boardUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" }
-        val context = listOfNotNull(sparkline?.let { "trend $it" }, sustained, board)
-            .joinToString("  ·  ").ifBlank { null }
+        // Short headline + one labelled item per line — scannable, nothing repeated.
         return AlertMessage(
             severity = AlertSeverity.WARNING,
-            title = plain,
-            context = context,
-            fallback = plain,
+            title = "⚠️ *${target.name}* — ${rule.label}",
+            fields = buildList {
+                target.instance?.let { add("Instance" to it) }
+                add("Value" to formattedValue)
+                add("Threshold" to "$direction $formattedThreshold" + (rule.forSeconds.takeIf { it > 0 }?.let { " (sustained ${it}s)" } ?: ""))
+            },
+            context = boardUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" },
+            fallback = "⚠️ *$who* ${rule.label} $formattedValue $direction $formattedThreshold threshold",
         )
     }
 
