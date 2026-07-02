@@ -44,6 +44,10 @@ class AlertAutoConfiguration {
     @ConditionalOnMissingBean(ExecutorService::class)
     fun alertFallbackExecutor(): ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
 
+    /** Shared deploy/maintenance silence window — gates BOTH incident and metric alert dispatch. */
+    @Bean
+    fun alertSilence(): AlertSilence = AlertSilence()
+
     @Bean
     fun alertService(
         store: HealthStateStore,
@@ -51,7 +55,8 @@ class AlertAutoConfiguration {
         properties: AlertProperties,
         sender: ObjectProvider<AlertSender>,
         executor: ExecutorService,
-    ): AlertService = AlertService(store, decider, properties, sender.ifAvailable, executor)
+        silence: AlertSilence,
+    ): AlertService = AlertService(store, decider, properties, sender.ifAvailable, executor, silence)
 
     @Bean
     fun metricAlertStore(config: TickerConfig): MetricAlertStore = MetricAlertStore(config.alertRules())
@@ -63,8 +68,11 @@ class AlertAutoConfiguration {
         rules: MetricAlertStore,
         sender: ObjectProvider<AlertSender>,
         executor: ExecutorService,
-    ): MetricAlertService = MetricAlertService(store, metricSource, rules, sender.ifAvailable, executor)
+        silence: AlertSilence,
+        properties: AlertProperties,
+    ): MetricAlertService = MetricAlertService(store, metricSource, rules, sender.ifAvailable, executor, silence, properties.boardUrl)
 
     @Bean
-    fun metricAlertController(rules: MetricAlertStore): MetricAlertController = MetricAlertController(rules)
+    fun metricAlertController(rules: MetricAlertStore, silence: AlertSilence): MetricAlertController =
+        MetricAlertController(rules, silence)
 }

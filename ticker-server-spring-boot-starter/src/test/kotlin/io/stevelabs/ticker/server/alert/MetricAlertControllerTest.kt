@@ -22,6 +22,34 @@ class MetricAlertControllerTest(@Autowired val mvc: MockMvc) {
     class Beans {
         @Bean
         fun metricAlertStore(): MetricAlertStore = MetricAlertStore()
+
+        @Bean
+        fun alertSilence(): AlertSilence = AlertSilence()
+    }
+
+    @Test fun `silence window can be started, read, and cleared`() {
+        mvc.perform(get("/api/alerts/silence"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.active").value(false))
+
+        mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts/silence")
+                .contentType(MediaType.APPLICATION_JSON).content("""{"minutes":10}"""),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.active").value(true))
+            .andExpect(jsonPath("$.until").exists())
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/alerts/silence"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.active").value(false))
+    }
+
+    @Test fun `silence rejects nonsense durations`() {
+        mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts/silence")
+                .contentType(MediaType.APPLICATION_JSON).content("""{"minutes":0}"""),
+        ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_SILENCE"))
     }
 
     @Test fun `GET rules returns the seeded default rules`() {

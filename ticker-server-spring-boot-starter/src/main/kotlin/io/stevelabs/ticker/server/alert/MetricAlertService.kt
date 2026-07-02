@@ -22,11 +22,19 @@ class MetricAlertService(
     private val rules: MetricAlertStore,
     private val sender: AlertSender?,
     private val executor: Executor,
+    private val silence: AlertSilence = AlertSilence(),
+    private val boardUrl: String? = null,
 ) {
     private val log = LoggerFactory.getLogger(MetricAlertService::class.java)
     private val lastFiredAt = HashMap<String, Instant>() // key = "$targetId/$ruleKey"
     private val breachingSince = HashMap<String, Instant>() // key = "$targetId/$ruleKey"
+    /** Recent evaluated values per (target,rule) — fuels the trend sparkline in the alert message. */
+    private val recentValues = HashMap<String, ArrayDeque<Double>>()
     private var warnedNoSender = false
+
+    private companion object {
+        const val TREND_SAMPLES = 12
+    }
 
     @Scheduled(fixedRateString = "\${ticker.alert.metric-interval:30s}")
     fun evaluate() {
@@ -45,6 +53,12 @@ class MetricAlertService(
                 liveCompositeKeys += compositeKey
 
                 val quantity = resolveQuantity(target, rule)
+                quantity?.let { q ->
+                    recentValues.getOrPut(compositeKey) { ArrayDeque() }.let { ring ->
+                        ring.addLast(q)
+                        while (ring.size > TREND_SAMPLES) ring.removeFirst()
+                    }
+                }
                 if (!rule.breaches(quantity)) {
                     breachingSince.remove(compositeKey)
                     continue
@@ -55,6 +69,10 @@ class MetricAlertService(
                 val sustained = now.epochSecond - sinceInstant.epochSecond
                 if (sustained < rule.forSeconds) continue
 
+                // Deploy/maintenance silence: keep tracking, but don't fire (and don't consume the
+                // cooldown) — a still-breaching rule fires as soon as the window ends.
+                if (silence.isActive(now)) continue
+
                 val lastFired = lastFiredAt[compositeKey]
                 val cooldownElapsed = lastFired == null ||
                     (now.epochSecond - lastFired.epochSecond) >= rule.cooldownSeconds
@@ -63,10 +81,7 @@ class MetricAlertService(
 
                 // Sustained breach + cooldown elapsed — fire
                 val displayValue = quantity!!
-                // Replicas share a name — say WHICH instance breached.
-                val who = if (target.instance.isNullOrBlank()) target.name else "${target.name} [${target.instance}]"
-                val message = buildMessage(who, rule, displayValue)
-                dispatch(message)
+                dispatch(buildMessage(target, rule, displayValue, recentValues[compositeKey]))
 
                 rules.record(
                     AlertFire(
@@ -87,6 +102,7 @@ class MetricAlertService(
         // Prune entries for targets/rules that no longer exist
         lastFiredAt.keys.retainAll(liveCompositeKeys)
         breachingSince.keys.retainAll(liveCompositeKeys)
+        recentValues.keys.retainAll(liveCompositeKeys)
     }
 
     private fun resolveQuantity(target: io.stevelabs.ticker.server.target.Target, rule: MetricAlertRule): Double? {
@@ -97,11 +113,32 @@ class MetricAlertService(
         return numerator / denominator
     }
 
-    private fun buildMessage(targetName: String, rule: MetricAlertRule, quantity: Double): String {
+    private fun buildMessage(
+        target: io.stevelabs.ticker.server.target.Target,
+        rule: MetricAlertRule,
+        quantity: Double,
+        trend: List<Double>?,
+    ): AlertMessage {
         val formattedValue = formatByUnit(quantity, rule.unit)
         val formattedThreshold = formatByUnit(rule.threshold, rule.unit)
         val direction = if (rule.comparator == Comparator.GT) "exceeds" else "is below"
-        return "⚠️ *$targetName* ${rule.label} $formattedValue $direction $formattedThreshold threshold"
+        val who = if (target.instance.isNullOrBlank()) target.name else "${target.name} [${target.instance}]"
+        val plain = "⚠️ *$who* ${rule.label} $formattedValue $direction $formattedThreshold threshold"
+        val sparkline = trend?.takeIf { it.size >= 2 }?.let { TextSparkline.of(it) }
+        val board = boardUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" }
+        val context = listOfNotNull(sparkline?.let { "trend $it" }, board)
+            .joinToString("  ·  ").ifBlank { null }
+        return AlertMessage(
+            severity = AlertSeverity.WARNING,
+            title = "⚠️ *$who* — ${rule.label}",
+            fields = buildList {
+                add("Value" to formattedValue)
+                add("Threshold" to "$direction $formattedThreshold" + if (rule.forSeconds > 0) " for ${rule.forSeconds}s" else "")
+                target.ip?.let { add("IP" to it) }
+            },
+            context = context,
+            fallback = plain,
+        )
     }
 
     private fun formatByUnit(value: Double, unit: Unit): String =
@@ -110,7 +147,7 @@ class MetricAlertService(
             else -> value.toString()
         }
 
-    private fun dispatch(text: String) {
+    private fun dispatch(message: AlertMessage) {
         val s = sender
         if (s == null) {
             if (!warnedNoSender) {
@@ -119,6 +156,6 @@ class MetricAlertService(
             }
             return
         }
-        executor.execute { s.send(text) }
+        executor.execute { s.send(message) }
     }
 }

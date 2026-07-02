@@ -15,7 +15,11 @@ import java.util.concurrent.Executor
 class AlertServiceTest {
     private class RecordingSender : AlertSender {
         val sent = mutableListOf<String>()
-        override fun send(text: String) { sent += text }
+        val messages = mutableListOf<AlertMessage>()
+        override fun send(message: AlertMessage) {
+            sent += message.fallback
+            messages += message
+        }
     }
 
     /** Inline executor — runs the task on the calling thread so tests stay deterministic. */
@@ -61,6 +65,61 @@ class AlertServiceTest {
         svc.checkForAlerts()
         store.record("svc", CheckResult(CheckOutcome.FAILURE, 0), Instant.now())
         svc.checkForAlerts()                                              // would-be incident, no sender → inert, no throw
+    }
+
+    @Test fun `silence window suppresses the incident, then announces it when the window ends if still DOWN`() {
+        val store = storeWith("svc")
+        val sender = RecordingSender()
+        val silence = AlertSilence()
+        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender, inlineExecutor, silence)
+
+        svc.checkForAlerts()                                              // baseline
+        silence.silenceFor(minutes = 10)                                  // deploy window opens
+        store.record("svc", CheckResult(CheckOutcome.FAILURE, 0), Instant.now())
+        svc.checkForAlerts()                                              // DOWN during window → suppressed
+        assertThat(sender.sent).isEmpty()
+
+        silence.clear()                                                   // window ends; svc STILL down
+        svc.checkForAlerts()
+        assertThat(sender.sent).hasSize(1)
+        assertThat(sender.sent[0]).contains("svc").contains("DOWN")
+        assertThat(sender.messages[0].severity).isEqualTo(AlertSeverity.DOWN)
+    }
+
+    @Test fun `a deploy bounce inside the silence window never alerts (down then up)`() {
+        val store = storeWith("svc")
+        val sender = RecordingSender()
+        val silence = AlertSilence()
+        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender, inlineExecutor, silence)
+
+        svc.checkForAlerts()                                              // baseline
+        silence.silenceFor(minutes = 10)
+        store.record("svc", CheckResult(CheckOutcome.FAILURE, 0), Instant.now())
+        svc.checkForAlerts()                                              // down during deploy → suppressed
+        store.record("svc", CheckResult(CheckOutcome.SUCCESS, 5), Instant.now())
+        svc.checkForAlerts()                                              // back up during deploy → quiet
+        silence.clear()
+        svc.checkForAlerts()                                              // window over, healthy → nothing
+        assertThat(sender.sent).isEmpty()
+    }
+
+    @Test fun `recovery of an already-announced incident bypasses the silence window`() {
+        val store = storeWith("svc")
+        val sender = RecordingSender()
+        val silence = AlertSilence()
+        val svc = AlertService(store, AlertDecider(), AlertProperties(enabled = true), sender, inlineExecutor, silence)
+
+        svc.checkForAlerts()                                              // baseline
+        store.record("svc", CheckResult(CheckOutcome.FAILURE, 0), Instant.now())
+        svc.checkForAlerts()                                              // real incident announced
+        assertThat(sender.sent).hasSize(1)
+
+        silence.silenceFor(minutes = 10)                                  // deploy starts to fix it
+        store.record("svc", CheckResult(CheckOutcome.SUCCESS, 5), Instant.now())
+        svc.checkForAlerts()                                              // recovery closes the open 🔴
+        assertThat(sender.sent).hasSize(2)
+        assertThat(sender.sent[1]).contains("recovered")
+        assertThat(sender.messages[1].severity).isEqualTo(AlertSeverity.RECOVERED)
     }
 
     @Test fun `suppresses recovery when the service was DOWN at first observation (no incident ever sent)`() {

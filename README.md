@@ -128,6 +128,8 @@ All properties are `@ConfigurationProperties` with IDE hints; off-by-default bey
 | `ticker.poll.failure-threshold` | `3` | Consecutive failures before `DOWN` (debounce). |
 | `ticker.alert.enabled` | `false` | Metric-threshold alerting. |
 | `ticker.alert.slack-webhook-url` | — | Slack incoming webhook (**env only**, never commit). |
+| `ticker.alert.board-url` | — | Absolute URL of the board; adds an "Open Ticker board" link to every Slack alert. |
+| `POST /api/alerts/silence` | — | Deploy/maintenance window: `{"minutes":10}` suppresses alert dispatch; anything still DOWN when it ends is announced then. |
 | `ticker.history.enabled` | `false` | Opt-in persisted metric history. |
 | `ticker.history.db` | `H2` | `H2` (embedded file) · `MYSQL` · `POSTGRESQL`. |
 | `ticker.history.retention` | `7d` | Hourly prune drops samples older than this. |

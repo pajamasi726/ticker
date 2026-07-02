@@ -2,13 +2,43 @@
 
 Ticker sends two kinds of alerts to one Slack **incoming webhook**: incident alerts
 (🔴 DOWN / 🟢 recovered, debounced + cooldown) and metric-threshold alerts (⚠️, per-rule cooldown).
-Multi-instance targets include the instance in the message, so you always know **which replica**:
 
-```
-🔴 *orders-api* [eb919f6499d7:8081] is DOWN
-🟢 *orders-api* [eb919f6499d7:8081] recovered
-⚠️ *orders-api [708884f1ecae:8081]* CPU (process) 86% exceeds 80% threshold
-```
+Messages are rendered as colour-coded Block Kit cards (red / green / amber bar), with a field grid
+and a dim footer:
+
+- **🔴 DOWN** — title with the app name + instance, fields for Instance / IP / URL, and a recent
+  latency sparkline (`latency ▅▃▄▅··`) in the footer.
+- **🟢 recovered** — includes the **downtime duration**: `🟢 *orders-api* [701e…:8081] recovered (down 2m 2s)`.
+- **⚠️ metric** — value vs threshold fields plus a short trend sparkline of the recent samples.
+- Set `ticker.alert.board-url` (e.g. `https://ops.acme.com/ticker`) and every card carries an
+  **Open Ticker board** link.
+
+Multi-instance targets always name the instance, so `recovered` for one replica can't read as an
+all-clear for the app. One webhook = **one channel** (chosen when the webhook is created below);
+to alert a different channel, create another webhook and swap the URL.
+
+## Deploys are not incidents
+
+Two mechanisms keep deploy noise out of the channel:
+
+1. **Graceful shutdown deregisters** (`ticker.client.deregister-on-shutdown`, default on) — a rolling
+   or blue/green replacement removes its old instances from the wall instead of flipping them DOWN.
+   Only crashes (no graceful stop) alert — which is exactly the signal you want.
+2. **Silence window for everything else** (big-bang deploys, SIGKILL platforms, maintenance):
+
+   ```bash
+   # pipeline: before rolling instances
+   curl -X POST -H 'Content-Type: application/json' \
+     -d '{"minutes":10}' http://<collector>/api/alerts/silence
+   # status / cancel
+   curl http://<collector>/api/alerts/silence
+   curl -X DELETE http://<collector>/api/alerts/silence
+   ```
+
+   While active, incident + metric dispatch is suppressed (state tracking keeps running, and
+   suppressions are logged). **Anything still DOWN when the window ends is announced then** —
+   a silence can never swallow a real outage. Recoveries of already-announced incidents still go
+   out during a window, so the channel is never left with a dangling 🔴.
 
 ## 1. Create the webhook (one-time, ~2 minutes)
 

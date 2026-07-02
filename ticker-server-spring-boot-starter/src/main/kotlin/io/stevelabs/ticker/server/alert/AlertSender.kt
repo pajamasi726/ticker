@@ -1,6 +1,6 @@
 package io.stevelabs.ticker.server.alert
 
-/** Sends an alert message somewhere. The seam that keeps AlertService unit-testable without HTTP. */
+/** Sends an alert somewhere. The seam that keeps the alert services unit-testable without HTTP. */
 interface AlertSender {
-    fun send(text: String)
+    fun send(message: AlertMessage)
 }
