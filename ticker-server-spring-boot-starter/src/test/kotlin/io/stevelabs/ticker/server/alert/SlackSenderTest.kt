@@ -33,8 +33,10 @@ class SlackSenderTest {
         assertThat(req.method).isEqualTo("POST")
         assertThat(req.path).isEqualTo("/hook")
         val body = req.body.readUtf8()
-        assertThat(body).contains("payment-api is DOWN")     // fallback text for notifications
+        assertThat(body).contains("payment-api is DOWN")
         assertThat(body).contains("\"attachments\"")
+        assertThat(body).contains("\"fallback\"")            // notification preview lives IN the attachment…
+        assertThat(body).doesNotStartWith("{\"text\"")        // …not top-level, which Slack would render twice
         assertThat(body).contains("\"color\":\"#e5484d\"")   // red bar for DOWN
         assertThat(body).contains("\"blocks\"")
         assertThat(body).contains("*Instance*")              // field grid

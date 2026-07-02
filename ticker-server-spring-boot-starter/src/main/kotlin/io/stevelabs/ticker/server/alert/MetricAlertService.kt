@@ -123,19 +123,16 @@ class MetricAlertService(
         val formattedThreshold = formatByUnit(rule.threshold, rule.unit)
         val direction = if (rule.comparator == Comparator.GT) "exceeds" else "is below"
         val who = if (target.instance.isNullOrBlank()) target.name else "${target.name} [${target.instance}]"
+        // Title = the whole sentence; no fields repeating it (clutter). Trend + link live in the footer.
         val plain = "⚠️ *$who* ${rule.label} $formattedValue $direction $formattedThreshold threshold"
         val sparkline = trend?.takeIf { it.size >= 2 }?.let { TextSparkline.of(it) }
+        val sustained = rule.forSeconds.takeIf { it > 0 }?.let { "sustained ${it}s" }
         val board = boardUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" }
-        val context = listOfNotNull(sparkline?.let { "trend $it" }, board)
+        val context = listOfNotNull(sparkline?.let { "trend $it" }, sustained, board)
             .joinToString("  ·  ").ifBlank { null }
         return AlertMessage(
             severity = AlertSeverity.WARNING,
-            title = "⚠️ *$who* — ${rule.label}",
-            fields = buildList {
-                add("Value" to formattedValue)
-                add("Threshold" to "$direction $formattedThreshold" + if (rule.forSeconds > 0) " for ${rule.forSeconds}s" else "")
-                target.ip?.let { add("IP" to it) }
-            },
+            title = plain,
             context = context,
             fallback = plain,
         )

@@ -38,10 +38,15 @@ class SlackSender(
         message.context?.let {
             blocks += mapOf("type" to "context", "elements" to listOf(mrkdwn(it)))
         }
+        // No top-level "text": Slack renders it IN ADDITION to the attachment, duplicating the title.
+        // The attachment-level "fallback" still feeds notification previews / no-attachment clients.
         return mapOf(
-            "text" to message.fallback,
             "attachments" to listOf(
-                mapOf("color" to message.severity.color, "blocks" to blocks),
+                mapOf(
+                    "color" to message.severity.color,
+                    "fallback" to message.fallback,
+                    "blocks" to blocks,
+                ),
             ),
         )
     }

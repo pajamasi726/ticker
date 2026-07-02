@@ -83,6 +83,9 @@ class AlertService(
         suppressedDown.retainAll(liveIds)
     }
 
+    // Card layout rule: the title carries the whole sentence (name, instance, what happened);
+    // fields only add NEW information — repeating the title as fields reads as clutter.
+
     private fun downMessage(th: TargetHealth): AlertMessage {
         val t = th.target
         val plain = "🔴 *${t.name}*${instanceSuffix(t.instance)} is DOWN"
@@ -90,7 +93,6 @@ class AlertService(
             severity = AlertSeverity.DOWN,
             title = plain,
             fields = buildList {
-                t.instance?.let { add("Instance" to it) }
                 t.ip?.let { add("IP" to it) }
                 add("URL" to t.url)
             },
@@ -103,14 +105,10 @@ class AlertService(
         val t = th.target
         val downtime = downSince?.let { humanDuration(Duration.between(it, now)) }
         val plain = "🟢 *${t.name}*${instanceSuffix(t.instance)} recovered" +
-            (downtime?.let { " (down $it)" } ?: "")
+            (downtime?.let { " · down $it" } ?: "")
         return AlertMessage(
             severity = AlertSeverity.RECOVERED,
             title = plain,
-            fields = buildList {
-                downtime?.let { add("Downtime" to it) }
-                t.instance?.let { add("Instance" to it) }
-            },
             context = contextLine(null),
             fallback = plain,
         )
