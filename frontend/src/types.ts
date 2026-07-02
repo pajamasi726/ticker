@@ -29,6 +29,7 @@ export interface ServiceView {
   id: string
   name: string
   instance?: string | null // host:port for a same-named replica (registered targets); null otherwise
+  ip?: string | null       // the instance's self-reported IP (registered targets only)
   type: ServiceType
   state: ServiceState
   source: TargetSource

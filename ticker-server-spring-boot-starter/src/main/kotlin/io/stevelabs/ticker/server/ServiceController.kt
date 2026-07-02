@@ -15,6 +15,7 @@ class ServiceController(private val store: HealthStateStore) {
             id = th.target.id,
             name = th.target.name,
             instance = th.target.instance,
+            ip = th.target.ip,
             type = th.target.type,
             state = th.state,
             source = th.target.source,

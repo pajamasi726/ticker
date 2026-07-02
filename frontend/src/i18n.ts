@@ -69,6 +69,7 @@ const en: Dict = {
   'addmon.errGeneric': 'Could not add the monitor.',
   'tile.remove': 'Remove monitor',
   'tile.removeConfirm': 'Remove monitor "{name}"?',
+  'tile.instances': '{n} instances',
 
   // Service detail panel
   'detail.allServices': '← all services',
@@ -373,6 +374,7 @@ const ko: Dict = {
   'addmon.errGeneric': '모니터를 추가할 수 없습니다.',
   'tile.remove': '모니터 삭제',
   'tile.removeConfirm': '"{name}" 모니터를 삭제할까요?',
+  'tile.instances': '인스턴스 {n}대',
 
   // Service detail panel
   'detail.allServices': '← 전체 서비스',

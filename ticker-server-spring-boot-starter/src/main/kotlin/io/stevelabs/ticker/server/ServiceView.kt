@@ -12,6 +12,7 @@ data class ServiceView(
     val id: String,
     val name: String,
     val instance: String? = null,   // host:port for a same-named replica; null = single/static/UI target
+    val ip: String? = null,         // the instance's self-reported IP (registered targets only)
     val type: ServiceType,
     val state: ServiceState,
     val source: TargetSource,
