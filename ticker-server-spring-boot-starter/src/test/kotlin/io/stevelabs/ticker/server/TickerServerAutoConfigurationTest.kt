@@ -51,4 +51,26 @@ class TickerServerAutoConfigurationTest {
                 assertThat(registry.all().map { it.name }).contains("x")
             }
     }
+
+    @Test fun `self-requests meter filter denies actuator and own api, respects base-path, opts out`() {
+        runner.run {
+            val filter = it.getBean(io.micrometer.core.instrument.config.MeterFilter::class.java)
+            fun id(uri: String) = io.micrometer.core.instrument.Meter.Id(
+                "http.server.requests", io.micrometer.core.instrument.Tags.of("uri", uri), null, null, io.micrometer.core.instrument.Meter.Type.TIMER,
+            )
+            assertThat(filter.accept(id("/actuator/health"))).isEqualTo(io.micrometer.core.instrument.config.MeterFilterReply.DENY)
+            assertThat(filter.accept(id("/api/services"))).isEqualTo(io.micrometer.core.instrument.config.MeterFilterReply.DENY)
+            assertThat(filter.accept(id("/orders/{id}"))).isEqualTo(io.micrometer.core.instrument.config.MeterFilterReply.NEUTRAL)
+        }
+        runner.withPropertyValues("ticker.server.base-path=/ticker").run {
+            val filter = it.getBean(io.micrometer.core.instrument.config.MeterFilter::class.java)
+            fun id(uri: String) = io.micrometer.core.instrument.Meter.Id(
+                "http.server.requests", io.micrometer.core.instrument.Tags.of("uri", uri), null, null, io.micrometer.core.instrument.Meter.Type.TIMER,
+            )
+            assertThat(filter.accept(id("/ticker/api/services"))).isEqualTo(io.micrometer.core.instrument.config.MeterFilterReply.DENY)
+        }
+        runner.withPropertyValues("ticker.server.exclude-self-requests=false").run {
+            assertThat(it).doesNotHaveBean(io.micrometer.core.instrument.config.MeterFilter::class.java)
+        }
+    }
 }

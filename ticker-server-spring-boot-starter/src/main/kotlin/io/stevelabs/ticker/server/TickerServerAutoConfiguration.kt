@@ -77,4 +77,27 @@ class TickerServerAutoConfiguration {
     @Bean
     @ConditionalOnProperty(prefix = "ticker.server", name = ["base-path"])
     fun spaShellController(props: TickerServerProperties) = SpaShellController(props)
+
+    /**
+     * Keeps the collector's OWN traffic metrics honest: its self-poll of /actuator plus the UI
+     * polling /api would otherwise dominate http.server.requests on the "self" tile. Dropped via
+     * MeterFilter before anything is recorded (ticker.server.exclude-self-requests=false to opt out).
+     */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnClass(io.micrometer.core.instrument.config.MeterFilter::class)
+    @ConditionalOnProperty(prefix = "ticker.server", name = ["exclude-self-requests"], matchIfMissing = true)
+    fun tickerSelfRequestsMeterFilter(props: TickerServerProperties): io.micrometer.core.instrument.config.MeterFilter {
+        val apiPrefix = io.stevelabs.ticker.server.web.normalizeBasePath(props.basePath) + "/api"
+        return object : io.micrometer.core.instrument.config.MeterFilter {
+            override fun accept(id: io.micrometer.core.instrument.Meter.Id): io.micrometer.core.instrument.config.MeterFilterReply {
+                if (id.name == "http.server.requests") {
+                    val uri = id.getTag("uri")
+                    if (uri != null && (uri.startsWith("/actuator") || uri.startsWith(apiPrefix))) {
+                        return io.micrometer.core.instrument.config.MeterFilterReply.DENY
+                    }
+                }
+                return io.micrometer.core.instrument.config.MeterFilterReply.NEUTRAL
+            }
+        }
+    }
 }

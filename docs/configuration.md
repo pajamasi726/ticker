@@ -21,6 +21,7 @@ the wall + drill-down, in-memory, no alerts, no DB.
 | `ticker.server.base-path` | String | *(none)* | Relocate the whole UI + API under a prefix, e.g. `/ticker` → UI at `/ticker/`, API at `/ticker/api/**`. For when a bare `/api` clashes behind a shared gateway. The collector's own `/actuator` deliberately stays put (stable path for external liveness probes). |
 | `ticker.server.public-url` | String | *(none)* | The externally-reachable URL people open this Ticker at — scheme + host + port + path, e.g. `https://ops.acme.com/ticker`. Ticker can't discover its own domain/port-mapping/ingress prefix, so tell it once; used wherever it points humans back at itself (the "Open Ticker board" link in Slack alerts). Unset → links are omitted. Same idea as Grafana's `root_url`. |
 | `ticker.server.registration-expiry` | Duration | `0` (off) | Opt-in: evict a self-registered instance whose heartbeat stopped for this long (e.g. `10m`). Off by default on purpose — a *crashed* instance should stay red on the wall (that's the board's job), and gracefully-stopped clients deregister themselves. Enable for autoscaling churn. |
+| `ticker.server.exclude-self-requests` | boolean | `true` | Drop the collector's own monitoring traffic (`/actuator` self-poll + its `/api` UI polling, base-path aware) from its `http.server.requests`, so the "self" tile shows real traffic. |
 
 ### `ticker.poll.*` — health polling
 
@@ -100,6 +101,7 @@ Operating notes (H2 disk growth, MySQL/PostgreSQL switch, partitioning, restore)
 | `ticker.client.tags` | list | `[]` | Free-form chips on the tile (team, env, …). |
 | `ticker.client.heartbeat-interval` | Duration | `30s` | Periodic re-registration, so a restarted collector repopulates its wall. `<= 0` disables. |
 | `ticker.client.deregister-on-shutdown` | boolean | `true` | Graceful shutdown removes this instance from the wall — rolling/blue-green deploys clean up after themselves (deploys are not incidents). A crash skips this and correctly stays visible as DOWN. |
+| `ticker.client.exclude-actuator-requests` | boolean | `true` | Drop `/actuator` requests from this app's `http.server.requests`, so requests/sec · latency · error-rate show REAL traffic — not the collector's polling or k8s probes. |
 
 Minimal client config is two lines:
 

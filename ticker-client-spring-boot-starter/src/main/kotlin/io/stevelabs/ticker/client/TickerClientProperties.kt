@@ -27,4 +27,11 @@ data class TickerClientProperties(
      * their old instances immediately; a crash skips this and correctly stays on the wall as DOWN.
      */
     val deregisterOnShutdown: Boolean = true,
+    /**
+     * Drop `/actuator/..` requests from this app's `http.server.requests` metric (default on), so the
+     * dashboard's requests/sec, latency and error rate show REAL traffic — not the collector's own
+     * polling (Ticker fetches health + ~90 whitelisted metrics every poll cycle) or k8s probes.
+     * Set false to count actuator traffic again.
+     */
+    val excludeActuatorRequests: Boolean = true,
 )

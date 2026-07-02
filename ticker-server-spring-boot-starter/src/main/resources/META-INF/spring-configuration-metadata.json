@@ -31,6 +31,12 @@
       "defaultValue": "0"
     },
     {
+      "name": "ticker.server.exclude-self-requests",
+      "type": "java.lang.Boolean",
+      "description": "Drop the collector's own monitoring traffic (/actuator self-poll + its /api UI polling, base-path aware) from its http.server.requests metric, so the 'self' tile shows real traffic. Default on.",
+      "defaultValue": true
+    },
+    {
       "name": "ticker.poll.interval",
       "type": "java.time.Duration",
       "description": "How often every target is polled (virtual-thread fan-out).",

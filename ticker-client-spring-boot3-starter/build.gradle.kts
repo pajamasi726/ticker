@@ -61,6 +61,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-autoconfigure")
     implementation("org.springframework:spring-web")
     implementation("org.slf4j:slf4j-api")
+    // MeterFilter for the exclude-actuator-requests feature; the host app brings the actual registry.
+    compileOnly("io.micrometer:micrometer-core")
+    testImplementation("io.micrometer:micrometer-core")
     // kotlin-reflect: needed for constructor-binding this starter's Kotlin @ConfigurationProperties
     // in the consumer app (see the Boot 4 starter). Forced to the plugin's Kotlin version above.
     implementation("org.jetbrains.kotlin:kotlin-reflect")

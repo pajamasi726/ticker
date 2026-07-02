@@ -1,1 +1,2 @@
 io.stevelabs.ticker.client.TickerClientAutoConfiguration
+io.stevelabs.ticker.client.TickerClientMetricsAutoConfiguration

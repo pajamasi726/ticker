@@ -50,6 +50,12 @@
       "type": "java.lang.Boolean",
       "description": "Deregister from the collector on graceful shutdown, so rolling deploys clean up their old instances (deploys are not incidents). A crash skips this and correctly stays on the wall as DOWN.",
       "defaultValue": true
+    },
+    {
+      "name": "ticker.client.exclude-actuator-requests",
+      "type": "java.lang.Boolean",
+      "description": "Drop /actuator requests from this app's http.server.requests metric, so requests/sec, latency and error rate show REAL traffic instead of the collector's polling and k8s probes. Default on; set false to count actuator traffic again.",
+      "defaultValue": true
     }
   ]
 }

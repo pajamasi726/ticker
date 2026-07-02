@@ -29,4 +29,10 @@ data class TickerServerProperties(
      * autoscaling churn where replaced replicas can't always deregister.
      */
     val registrationExpiry: java.time.Duration = java.time.Duration.ZERO,
+    /**
+     * Drop the collector's OWN monitoring traffic — `/actuator/..` (its self-poll, probes) and its
+     * `/api/..` (the UI polling the wall) — from its `http.server.requests` metric (default on), so
+     * the collector's "self" tile shows real traffic. Set false to count everything again.
+     */
+    val excludeSelfRequests: Boolean = true,
 )
