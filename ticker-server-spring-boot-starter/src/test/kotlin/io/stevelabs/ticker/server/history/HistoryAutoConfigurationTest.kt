@@ -47,14 +47,18 @@ class HistoryAutoConfigurationTest {
     }
 
     @Test
-    fun `MYSQL with url produces the supplied jdbcUrl`() {
-        val url = "jdbc:mysql://db-host:3306/ticker"
-        val props = HistoryProperties(enabled = true, db = HistoryDb.MYSQL, url = url)
-        val ds = autoConfig.historyDataSource(props)
-        try {
-            assertThat(ds.jdbcUrl).isEqualTo(url)
-        } finally {
-            ds.close()
-        }
+    fun `MYSQL with url but no driver on the classpath names the missing dependency`() {
+        // The MySQL driver is deliberately NOT a test dependency — this asserts the friendly
+        // pre-flight instead of Hikari's cryptic "No suitable driver".
+        val props = HistoryProperties(enabled = true, db = HistoryDb.MYSQL, url = "jdbc:mysql://db-host:3306/ticker")
+        assertThatThrownBy { autoConfig.historyDataSource(props) }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessageContaining("com.mysql:mysql-connector-j")
+    }
+
+    @Test
+    fun `H2 driver is bundled so the pre-flight passes`() {
+        val props = HistoryProperties(enabled = true, db = HistoryDb.H2, url = "jdbc:h2:mem:driver-check")
+        autoConfig.historyDataSource(props).close() // must not throw
     }
 }

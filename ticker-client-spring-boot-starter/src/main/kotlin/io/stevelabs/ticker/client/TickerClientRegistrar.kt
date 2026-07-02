@@ -55,10 +55,21 @@ class TickerClientRegistrar(
             log.warn("ticker.client enabled but url is unset and this instance's own address could not be determined; self-registration skipped.")
             return
         }
-        val name = properties.name ?: environment.getProperty("spring.application.name") ?: "unknown"
-        val request = RegistrationRequest(name = name, type = properties.type, url = url, tags = properties.tags, instance = host, ip = ip)
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            log.warn(
+                "ticker.client.url '{}' has no http(s) scheme — the collector could never poll it. Did you mean 'http://{}'? Self-registration skipped.",
+                url, url,
+            )
+            return
+        }
+        val name = properties.name ?: environment.getProperty("spring.application.name")
+        if (name == null) {
+            log.warn("Neither ticker.client.name nor spring.application.name is set — registering as 'unknown' (every unnamed app will group under one tile; set one of them).")
+        }
+        warnIfSpringTargetLooksUnobservable()
+        val request = RegistrationRequest(name = name ?: "unknown", type = properties.type, url = url, tags = properties.tags, instance = host, ip = ip)
         val endpoint = "${collectorUrl.trimEnd('/')}/api/targets"
-        registration = endpoint to TargetIds.registrationId(name, url)
+        registration = endpoint to TargetIds.registrationId(request.name, url)
 
         register(endpoint, request) // initial registration, with retry
 
@@ -69,6 +80,40 @@ class TickerClientRegistrar(
                 interval.toMillis(), interval.toMillis(), TimeUnit.MILLISECONDS,
             )
             log.info("Ticker heartbeat every {} -> {}", interval, endpoint)
+        }
+    }
+
+    /**
+     * The two classic "tile is up but the dashboard is empty / DOWN" setups, called out at startup
+     * instead of being discovered as a mystery on the wall (SPRING targets only):
+     *  - no actuator on the classpath -> the collector's health checks will 404 -> tile goes DOWN
+     *  - metrics endpoint not exposed (Boot's default exposure is health only) -> drill-down all dimmed
+     */
+    private fun warnIfSpringTargetLooksUnobservable() {
+        if (properties.type != io.stevelabs.ticker.core.ServiceType.SPRING) return
+        // Boot 3 vs Boot 4 keep HealthEndpoint in different modules/packages — accept either.
+        val hasActuator = listOf(
+            "org.springframework.boot.actuate.health.HealthEndpoint", // Boot 3 (spring-boot-actuator)
+            "org.springframework.boot.health.actuate.endpoint.HealthEndpoint", // Boot 4 (spring-boot-health)
+        ).any { org.springframework.util.ClassUtils.isPresent(it, javaClass.classLoader) }
+        if (!hasActuator) {
+            log.warn(
+                "ticker.client.type=SPRING but spring-boot-starter-actuator is not on the classpath — " +
+                    "the collector's health checks will 404 and this app will show DOWN. " +
+                    "Add the actuator dependency, or set ticker.client.type=HTTP.",
+            )
+            return
+        }
+        val bound: Array<String> = org.springframework.boot.context.properties.bind.Binder.get(environment)
+            .bind("management.endpoints.web.exposure.include", Array<String>::class.java)
+            .orElse(null) ?: emptyArray()
+        val exposed = bound.flatMap { it.split(',') }.map { it.trim().lowercase() }
+        if (exposed.isEmpty() || (!exposed.contains("*") && !exposed.contains("metrics"))) {
+            log.warn(
+                "Actuator's metrics endpoint is not exposed (Spring Boot's default is health only) — " +
+                    "the tile will work, but the JVM drill-down will show 'not collected'. " +
+                    "For the full dashboard set: management.endpoints.web.exposure.include: health,metrics",
+            )
         }
     }
 
@@ -87,10 +132,17 @@ class TickerClientRegistrar(
                 log.info("Registered '{}' with collector {}", request.name, endpoint)
                 return
             } catch (e: Exception) {
+                // A failed call can carry a whole HTML error page in e.message — keep the line readable.
+                val cause = (e.message ?: e.javaClass.simpleName).take(200)
                 if (attempt == maxAttempts - 1) {
-                    log.error("Failed to register '{}' with {} after {} attempts: {}", request.name, endpoint, maxAttempts, e.message)
+                    val hint = if (e is org.springframework.web.client.RestClientResponseException && e.statusCode.value() == 404) {
+                        " (404 — if the collector sets ticker.server.base-path, include it in collector-url, e.g. http://host:8080/ticker)"
+                    } else {
+                        ""
+                    }
+                    log.error("Failed to register '{}' with {} after {} attempts: {}{}", request.name, endpoint, maxAttempts, cause, hint)
                 } else {
-                    log.warn("Registration attempt {} for '{}' failed ({}); retrying...", attempt + 1, request.name, e.message)
+                    log.warn("Registration attempt {} for '{}' failed ({}); retrying...", attempt + 1, request.name, cause)
                     if (retryDelayMs > 0) {
                         try {
                             Thread.sleep(retryDelayMs)

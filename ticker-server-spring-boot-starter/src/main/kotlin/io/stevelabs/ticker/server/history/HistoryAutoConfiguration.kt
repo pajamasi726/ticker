@@ -30,11 +30,26 @@ class HistoryAutoConfiguration {
                         "ticker.history.url is required when ticker.history.db=${props.db}",
                     )
             }
+            requireDriver(props.db) // after the url check: config errors first, classpath errors second
             props.username?.let { ds.username = it }
             props.password?.let { ds.password = it }
             ds.maximumPoolSize = 3
             ds.poolName = "ticker-history"
         }
+
+    /** A missing JDBC driver otherwise dies as Hikari's "No suitable driver" — name the dependency instead. */
+    private fun requireDriver(db: HistoryDb) {
+        val (driverClass, dependency) = when (db) {
+            HistoryDb.H2 -> "org.h2.Driver" to "com.h2database:h2"
+            HistoryDb.MYSQL -> "com.mysql.cj.jdbc.Driver" to "com.mysql:mysql-connector-j"
+            HistoryDb.POSTGRESQL -> "org.postgresql.Driver" to "org.postgresql:postgresql"
+        }
+        if (!org.springframework.util.ClassUtils.isPresent(driverClass, javaClass.classLoader)) {
+            throw IllegalStateException(
+                "ticker.history.db=$db but its JDBC driver is not on the classpath — add the '$dependency' dependency.",
+            )
+        }
+    }
 
     @Bean
     fun historyJdbcTemplate(historyDataSource: HikariDataSource): JdbcTemplate =

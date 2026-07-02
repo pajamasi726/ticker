@@ -116,6 +116,17 @@ class TickerClientRegistrarTest {
         assertThat(server.requestCount).isEqualTo(0)
     }
 
+    @Test fun `skips registration when the explicit client url has no http scheme`() {
+        registrar(TickerClientProperties(collectorUrl = base(), url = "my-app:8081", name = "x")).onApplicationReady()
+        assertThat(server.requestCount).isEqualTo(0)
+    }
+
+    @Test fun `registers as 'unknown' when neither name nor spring application name is set`() {
+        server.enqueue(MockResponse().setResponseCode(200))
+        registrar(TickerClientProperties(collectorUrl = base(), url = "http://my-app:8081", name = null)).onApplicationReady()
+        assertThat(server.takeRequest().body.readUtf8()).contains("\"name\":\"unknown\"")
+    }
+
     @Test fun `retries then gives up without throwing on persistent failure`() {
         repeat(3) { server.enqueue(MockResponse().setResponseCode(500)) }
         val props = TickerClientProperties(collectorUrl = base(), url = "http://my-app:8081", name = "my-app")

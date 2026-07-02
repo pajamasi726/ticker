@@ -21,7 +21,11 @@ class TickerConfig internal constructor(
 
     /** Add a monitored target (equivalent to a ticker.targets[] entry). Ignored if the name already exists (YAML wins). */
     fun addTarget(name: String, type: ServiceType, url: String, tags: List<String> = emptyList()): TickerConfig {
-        if (targetList.none { it.name == name }) targetList += TargetDefinition(name, type, url, tags)
+        if (targetList.none { it.name == name }) {
+            targetList += TargetDefinition(name, type, url, tags)
+        } else {
+            log.info("addTarget('{}') ignored — a target with that name already exists (YAML wins over code).", name)
+        }
         return this
     }
 

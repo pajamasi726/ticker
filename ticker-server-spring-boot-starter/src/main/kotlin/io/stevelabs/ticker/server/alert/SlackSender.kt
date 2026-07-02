@@ -21,7 +21,10 @@ class SlackSender(
             restClient.post().uri(webhookUrl).body(payload(message)).retrieve().toBodilessEntity()
             log.debug("Posted Slack alert: {}", message.fallback)
         } catch (e: Exception) {
-            log.warn("Failed to post Slack alert ({}): {}", message.fallback, e.javaClass.simpleName)
+            // Redact the webhook URL (a credential) but keep the actual cause — a typo'd webhook
+            // (404 no_service / invalid_payload) must be diagnosable from this line alone.
+            val cause = (e.message ?: e.javaClass.simpleName).replace(webhookUrl, "<webhook-url>")
+            log.warn("Failed to post Slack alert ({}): {} — check the webhook URL / Slack status.", message.fallback, cause)
         }
     }
 

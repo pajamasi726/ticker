@@ -108,11 +108,14 @@ Operating notes (H2 disk growth, MySQL/PostgreSQL switch, partitioning, restore)
 | `ticker.client.deregister-on-shutdown` | boolean | `true` | Graceful shutdown removes this instance from the wall — rolling/blue-green deploys clean up after themselves (deploys are not incidents). A crash skips this and correctly stays visible as DOWN. |
 | `ticker.client.exclude-actuator-requests` | boolean | `true` | Drop `/actuator` requests from this app's `http.server.requests`, so requests/sec · latency · error-rate show REAL traffic — not the collector's polling or k8s probes. |
 
-Minimal client config is two lines:
+Minimal client config is two lines (plus one for the full dashboard):
 
 ```yaml
 spring.application.name: orders-api
 ticker.client.collector-url: http://ticker:8080
+# metrics powers the JVM drill-down — Boot's default exposes health only.
+# Skip it and the tile still works; the client logs a WARN reminding you.
+management.endpoints.web.exposure.include: health,metrics
 ```
 
 ---

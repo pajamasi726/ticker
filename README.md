@@ -128,6 +128,11 @@ ticker:
   client:
     enabled: true
     collector-url: http://ticker-collector:8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics   # metrics powers the JVM drill-down (Boot's default exposes health only)
 ```
 
 No client? Add a plain **HTTP monitor from the wall** (name + URL), or a target in `targets.yml`, or
