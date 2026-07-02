@@ -50,8 +50,17 @@ at a glance — not arbitrary-metric exploration.
 
 ## Quick start
 
-Ticker ships as two Spring Boot starters (published under `io.stevelabs`, Apache-2.0). Until they're
-on Maven Central, `./gradlew publishToMavenLocal` installs them to `~/.m2`.
+Ticker ships as two Spring Boot starters on **Maven Central** (`io.stevelabs`, Apache-2.0).
+
+### 0. Kick the tires (Docker, 10 seconds)
+
+```bash
+docker run --rm -p 8080:8080 pajamasi726/ticker
+```
+
+Open `http://localhost:8080` — a demo collector (amd64 + arm64) with a few sample targets and the
+bundled UI. Point real services at it with the client starter below, or add an HTTP monitor
+straight from the wall.
 
 ### 1. Run a collector
 
