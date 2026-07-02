@@ -53,12 +53,12 @@ ticker:
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `ticker.alert.enabled` | boolean | `false` | Master switch for BOTH incident alerts (🔴 DOWN / 🟢 recovered) and per-metric threshold alerts (⚠️). Off → no alert beans load at all. |
+| `ticker.alert.enabled` | boolean | `false` | Master switch for alert **evaluation + dispatch** — incident alerts (🔴 DOWN / 🟢 recovered) and per-metric threshold alerts (⚠️). Off → nothing fires, but the rules store and the `/api/alerts/**` read/edit API stay available (the dashboard's threshold-based severity colouring uses them); edits made while off apply if alerting is enabled later. |
 | `ticker.alert.slack-webhook-url` | String | *(none)* | Slack incoming webhook. **A credential** — reference it from the environment (`${SLACK_WEBHOOK_URL:}` or the `TICKER_ALERT_SLACK_WEBHOOK_URL` env var), never commit the value. Blank counts as unset. Unset + alerting enabled → alerts are inert and a single warning is logged. Setup walkthrough: [slack-alerts.md](slack-alerts.md). |
 | `ticker.alert.cooldown` | Duration | `15m` | Minimum gap before re-alerting the *same* incident (flap suppression, guardrail #2). |
 | `ticker.alert.metric-interval` | Duration | `30s` | How often metric-threshold rules are evaluated against live `SPRING` targets. |
 
-Runtime (not yaml) alert controls:
+Runtime (not yaml) alert controls — available even when `ticker.alert.enabled` is off:
 
 | Endpoint | Description |
 |---|---|

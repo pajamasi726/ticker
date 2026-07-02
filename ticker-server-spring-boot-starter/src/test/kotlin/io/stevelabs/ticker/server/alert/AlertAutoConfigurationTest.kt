@@ -18,13 +18,34 @@ class AlertAutoConfigurationTest {
     }
 
     private val runner = ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(AlertAutoConfiguration::class.java))
+        .withConfiguration(AutoConfigurations.of(AlertApiAutoConfiguration::class.java, AlertAutoConfiguration::class.java))
         .withBean(HealthStateStore::class.java, { HealthStateStore(TargetRegistry(emptyList()), PollProperties()) })
         .withBean(MetricSource::class.java, { noopMetricSource })
         .withBean(TickerConfig::class.java, { TickerConfig(emptyList(), MetricAlertRule.DEFAULTS) })
 
-    @Test fun `no alert beans by default`() {
+    @Test fun `no dispatch beans by default`() {
         runner.run { ctx -> assertThat(ctx).doesNotHaveBean(AlertService::class.java) }
+    }
+
+    @Test fun `rules store, silence and the alerts API stay available with alerting OFF`() {
+        // The UI polls /api/alerts/rules + /recent unconditionally (severity colouring needs the
+        // thresholds) — an alerts-off collector must answer them, not 404.
+        runner.run { ctx ->
+            assertThat(ctx).hasSingleBean(MetricAlertController::class.java)
+            assertThat(ctx).hasSingleBean(MetricAlertStore::class.java)
+            assertThat(ctx).hasSingleBean(AlertSilence::class.java)
+            assertThat(ctx).doesNotHaveBean(AlertService::class.java)
+            assertThat(ctx).doesNotHaveBean(MetricAlertService::class.java)
+        }
+    }
+
+    @Test fun `enabling alerting reuses the SAME store the API edits`() {
+        runner.withPropertyValues("ticker.alert.enabled=true")
+            .run { ctx ->
+                assertThat(ctx).hasSingleBean(MetricAlertStore::class.java)
+                assertThat(ctx.getBean(MetricAlertService::class.java)).isNotNull
+                assertThat(ctx).hasSingleBean(MetricAlertController::class.java)
+            }
     }
 
     @Test fun `alert beans present when enabled with a webhook`() {

@@ -51,7 +51,7 @@
     {
       "name": "ticker.alert.enabled",
       "type": "java.lang.Boolean",
-      "description": "Enable alerting (incident DOWN/recovery + per-metric thresholds). Without a webhook, alerts are inert and logged once.",
+      "description": "Enable alert evaluation + dispatch (incident DOWN/recovery + per-metric thresholds). Without a webhook, alerts are inert and logged once. Off: nothing fires, but the rule store and /api/alerts/** stay available for the dashboard's severity colouring.",
       "defaultValue": false
     },
     {

@@ -1,7 +1,6 @@
 package io.stevelabs.ticker.server.alert
 
 import io.stevelabs.ticker.server.TickerServerAutoConfiguration
-import io.stevelabs.ticker.server.config.TickerConfig
 import io.stevelabs.ticker.server.detail.MetricSource
 import io.stevelabs.ticker.server.state.HealthStateStore
 import org.springframework.beans.factory.ObjectProvider
@@ -16,8 +15,13 @@ import org.springframework.web.client.RestClient
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+/**
+ * Alert EVALUATION + DISPATCH — the part `ticker.alert.enabled` gates. The rule store, the
+ * silence window, and the `/api/alerts` read/edit endpoints live in [AlertApiAutoConfiguration]
+ * (always on with the collector), so an alerts-off dashboard still gets severity thresholds.
+ */
 @AutoConfiguration
-@AutoConfigureAfter(TickerServerAutoConfiguration::class)
+@AutoConfigureAfter(TickerServerAutoConfiguration::class, AlertApiAutoConfiguration::class)
 @ConditionalOnProperty(prefix = "ticker.alert", name = ["enabled"], havingValue = "true")
 @EnableConfigurationProperties(AlertProperties::class, io.stevelabs.ticker.server.TickerServerProperties::class)
 class AlertAutoConfiguration {
@@ -51,10 +55,6 @@ class AlertAutoConfiguration {
     @ConditionalOnMissingBean(ExecutorService::class)
     fun alertFallbackExecutor(): ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
 
-    /** Shared deploy/maintenance silence window — gates BOTH incident and metric alert dispatch. */
-    @Bean
-    fun alertSilence(): AlertSilence = AlertSilence()
-
     @Bean
     fun alertService(
         store: HealthStateStore,
@@ -67,9 +67,6 @@ class AlertAutoConfiguration {
     ): AlertService = AlertService(store, decider, properties, sender.ifAvailable, executor, silence, server.publicUrl)
 
     @Bean
-    fun metricAlertStore(config: TickerConfig): MetricAlertStore = MetricAlertStore(config.alertRules())
-
-    @Bean
     fun metricAlertService(
         store: HealthStateStore,
         metricSource: MetricSource,
@@ -79,8 +76,4 @@ class AlertAutoConfiguration {
         silence: AlertSilence,
         server: io.stevelabs.ticker.server.TickerServerProperties,
     ): MetricAlertService = MetricAlertService(store, metricSource, rules, sender.ifAvailable, executor, silence, server.publicUrl)
-
-    @Bean
-    fun metricAlertController(rules: MetricAlertStore, silence: AlertSilence): MetricAlertController =
-        MetricAlertController(rules, silence)
 }

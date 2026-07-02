@@ -60,7 +60,7 @@ Add the **server** starter to a Spring Boot app and enable it:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.2.0")
+    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.2.1")
 }
 ```
 ```yaml
@@ -88,9 +88,9 @@ always runs on Boot 4 / Java 21; a Boot 3.2+ app on Java 17+ registers with it o
 ```kotlin
 dependencies {
     // on a Spring Boot 4.x app:
-    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.2.0")
+    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.2.1")
     // …or on a Spring Boot 3.2+ app instead (same config, same behaviour — only the artifact differs):
-    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.2.0")
+    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.2.1")
 }
 ```
 ```yaml
