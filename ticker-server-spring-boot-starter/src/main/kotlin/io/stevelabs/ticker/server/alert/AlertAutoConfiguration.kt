@@ -25,8 +25,15 @@ class AlertAutoConfiguration {
     @Bean
     fun alertDecider(): AlertDecider = AlertDecider()
 
+    /**
+     * Blank counts as unset: templated configs like `slack-webhook-url: ${SLACK_WEBHOOK_URL:}` resolve
+     * to "" when the env var is absent — that must mean "no Slack" (alerts go inert with a warning),
+     * not a sender firing at an empty URL. Hence the hasText expression instead of ConditionalOnProperty.
+     */
     @Bean
-    @ConditionalOnProperty(prefix = "ticker.alert", name = ["slack-webhook-url"])
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnExpression(
+        "T(org.springframework.util.StringUtils).hasText('\${ticker.alert.slack-webhook-url:}')",
+    )
     fun slackSender(properties: AlertProperties): SlackSender {
         val factory = SimpleClientHttpRequestFactory().apply {
             setConnectTimeout(5000)

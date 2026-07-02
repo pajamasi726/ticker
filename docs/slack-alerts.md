@@ -86,8 +86,16 @@ Two mechanisms keep deploy noise out of the channel:
 > chat, and screenshots (the URL above is blurred for exactly that reason). If it ever leaks,
 > revoke it on this same page (🗑) and add a new one.
 
-## 2. Wire it into Ticker (env only — never a committed property)
+## 2. Wire it into Ticker (the URL comes from the environment — never commit it)
 
+Either reference an env var from yaml, or skip yaml entirely (relaxed binding maps the env var):
+
+```yaml
+ticker:
+  alert:
+    enabled: true
+    slack-webhook-url: ${SLACK_WEBHOOK_URL:}   # blank (env absent) counts as unset → alerts log-inert
+```
 ```bash
 # plain run / docker
 export TICKER_ALERT_ENABLED=true

@@ -42,4 +42,14 @@ class AlertAutoConfigurationTest {
                 assertThat(ctx).doesNotHaveBean(SlackSender::class.java)
             }
     }
+
+    @Test fun `a BLANK webhook counts as unset (templated configs resolve missing env to empty string)`() {
+        // e.g. `slack-webhook-url: ${SLACK_WEBHOOK_URL:}` with the env var absent → "" must mean
+        // "no Slack", not a SlackSender firing at an empty URL.
+        runner.withPropertyValues("ticker.alert.enabled=true", "ticker.alert.slack-webhook-url=")
+            .run { ctx ->
+                assertThat(ctx).hasSingleBean(AlertService::class.java)
+                assertThat(ctx).doesNotHaveBean(SlackSender::class.java)
+            }
+    }
 }

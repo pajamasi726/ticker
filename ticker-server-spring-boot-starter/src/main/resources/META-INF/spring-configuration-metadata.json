@@ -51,7 +51,7 @@
     {
       "name": "ticker.alert.slack-webhook-url",
       "type": "java.lang.String",
-      "description": "Slack incoming-webhook URL. Provide via environment (TICKER_ALERT_SLACK_WEBHOOK_URL) only — never commit it, and avoid ${...:} placeholders that resolve to an empty string."
+      "description": "Slack incoming-webhook URL — a credential: reference it from the environment (`${SLACK_WEBHOOK_URL:}` or the TICKER_ALERT_SLACK_WEBHOOK_URL env var), never commit the value. Blank counts as unset (alerts stay log-inert)."
     },
     {
       "name": "ticker.alert.cooldown",
