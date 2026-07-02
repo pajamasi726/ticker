@@ -22,6 +22,8 @@ class AlertService(
     private val sender: AlertSender?,
     private val executor: Executor,
     private val silence: AlertSilence = AlertSilence(),
+    /** ticker.server.public-url — the human-facing URL of this Ticker, for the link in alert cards. */
+    private val publicUrl: String? = null,
 ) {
     private val log = LoggerFactory.getLogger(AlertService::class.java)
     private val previousStates = HashMap<String, ServiceState>()
@@ -117,7 +119,7 @@ class AlertService(
     }
 
     private fun boardLink(): String? =
-        properties.boardUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" }
+        publicUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" }
 
     private fun instanceSuffix(instance: String?): String =
         if (instance.isNullOrBlank()) "" else " [$instance]"

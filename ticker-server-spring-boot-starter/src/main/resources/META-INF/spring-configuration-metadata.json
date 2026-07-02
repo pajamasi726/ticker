@@ -66,9 +66,9 @@
       "defaultValue": "30s"
     },
     {
-      "name": "ticker.alert.board-url",
+      "name": "ticker.server.public-url",
       "type": "java.lang.String",
-      "description": "Absolute URL of the Ticker board (include the base-path if set), e.g. https://ops.acme.com/ticker. Adds an 'Open Ticker board' link to every Slack alert."
+      "description": "The externally-reachable URL people use to open this Ticker in a browser (scheme + host + port + path, e.g. https://ops.acme.com/ticker). Ticker can't discover this itself; used wherever it points humans back at itself, e.g. the 'Open Ticker board' link in Slack alerts. Optional — unset simply omits links. (Same idea as Grafana's root_url.)"
     },
     {
       "name": "ticker.history.enabled",

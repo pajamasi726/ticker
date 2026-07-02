@@ -23,7 +23,7 @@ class MetricAlertService(
     private val sender: AlertSender?,
     private val executor: Executor,
     private val silence: AlertSilence = AlertSilence(),
-    private val boardUrl: String? = null,
+    private val publicUrl: String? = null,
 ) {
     private val log = LoggerFactory.getLogger(MetricAlertService::class.java)
     private val lastFiredAt = HashMap<String, Instant>() // key = "$targetId/$ruleKey"
@@ -119,7 +119,7 @@ class MetricAlertService(
                 add("Value" to formattedValue)
                 add("Threshold" to "$direction $formattedThreshold" + (rule.forSeconds.takeIf { it > 0 }?.let { " (sustained ${it}s)" } ?: ""))
             },
-            context = boardUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" },
+            context = publicUrl?.takeIf { it.isNotBlank() }?.let { "<$it|Open Ticker board>" },
             fallback = "⚠️ *$who* ${rule.label} $formattedValue $direction $formattedThreshold threshold",
         )
     }

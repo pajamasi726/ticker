@@ -19,7 +19,7 @@ import java.util.concurrent.Executors
 @AutoConfiguration
 @AutoConfigureAfter(TickerServerAutoConfiguration::class)
 @ConditionalOnProperty(prefix = "ticker.alert", name = ["enabled"], havingValue = "true")
-@EnableConfigurationProperties(AlertProperties::class)
+@EnableConfigurationProperties(AlertProperties::class, io.stevelabs.ticker.server.TickerServerProperties::class)
 class AlertAutoConfiguration {
 
     @Bean
@@ -63,7 +63,8 @@ class AlertAutoConfiguration {
         sender: ObjectProvider<AlertSender>,
         executor: ExecutorService,
         silence: AlertSilence,
-    ): AlertService = AlertService(store, decider, properties, sender.ifAvailable, executor, silence)
+        server: io.stevelabs.ticker.server.TickerServerProperties,
+    ): AlertService = AlertService(store, decider, properties, sender.ifAvailable, executor, silence, server.publicUrl)
 
     @Bean
     fun metricAlertStore(config: TickerConfig): MetricAlertStore = MetricAlertStore(config.alertRules())
@@ -76,8 +77,8 @@ class AlertAutoConfiguration {
         sender: ObjectProvider<AlertSender>,
         executor: ExecutorService,
         silence: AlertSilence,
-        properties: AlertProperties,
-    ): MetricAlertService = MetricAlertService(store, metricSource, rules, sender.ifAvailable, executor, silence, properties.boardUrl)
+        server: io.stevelabs.ticker.server.TickerServerProperties,
+    ): MetricAlertService = MetricAlertService(store, metricSource, rules, sender.ifAvailable, executor, silence, server.publicUrl)
 
     @Bean
     fun metricAlertController(rules: MetricAlertStore, silence: AlertSilence): MetricAlertController =

@@ -14,6 +14,15 @@ data class TickerServerProperties(
      */
     val basePath: String = "",
     /**
+     * The externally-reachable URL people use to open THIS Ticker in a browser — scheme + host +
+     * port + path, e.g. `https://ops.acme.com/ticker`. Ticker can't discover this itself (inside a
+     * container it only knows it listens on 0.0.0.0; the domain / port-mapping / ingress prefix are
+     * deployment facts). Used wherever Ticker points humans back at itself, e.g. the "Open Ticker
+     * board" link in Slack alerts. Optional: unset → links are simply omitted. Same idea as
+     * Grafana's `root_url` / Spring Boot Admin's `public-url`.
+     */
+    val publicUrl: String? = null,
+    /**
      * Opt-in eviction of self-registered instances whose heartbeat has stopped for longer than this
      * (e.g. `10m`). Default 0 = never evict: a crashed instance SHOULD stay on the wall as a red tile —
      * that is the board's job — and gracefully-stopped clients deregister themselves. Enable for

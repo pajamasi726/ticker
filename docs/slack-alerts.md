@@ -14,7 +14,7 @@ URL:  http://orders-1:8081                                      Value:  86%
                                                                 Threshold:  > 80% (sustained 30s)
 ```
 
-- Set `ticker.alert.board-url` (e.g. `https://ops.acme.com/ticker`) and every card carries an
+- Set `ticker.server.public-url` (e.g. `https://ops.acme.com/ticker`) and every card carries an
   **Open Ticker board** footer link.
 
 Multi-instance targets always name the instance, so `recovered` for one replica can't read as an
