@@ -70,6 +70,8 @@ const en: Dict = {
   'tile.remove': 'Remove monitor',
   'tile.removeConfirm': 'Remove monitor "{name}"?',
   'tile.instances': '{n} instances',
+  'tile.more': '+{n} more',
+  'tile.less': 'collapse',
 
   // Service detail panel
   'detail.allServices': '← all services',
@@ -375,6 +377,8 @@ const ko: Dict = {
   'tile.remove': '모니터 삭제',
   'tile.removeConfirm': '"{name}" 모니터를 삭제할까요?',
   'tile.instances': '인스턴스 {n}대',
+  'tile.more': '+{n}대 더',
+  'tile.less': '접기',
 
   // Service detail panel
   'detail.allServices': '← 전체 서비스',

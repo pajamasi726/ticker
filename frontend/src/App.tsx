@@ -46,7 +46,12 @@ export default function App() {
       <div className="app__lang"><LanguageSwitcher /></div>
       <main className="app">
         {selectedId ? (
-          <ServiceDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+          <ServiceDetailPanel
+            id={selectedId}
+            siblings={services.filter((s) => s.name === services.find((x) => x.id === selectedId)?.name)}
+            onSwitch={setSelectedId}
+            onClose={() => setSelectedId(null)}
+          />
         ) : (
           <>
             <header className="app__header">

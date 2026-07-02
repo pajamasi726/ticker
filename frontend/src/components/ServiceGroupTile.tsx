@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ServiceView, ServiceState } from '../types'
 import { useT } from '../i18n'
 
@@ -8,6 +9,9 @@ const GLYPH: Record<ServiceState, string> = {
   UNKNOWN: '?',
 }
 
+/** Detailed rows shown before the tile collapses behind "+N more" — worst instances first. */
+const MAX_ROWS = 3
+
 interface Props {
   instances: ServiceView[] // ≥2 same-named replicas, pre-sorted worst-first
   onSelect?: (id: string) => void
@@ -15,13 +19,17 @@ interface Props {
 }
 
 /**
- * One tile per application, N replicas listed inside. Real deployments (ASG / Beanstalk / k8s)
- * start N identical instances of one app at once — nobody names them individually — so the wall
- * shows the app ONCE and distinguishes replicas inside by their auto-assigned hostname:port + IP.
- * Clicking a row opens that instance's dashboard.
+ * One tile per application, N replicas inside. Real deployments (ASG / Beanstalk / k8s) start N
+ * identical instances at once — nobody names them individually — so the wall shows the app ONCE
+ * and distinguishes replicas by their auto identity (hostname:port + IP).
+ *
+ * Stays glanceable at any N: a dot strip shows EVERY instance's state, detailed rows show only
+ * the worst MAX_ROWS (sick instances always surface), and "+N more" expands in place. Clicking a
+ * row opens that instance's dashboard, where a switcher flips between replicas.
  */
 export function ServiceGroupTile({ instances, onSelect, onRemove }: Props) {
   const t = useT()
+  const [expanded, setExpanded] = useState(false)
   const name = instances[0].name
   const upCount = instances.filter((i) => i.state === 'UP').length
   const aggregate: ServiceState =
@@ -30,6 +38,8 @@ export function ServiceGroupTile({ instances, onSelect, onRemove }: Props) {
         : upCount > 0 || instances.some((i) => i.state === 'DEGRADED') ? 'DEGRADED'
           : 'UNKNOWN'
   const tags = [...new Set(instances.flatMap((i) => i.tags))]
+  const visible = expanded ? instances : instances.slice(0, MAX_ROWS)
+  const hiddenCount = instances.length - visible.length
 
   return (
     <div className={`tile tile--${aggregate.toLowerCase()} tile--group`}>
@@ -41,8 +51,15 @@ export function ServiceGroupTile({ instances, onSelect, onRemove }: Props) {
       <div className="tile__meta">
         <span className="tile__state">{upCount}/{instances.length} UP</span>
       </div>
+      {instances.length > MAX_ROWS && (
+        <div className="tile__dots">
+          {instances.map((i) => (
+            <span key={i.id} className={`dot dot--${i.state.toLowerCase()}`} title={`${i.instance ?? i.id} — ${i.state}`} />
+          ))}
+        </div>
+      )}
       <div className="tile__rows">
-        {instances.map((i) => (
+        {visible.map((i) => (
           <div
             key={i.id}
             className={`irow irow--${i.state.toLowerCase()}`}
@@ -72,6 +89,16 @@ export function ServiceGroupTile({ instances, onSelect, onRemove }: Props) {
           </div>
         ))}
       </div>
+      {hiddenCount > 0 && (
+        <button type="button" className="tile__morebtn" onClick={() => setExpanded(true)}>
+          {t('tile.more', { n: String(hiddenCount) })}
+        </button>
+      )}
+      {expanded && instances.length > MAX_ROWS && (
+        <button type="button" className="tile__morebtn" onClick={() => setExpanded(false)}>
+          {t('tile.less')}
+        </button>
+      )}
       {tags.length > 0 && (
         <div className="tile__tags">
           {tags.map((tg) => <span key={tg} className="chip">{tg}</span>)}

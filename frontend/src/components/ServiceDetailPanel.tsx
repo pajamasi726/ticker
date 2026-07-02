@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchDetail, fetchAlertRules, updateAlertRule, fetchRecentAlerts } from '../api'
-import type { ServiceDetail, AlertRule, AlertFire, ResolvedWidget } from '../types'
+import type { ServiceDetail, ServiceView, AlertRule, AlertFire, ResolvedWidget } from '../types'
 import { MetricWidget } from './MetricWidget'
 import { MetricInspector } from './MetricInspector'
 import { TimeFormatSelect } from './TimeFormatSelect'
@@ -11,7 +11,7 @@ import { useT } from '../i18n'
 const MAX_POINTS = 60
 const POLL_MS = 5000
 
-export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
+export function ServiceDetailPanel({ id, siblings = [], onSwitch, onClose }: { id: string; siblings?: ServiceView[]; onSwitch?: (id: string) => void; onClose: () => void }) {
   const [detail, setDetail] = useState<ServiceDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const series = useRef<Record<string, number[]>>({})
@@ -150,6 +150,37 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
           {detail.instance && <span className="detail-identity__item"><span className="detail-identity__k">host</span>{detail.instance}</span>}
           {detail.ip && <span className="detail-identity__item"><span className="detail-identity__k">ip</span>{detail.ip}</span>}
           {detail.url && <span className="detail-identity__item"><span className="detail-identity__k">url</span>{detail.url}</span>}
+        </div>
+      )}
+      {/* Instance switcher — flip between same-named replicas without going back to the wall.
+          Chips while they fit at a glance; a dropdown once the fleet is bigger. */}
+      {siblings.length > 1 && (
+        <div className="inst-switch">
+          {siblings.length <= 6 ? (
+            [...siblings]
+              .sort((a, b) => (a.instance ?? a.id).localeCompare(b.instance ?? b.id))
+              .map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`inst-chip inst-chip--${s.state.toLowerCase()}${s.id === id ? ' inst-chip--active' : ''}`}
+                  onClick={() => { if (s.id !== id) onSwitch?.(s.id) }}
+                >
+                  <span className="inst-chip__dot" aria-hidden>●</span>
+                  {s.instance ?? s.id}
+                </button>
+              ))
+          ) : (
+            <select className="inst-select" value={id} onChange={(e) => onSwitch?.(e.target.value)}>
+              {[...siblings]
+                .sort((a, b) => (a.instance ?? a.id).localeCompare(b.instance ?? b.id))
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.state === 'UP' ? '●' : s.state === 'DOWN' ? '○' : '◐'} {s.instance ?? s.id} — {s.state}
+                  </option>
+                ))}
+            </select>
+          )}
         </div>
       )}
       {error && <p className="detail-error">{t(error)}</p>}

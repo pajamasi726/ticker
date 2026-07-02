@@ -24,7 +24,7 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 
 .wall {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 .tile {
@@ -120,12 +120,66 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .irow--degraded .irow__glyph { color: var(--degraded); }
 .irow--down .irow__glyph     { color: var(--down); }
 .irow--unknown .irow__glyph  { color: var(--unknown); }
-.irow__host { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.irow__ip { color: var(--text-dim); white-space: nowrap; }
-.irow__lat { margin-left: auto; color: var(--text-dim); white-space: nowrap; }
+/* Squeeze order under pressure: host ellipsizes first (min-width:0), ip/latency keep their width —
+   a long latency can never push into the IP or vice versa. */
+.irow__host { flex: 1 1 auto; min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.irow__ip { flex-shrink: 0; color: var(--text-dim); white-space: nowrap; }
+.irow__lat { flex-shrink: 0; margin-left: auto; color: var(--text-dim); white-space: nowrap; }
 .irow--down .irow__lat { color: var(--down); }
-.irow__remove { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+.irow__remove { flex-shrink: 0; background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
 .irow__remove:hover { color: var(--down); }
+
+/* Dot strip — every instance's state at a glance, bounded even at 30 replicas. */
+.tile__dots { display: flex; flex-wrap: wrap; gap: 4px; margin: 7px 0 3px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--unknown); }
+.dot--up       { background: var(--up); }
+.dot--degraded { background: var(--degraded); }
+.dot--down     { background: var(--down); }
+.dot--unknown  { background: var(--unknown); }
+
+.tile__morebtn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 3px 6px 1px;
+}
+.tile__morebtn:hover { text-decoration: underline; }
+
+/* Instance switcher on the detail view — flip between replicas without leaving the dashboard. */
+.inst-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0 0; }
+.inst-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.inst-chip:hover { border-color: var(--border-strong); color: var(--text); }
+.inst-chip--active { color: var(--text); border-color: var(--accent); background: var(--bg-2); cursor: default; }
+.inst-chip__dot { font-size: 9px; }
+.inst-chip--up .inst-chip__dot       { color: var(--up); }
+.inst-chip--degraded .inst-chip__dot { color: var(--degraded); }
+.inst-chip--down .inst-chip__dot     { color: var(--down); }
+.inst-chip--unknown .inst-chip__dot  { color: var(--unknown); }
+.inst-select {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 5px 8px;
+}
 .sparkline__fail { stroke: var(--down); stroke-width: 2; }
 .sparkline--empty line { stroke: var(--border-strong); stroke-width: 1; }
 
