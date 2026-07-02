@@ -144,6 +144,14 @@ export function ServiceDetailPanel({ id, onClose }: { id: string; onClose: () =>
         {cpu?.value != null && <span className="detail-stat">CPU {formatValue(cpu.value, 'PERCENT')}</span>}
         {heapPct != null && <span className="detail-stat">Heap {heapPct}%</span>}
       </header>
+      {/* Identity line — which instance this is and where it runs. Vital when replicas share a name. */}
+      {detail && (detail.instance || detail.ip || detail.url) && (
+        <div className="detail-identity">
+          {detail.instance && <span className="detail-identity__item"><span className="detail-identity__k">host</span>{detail.instance}</span>}
+          {detail.ip && <span className="detail-identity__item"><span className="detail-identity__k">ip</span>{detail.ip}</span>}
+          {detail.url && <span className="detail-identity__item"><span className="detail-identity__k">url</span>{detail.url}</span>}
+        </div>
+      )}
       {error && <p className="detail-error">{t(error)}</p>}
       {myRecent.length > 0 && (
         <div className="recent-alerts" role="status">

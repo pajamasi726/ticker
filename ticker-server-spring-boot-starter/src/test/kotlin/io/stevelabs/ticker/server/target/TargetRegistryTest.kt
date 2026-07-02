@@ -52,11 +52,12 @@ class TargetRegistryTest {
 
     @Test fun `client-reported hostname becomes the instance label (with url port)`() {
         val registry = TargetRegistry(emptyList())
-        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://10.0.0.1:8080", instance = "orders-pod-abc"))
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://10.0.0.1:8080", instance = "orders-pod-abc", ip = "10.0.0.1"))
         val t = registry.all().single()
         assertThat(t.name).isEqualTo("api")
         assertThat(t.instance).isEqualTo("orders-pod-abc:8080")
         assertThat(t.id).isEqualTo("api@10.0.0.1:8080")
+        assertThat(t.ip).isEqualTo("10.0.0.1")
     }
 
     @Test fun `all() merges static and registered`() {

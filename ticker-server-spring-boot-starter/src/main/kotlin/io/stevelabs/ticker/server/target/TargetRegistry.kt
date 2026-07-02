@@ -54,7 +54,7 @@ class TargetRegistry(
             else -> urlKey
         }
         val id = "${request.name}@$urlKey"
-        val target = Target(id, request.name, request.type, request.url, request.tags, TargetSource.REGISTERED, instance)
+        val target = Target(id, request.name, request.type, request.url, request.tags, TargetSource.REGISTERED, instance, request.ip)
         registered[id] = target
         log.info("Registered '{}' instance [{}] ({}) at {}", target.name, instance, target.type, target.url)
         return target

@@ -34,6 +34,11 @@ data class ServiceDetail(
     val latencyMs: Int?,
     val sparkline: List<Int?>,
     val groups: List<ResolvedGroup>,
+    // Identity line for the header: which instance this is (hostname:port — registered replicas only),
+    // its self-reported IP, and the URL the collector polls. instance/ip are null for static/UI targets.
+    val instance: String? = null,
+    val ip: String? = null,
+    val url: String? = null,
 )
 
 /** One row in a per-tag metric breakdown (e.g. http.server.requests by uri). */

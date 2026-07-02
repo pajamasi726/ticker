@@ -13,4 +13,6 @@ data class RegistrationRequest(
      * host:port), older collectors ignore it.
      */
     val instance: String? = null,
+    /** This instance's IP address, shown alongside [instance] on the detail header. Optional, like [instance]. */
+    val ip: String? = null,
 )

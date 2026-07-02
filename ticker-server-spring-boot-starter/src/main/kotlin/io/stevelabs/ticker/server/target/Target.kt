@@ -17,4 +17,6 @@ data class Target(
      * displayed grouping name. Registered targets set it so the wall can show which instance is which.
      */
     val instance: String? = null,
+    /** The instance's self-reported IP address (registered targets only); shown on the detail header. */
+    val ip: String? = null,
 )

@@ -45,6 +45,11 @@ export interface ServiceDetail {
   latencyMs: number | null
   sparkline: (number | null)[]
   groups: ResolvedGroup[]
+  // Identity line for the header: instance (hostname:port, registered replicas only), its
+  // self-reported IP, and the URL the collector polls. instance/ip are null for static/UI targets.
+  instance?: string | null
+  ip?: string | null
+  url?: string | null
 }
 
 // Metric-threshold alerting (configured per metric, keyed by the dashboard widget key).

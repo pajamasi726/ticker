@@ -28,12 +28,15 @@ class TickerClientRegistrar(
     fun onApplicationReady() {
         val collectorUrl = properties.collectorUrl
         val url = properties.url
-        if (collectorUrl == null || url == null) {
+        // isNullOrBlank, not just null: placeholder configs like `url: ${TICKER_CLIENT_URL:}` yield "" when
+        // the env var is unset — that should skip with this friendly warning, not error-retry against "".
+        if (collectorUrl.isNullOrBlank() || url.isNullOrBlank()) {
             log.warn("ticker.client enabled but collector-url or url is unset; self-registration skipped.")
             return
         }
         val name = properties.name ?: environment.getProperty("spring.application.name") ?: "unknown"
-        val request = RegistrationRequest(name = name, type = properties.type, url = url, tags = properties.tags, instance = hostname())
+        val (host, ip) = localIdentity()
+        val request = RegistrationRequest(name = name, type = properties.type, url = url, tags = properties.tags, instance = host, ip = ip)
         val endpoint = "${collectorUrl.trimEnd('/')}/api/targets"
 
         register(endpoint, request) // initial registration, with retry
@@ -101,14 +104,19 @@ class TickerClientRegistrar(
         }
         append(']')
         request.instance?.let { append(",\"instance\":").append(jsonString(it)) }
+        request.ip?.let { append(",\"ip\":").append(jsonString(it)) }
         append('}')
     }
 
-    /** This instance's hostname (pod / container / machine name) so the collector can distinguish replicas; null if undeterminable. */
-    private fun hostname(): String? = try {
-        java.net.InetAddress.getLocalHost().hostName?.takeIf { it.isNotBlank() }
+    /**
+     * This instance's hostname (pod / container / machine name) + IP, so the collector can distinguish
+     * replicas and show where each one runs. Either may be null if undeterminable.
+     */
+    private fun localIdentity(): Pair<String?, String?> = try {
+        val local = java.net.InetAddress.getLocalHost()
+        Pair(local.hostName?.takeIf { it.isNotBlank() }, local.hostAddress?.takeIf { it.isNotBlank() })
     } catch (e: Exception) {
-        null
+        Pair(null, null)
     }
 
     private fun jsonString(value: String): String = buildString {

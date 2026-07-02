@@ -41,6 +41,9 @@ class DetailController(
                 latencyMs = health?.latencyMs,
                 sparkline = health?.sparkline ?: emptyList(),
                 groups = groups,
+                instance = target.instance,
+                ip = target.ip,
+                url = target.url,
             ),
         )
     }
