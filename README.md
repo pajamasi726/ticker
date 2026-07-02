@@ -59,7 +59,7 @@ Add the **server** starter to a Spring Boot app and enable it:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.1.0")
+    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.2.0")
 }
 ```
 ```yaml
@@ -87,9 +87,9 @@ always runs on Boot 4 / Java 21; a Boot 3.2+ app on Java 17+ registers with it o
 ```kotlin
 dependencies {
     // on a Spring Boot 4.x app:
-    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.1.0")
+    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.2.0")
     // …or on a Spring Boot 3.2+ app instead (same config, same behaviour — only the artifact differs):
-    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.1.0")
+    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.2.0")
 }
 ```
 ```yaml
@@ -120,6 +120,9 @@ All properties are `@ConfigurationProperties` with IDE hints; off-by-default bey
 |---|---|---|
 | `ticker.server.enabled` | `true` | Activate the collector + UI. |
 | `ticker.server.base-path` | — | Relocate the UI + API under a prefix, e.g. `/ticker` (UI at `/ticker/`, API at `/ticker/api/**`) — for when a bare `/api` clashes behind a shared gateway. `/actuator` stays put. |
+| `ticker.server.registration-expiry` | `0` (off) | Opt-in: evict a self-registered instance whose heartbeat stopped for this long (e.g. `10m`). Off by default — a crashed instance *should* stay red on the wall; graceful shutdowns deregister themselves. |
+| `ticker.client.url` | own `ip:port` | Where the collector polls this instance. Defaults to the instance's own address — right for N replicas sharing one config. Never point replicas at one shared/load-balanced URL. |
+| `ticker.client.deregister-on-shutdown` | `true` | Graceful shutdown removes this instance from the wall (rolling deploys clean up after themselves); a crash stays visible as DOWN. |
 | `ticker.poll.interval` | `10s` | How often targets are polled (virtual-thread fan-out). |
 | `ticker.poll.failure-threshold` | `3` | Consecutive failures before `DOWN` (debounce). |
 | `ticker.alert.enabled` | `false` | Metric-threshold alerting. |
@@ -176,6 +179,20 @@ ticker:
 `/` then 302-redirects to `/ticker/`. The collector's own `/actuator/health` **stays put** on purpose, so
 your external liveness probe (guardrail #1) keeps a stable, predictable path. Self-registering clients
 just point `ticker.client.collector-url` at the based URL (e.g. `http://collector:8080/ticker`).
+
+## Upgrading from 0.1.x
+
+- **Use 0.2.0+ clients.** The 0.1.0 client starter has a config-binding bug (missing `kotlin-reflect`)
+  that prevents startup in many apps.
+- **Registered-target ids changed** from `name` to `name@host:port` so same-named replicas each get a
+  tile. Consequence for **opt-in history**: samples persisted by 0.1.x under the old id are no longer
+  matched by the range picker (retention prunes them out within `ticker.history.retention`, default 7d).
+- **History schema:** new installs create `target_id VARCHAR(256)` + a `ts_millis` index. Existing
+  MySQL/PostgreSQL tables need a one-time
+  `ALTER TABLE metric_sample MODIFY target_id VARCHAR(256) NOT NULL;` (PostgreSQL:
+  `ALTER TABLE metric_sample ALTER COLUMN target_id TYPE VARCHAR(256);`) and
+  `ALTER TABLE metric_sample ADD INDEX idx_metric_sample_ts (ts_millis);` (PostgreSQL:
+  `CREATE INDEX idx_metric_sample_ts ON metric_sample (ts_millis);`).
 
 ## Guardrails (fintech)
 

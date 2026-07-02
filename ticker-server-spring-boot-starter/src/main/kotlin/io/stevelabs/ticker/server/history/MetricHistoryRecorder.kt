@@ -29,7 +29,9 @@ class MetricHistoryRecorder(
                     try {
                         repo.saveAll(th.target.id, samples, now)
                     } catch (e: Exception) {
-                        log.debug("Failed to save metric history for '{}': {}", th.target.id, e.message)
+                        // WARN, not debug: a systematic failure (e.g. an id longer than the column,
+                        // or the DB gone) would otherwise silently drop history every cycle.
+                        log.warn("Failed to save metric history for '{}': {}", th.target.id, e.message)
                     }
                 }
             }

@@ -1,6 +1,7 @@
 package io.stevelabs.ticker.client
 
 import io.stevelabs.ticker.core.RegistrationRequest
+import io.stevelabs.ticker.core.TargetIds
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.DisposableBean
 import org.springframework.boot.context.event.ApplicationReadyEvent
@@ -24,20 +25,31 @@ class TickerClientRegistrar(
     private val scheduler: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "ticker-heartbeat").apply { isDaemon = true } }
 
+    /** Set once registration is attempted: (collector /api/targets base, this instance's registry id). */
+    @Volatile private var registration: Pair<String, String>? = null
+
     @EventListener(ApplicationReadyEvent::class)
     fun onApplicationReady() {
         val collectorUrl = properties.collectorUrl
-        val url = properties.url
         // isNullOrBlank, not just null: placeholder configs like `url: ${TICKER_CLIENT_URL:}` yield "" when
-        // the env var is unset — that should skip with this friendly warning, not error-retry against "".
-        if (collectorUrl.isNullOrBlank() || url.isNullOrBlank()) {
-            log.warn("ticker.client enabled but collector-url or url is unset; self-registration skipped.")
+        // the env var is unset — that should skip (or default), not error-retry against "".
+        if (collectorUrl.isNullOrBlank()) {
+            log.warn("ticker.client enabled but collector-url is unset; self-registration skipped.")
+            return
+        }
+        val (host, ip) = localIdentity()
+        // No explicit url? Advertise this instance's own address. That's what makes N replicas sharing
+        // one config each register uniquely — pointing them all at a shared URL would collapse them
+        // into a single flip-flopping entry on the collector.
+        val url = properties.url?.takeIf { it.isNotBlank() } ?: selfUrl(ip)
+        if (url == null) {
+            log.warn("ticker.client enabled but url is unset and this instance's own address could not be determined; self-registration skipped.")
             return
         }
         val name = properties.name ?: environment.getProperty("spring.application.name") ?: "unknown"
-        val (host, ip) = localIdentity()
         val request = RegistrationRequest(name = name, type = properties.type, url = url, tags = properties.tags, instance = host, ip = ip)
         val endpoint = "${collectorUrl.trimEnd('/')}/api/targets"
+        registration = endpoint to TargetIds.registrationId(name, url)
 
         register(endpoint, request) // initial registration, with retry
 
@@ -49,6 +61,13 @@ class TickerClientRegistrar(
             )
             log.info("Ticker heartbeat every {} -> {}", interval, endpoint)
         }
+    }
+
+    /** This instance's own pollable address — `http://<ip>:<local port>` — or null if undeterminable. */
+    private fun selfUrl(ip: String?): String? {
+        val port = environment.getProperty("local.server.port") ?: environment.getProperty("server.port")
+        if (ip.isNullOrBlank() || port.isNullOrBlank()) return null
+        return "http://$ip:$port"
     }
 
     private fun register(endpoint: String, request: RegistrationRequest) {
@@ -138,5 +157,16 @@ class TickerClientRegistrar(
 
     override fun destroy() {
         scheduler.shutdownNow()
+        // Graceful shutdown = intentional: take our tile off the wall so rolling deploys don't leave a
+        // ghost DOWN instance behind. A crash never runs this — that instance correctly stays visible
+        // as DOWN (the board's whole job). Best-effort: the collector may be gone too.
+        val (endpoint, id) = registration ?: return
+        if (!properties.deregisterOnShutdown) return
+        try {
+            restClient.delete().uri("$endpoint/{id}", id).retrieve().toBodilessEntity()
+            log.info("Deregistered '{}' from {}", id, endpoint)
+        } catch (e: Exception) {
+            log.debug("Deregistration of '{}' failed ({}); the collector will keep polling until it is removed or expires.", id, e.message)
+        }
     }
 }

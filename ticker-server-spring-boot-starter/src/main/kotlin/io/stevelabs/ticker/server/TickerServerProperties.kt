@@ -13,4 +13,11 @@ data class TickerServerProperties(
      * (guardrail #1). Leading and trailing slashes are normalized (`ticker` == `/ticker/` == `/ticker`).
      */
     val basePath: String = "",
+    /**
+     * Opt-in eviction of self-registered instances whose heartbeat has stopped for longer than this
+     * (e.g. `10m`). Default 0 = never evict: a crashed instance SHOULD stay on the wall as a red tile —
+     * that is the board's job — and gracefully-stopped clients deregister themselves. Enable for
+     * autoscaling churn where replaced replicas can't always deregister.
+     */
+    val registrationExpiry: java.time.Duration = java.time.Duration.ZERO,
 )

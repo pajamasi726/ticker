@@ -63,7 +63,9 @@ class MetricAlertService(
 
                 // Sustained breach + cooldown elapsed — fire
                 val displayValue = quantity!!
-                val message = buildMessage(target.name, rule, displayValue)
+                // Replicas share a name — say WHICH instance breached.
+                val who = if (target.instance.isNullOrBlank()) target.name else "${target.name} [${target.instance}]"
+                val message = buildMessage(who, rule, displayValue)
                 dispatch(message)
 
                 rules.record(

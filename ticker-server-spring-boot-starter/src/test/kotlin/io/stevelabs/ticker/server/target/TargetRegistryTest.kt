@@ -60,6 +60,38 @@ class TargetRegistryTest {
         assertThat(t.ip).isEqualTo("10.0.0.1")
     }
 
+    @Test fun `underscored docker-compose hostname yields a slash-free id (URI host is null)`() {
+        val registry = TargetRegistry(emptyList())
+        val t = registry.register(RegistrationRequest("orders-api", ServiceType.SPRING, "http://orders_api:8080"))
+        assertThat(t.id).isEqualTo("orders-api@orders_api:8080")
+        assertThat(t.id).doesNotContain("/")
+    }
+
+    @Test fun `addUiTarget refuses a name owned by registered instances`() {
+        val registry = TargetRegistry(emptyList())
+        registry.register(RegistrationRequest("orders-api", ServiceType.SPRING, "http://10.0.0.1:8080"))
+        // Would otherwise silently shadow every orders-api replica out of all()/polling/alerting.
+        assertThat(registry.addUiTarget("orders-api", "http://whatever"))
+            .isEqualTo(TargetRegistry.AddUiResult.NameTaken)
+        assertThat(registry.all().map { it.name }).contains("orders-api")
+    }
+
+    @Test fun `evictExpired drops instances whose heartbeat stopped, keeps fresh ones`() {
+        val registry = TargetRegistry(emptyList())
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://10.0.0.1:8080"), nowMillis = 1_000)
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://10.0.0.2:8080"), nowMillis = 90_000)
+        val evicted = registry.evictExpired(maxAgeMillis = 60_000, nowMillis = 100_000)
+        assertThat(evicted.map { it.instance }).containsExactly("10.0.0.1:8080")
+        assertThat(registry.all().map { it.instance }).containsExactly("10.0.0.2:8080")
+    }
+
+    @Test fun `evictExpired is a no-op when disabled (maxAge 0)`() {
+        val registry = TargetRegistry(emptyList())
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://10.0.0.1:8080"), nowMillis = 0)
+        assertThat(registry.evictExpired(maxAgeMillis = 0, nowMillis = 999_999_999)).isEmpty()
+        assertThat(registry.all()).hasSize(1)
+    }
+
     @Test fun `all() merges static and registered`() {
         val registry = TargetRegistry(listOf(def("static-one")))
         registry.register(RegistrationRequest("reg-one", ServiceType.SPRING, "http://reg"))

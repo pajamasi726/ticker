@@ -33,12 +33,14 @@ class AlertService(
             val outcome = decider.decide(previousStates[id], th.state, lastIncidentAt[id], now, properties.cooldown)
             when (outcome.kind) {
                 AlertKind.INCIDENT -> {
-                    emit("🔴 *${th.target.name}* is DOWN")
+                    // Include the instance: replicas share a name, and "orders-api is DOWN" without
+                    // saying WHICH replica reads as the whole app (and its recovery as an all-clear).
+                    emit("🔴 *${th.target.name}*${instanceSuffix(th.target.instance)} is DOWN")
                     if (sender != null) alerted += id
                 }
                 AlertKind.RECOVERY -> {
                     if (id in alerted) {
-                        emit("🟢 *${th.target.name}* recovered")
+                        emit("🟢 *${th.target.name}*${instanceSuffix(th.target.instance)} recovered")
                         alerted -= id
                     }
                 }
@@ -52,6 +54,9 @@ class AlertService(
         lastIncidentAt.keys.retainAll(liveIds)
         alerted.retainAll(liveIds)
     }
+
+    private fun instanceSuffix(instance: String?): String =
+        if (instance.isNullOrBlank()) "" else " [$instance]"
 
     private fun emit(text: String) {
         val s = sender

@@ -19,11 +19,14 @@ class Poller(
     private val store: HealthStateStore,
     private val executor: ExecutorService,
     private val pollProperties: PollProperties,
+    private val registrationExpiryMillis: Long = 0,
 ) {
     private val log = LoggerFactory.getLogger(Poller::class.java)
 
     @Scheduled(fixedRateString = "\${ticker.poll.interval:10s}")
     fun pollAll() {
+        // Opt-in cleanup of registered instances whose heartbeat stopped (ticker.server.registration-expiry).
+        registry.evictExpired(registrationExpiryMillis).forEach { store.evict(it.id) }
         val targets = registry.all()
         if (targets.isEmpty()) return
         val now = Instant.now()

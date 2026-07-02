@@ -17,6 +17,8 @@ class MetricHistoryRepository(private val jdbc: JdbcTemplate) {
             ?: throw IllegalStateException("Missing bundled schema DDL for $db (expected classpath:$resource)")
         // Run each statement separately: JdbcTemplate.execute takes a single statement and most JDBC
         // drivers reject multi-statement strings — so strip `--` line comments and split on ';'.
+        // Constraint on the BUNDLED DDLs this parses: keep ';' out of anything that isn't a full-line
+        // `--` comment (no trailing same-line comments with ';', no ';' inside string literals).
         sql.lineSequence()
             .filterNot { it.trim().startsWith("--") }
             .joinToString("\n")

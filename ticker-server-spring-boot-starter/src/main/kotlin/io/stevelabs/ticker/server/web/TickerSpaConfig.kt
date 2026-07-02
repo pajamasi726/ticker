@@ -33,7 +33,10 @@ class TickerSpaWebConfigurer(basePath: String) : WebMvcConfigurer {
 
     override fun configurePathMatch(configurer: PathMatchConfigurer) {
         if (base.isNotEmpty()) {
-            configurer.addPathPrefix(base, HandlerTypePredicate.forAnnotation(RestController::class.java))
+            // Scope the prefix to Ticker's OWN controllers. forAnnotation(RestController) would relocate
+            // every @RestController in the host application — an embedding app's /orders/** must not
+            // silently move to /ticker/orders/** because it enabled a Ticker base path.
+            configurer.addPathPrefix(base, HandlerTypePredicate.forBasePackage("io.stevelabs.ticker"))
         }
     }
 
@@ -48,6 +51,8 @@ class TickerSpaWebConfigurer(basePath: String) : WebMvcConfigurer {
     override fun addViewControllers(registry: ViewControllerRegistry) {
         if (base.isNotEmpty()) {
             registry.addRedirectViewController("/", "$base/")
+            // Old bookmarks to the un-based shell: redirect rather than serve a raw, uninjected copy.
+            registry.addRedirectViewController("/index.html", "$base/")
         }
     }
 }
@@ -63,8 +68,9 @@ class SpaShellController(props: TickerServerProperties) {
     private val base = normalizeBasePath(props.basePath)
     private val shell: String by lazy { render() }
 
-    // Both "<base>" and "<base>/" (Spring 6+ no longer trailing-slash-matches).
-    @GetMapping(value = ["", "/"], produces = [MediaType.TEXT_HTML_VALUE])
+    // "<base>", "<base>/" (Spring 6+ no longer trailing-slash-matches), and "<base>/index.html" —
+    // the last so the resource handler can never serve a raw, uninjected copy of the shell.
+    @GetMapping(value = ["", "/", "/index.html"], produces = [MediaType.TEXT_HTML_VALUE])
     fun index(): String = shell
 
     private fun render(): String {
