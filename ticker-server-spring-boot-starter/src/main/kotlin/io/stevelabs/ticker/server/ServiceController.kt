@@ -14,6 +14,7 @@ class ServiceController(private val store: HealthStateStore) {
         ServiceView(
             id = th.target.id,
             name = th.target.name,
+            instance = th.target.instance,
             type = th.target.type,
             state = th.state,
             source = th.target.source,

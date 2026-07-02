@@ -44,6 +44,9 @@ export function ServiceTile({ service, onSelect, onRemove }: Props) {
           >×</button>
         )}
       </div>
+      {service.instance && (
+        <div className="tile__instance" title={service.instance}>{service.instance}</div>
+      )}
       <div className="tile__meta">
         <span className="tile__state">{service.state}</span>
         <span className="tile__latency">

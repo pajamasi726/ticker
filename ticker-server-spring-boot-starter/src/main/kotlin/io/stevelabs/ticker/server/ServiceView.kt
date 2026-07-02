@@ -11,6 +11,7 @@ import io.stevelabs.ticker.server.target.TargetSource
 data class ServiceView(
     val id: String,
     val name: String,
+    val instance: String? = null,   // host:port for a same-named replica; null = single/static/UI target
     val type: ServiceType,
     val state: ServiceState,
     val source: TargetSource,

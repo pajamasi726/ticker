@@ -22,27 +22,47 @@ class TargetRegistryTest {
         assertThrows<IllegalArgumentException> { TargetRegistry(listOf(def("dup"), def("dup"))) }
     }
 
-    @Test fun `register adds a REGISTERED target visible in all()`() {
+    @Test fun `register adds a REGISTERED target visible in all(), keyed by name@host-port`() {
         val registry = TargetRegistry(emptyList())
-        registry.register(RegistrationRequest("edge", ServiceType.HTTP, "http://edge"))
+        registry.register(RegistrationRequest("edge", ServiceType.HTTP, "http://edge:8080"))
         val t = registry.all().single()
-        assertThat(t.id).isEqualTo("edge")
+        assertThat(t.name).isEqualTo("edge")
+        assertThat(t.instance).isEqualTo("edge:8080")
+        assertThat(t.id).isEqualTo("edge@edge:8080")
         assertThat(t.source).isEqualTo(TargetSource.REGISTERED)
         assertThat(t.type).isEqualTo(ServiceType.HTTP)
     }
 
-    @Test fun `register upserts by name (re-register updates url)`() {
+    @Test fun `re-registering the same instance (name + url) upserts, not duplicates`() {
         val registry = TargetRegistry(emptyList())
-        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://old:8080"))
-        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://new:8080"))
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://api:8080"))
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://api:8080")) // heartbeat
         assertThat(registry.all()).hasSize(1)
-        assertThat(registry.all().single().url).isEqualTo("http://new:8080")
+    }
+
+    @Test fun `same name at different urls are distinct instances (replicas)`() {
+        val registry = TargetRegistry(emptyList())
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://10.0.0.1:8080"))
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://10.0.0.2:8080"))
+        val all = registry.all()
+        assertThat(all).hasSize(2)
+        assertThat(all.map { it.name }).containsOnly("api")
+        assertThat(all.map { it.instance }).containsExactlyInAnyOrder("10.0.0.1:8080", "10.0.0.2:8080")
+    }
+
+    @Test fun `client-reported hostname becomes the instance label (with url port)`() {
+        val registry = TargetRegistry(emptyList())
+        registry.register(RegistrationRequest("api", ServiceType.SPRING, "http://10.0.0.1:8080", instance = "orders-pod-abc"))
+        val t = registry.all().single()
+        assertThat(t.name).isEqualTo("api")
+        assertThat(t.instance).isEqualTo("orders-pod-abc:8080")
+        assertThat(t.id).isEqualTo("api@10.0.0.1:8080")
     }
 
     @Test fun `all() merges static and registered`() {
         val registry = TargetRegistry(listOf(def("static-one")))
         registry.register(RegistrationRequest("reg-one", ServiceType.SPRING, "http://reg"))
-        assertThat(registry.all().map { it.id }).containsExactlyInAnyOrder("static-one", "reg-one")
+        assertThat(registry.all().map { it.name }).containsExactlyInAnyOrder("static-one", "reg-one")
     }
 
     @Test fun `static wins when a registration collides with a static name`() {
@@ -56,8 +76,8 @@ class TargetRegistryTest {
 
     @Test fun `remove returns REMOVED for a registered target and drops it`() {
         val registry = TargetRegistry(emptyList())
-        registry.register(RegistrationRequest("edge", ServiceType.HTTP, "http://edge"))
-        assertThat(registry.remove("edge")).isEqualTo(RemoveResult.REMOVED)
+        val reg = registry.register(RegistrationRequest("edge", ServiceType.HTTP, "http://edge:8080"))
+        assertThat(registry.remove(reg.id)).isEqualTo(RemoveResult.REMOVED)
         assertThat(registry.all()).isEmpty()
     }
 
@@ -122,8 +142,8 @@ class TargetRegistryTest {
         val registry = TargetRegistry(listOf(def("static-svc")))
         registry.register(RegistrationRequest("reg-svc", ServiceType.HTTP, "http://reg"))
         registry.addUiTarget("ui-svc", "http://ui")
-        val ids = registry.all().map { it.id }
-        assertThat(ids).containsExactlyInAnyOrder("static-svc", "reg-svc", "ui-svc")
+        val names = registry.all().map { it.name }
+        assertThat(names).containsExactlyInAnyOrder("static-svc", "reg-svc", "ui-svc")
     }
 
     @Test fun `persistence - init loads UI targets from store`() {

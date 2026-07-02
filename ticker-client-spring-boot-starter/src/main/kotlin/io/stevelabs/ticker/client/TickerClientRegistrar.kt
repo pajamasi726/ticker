@@ -33,7 +33,7 @@ class TickerClientRegistrar(
             return
         }
         val name = properties.name ?: environment.getProperty("spring.application.name") ?: "unknown"
-        val request = RegistrationRequest(name = name, type = properties.type, url = url, tags = properties.tags)
+        val request = RegistrationRequest(name = name, type = properties.type, url = url, tags = properties.tags, instance = hostname())
         val endpoint = "${collectorUrl.trimEnd('/')}/api/targets"
 
         register(endpoint, request) // initial registration, with retry
@@ -99,7 +99,16 @@ class TickerClientRegistrar(
             if (i > 0) append(',')
             append(jsonString(tag))
         }
-        append("]}")
+        append(']')
+        request.instance?.let { append(",\"instance\":").append(jsonString(it)) }
+        append('}')
+    }
+
+    /** This instance's hostname (pod / container / machine name) so the collector can distinguish replicas; null if undeterminable. */
+    private fun hostname(): String? = try {
+        java.net.InetAddress.getLocalHost().hostName?.takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        null
     }
 
     private fun jsonString(value: String): String = buildString {

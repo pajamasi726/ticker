@@ -26,25 +26,47 @@ class TargetRegistry(
         uiStore.load().forEach { if (it.id !in staticIds) ui[it.id] = it.copy(source = TargetSource.UI) }
     }
 
-    /** Everything the poller/UI see: static wins, then UI targets, then registered (static wins on id collision). */
+    /** Everything the poller/UI see: static wins, then UI targets, then registered instances. */
     fun all(): List<Target> =
         staticTargets +
             ui.values.filter { it.id !in staticIds } +
-            registered.values.filter { it.id !in staticIds && !ui.containsKey(it.id) }
+            registered.values.filter { it.name !in staticIds && it.name !in ui.keys }
 
-    /** Upsert a self-registered target (id = name). A name owned by a static target is ignored (static wins). */
+    /**
+     * Upsert a self-registered instance. The id is keyed by `name@host:port` (from the URL — stable and
+     * unique per instance) so multiple replicas of the same app each get their own tile instead of
+     * overwriting one another. The displayed instance label is the client-reported hostname when present
+     * (e.g. the pod name), else that same host:port. A name owned by a static target is ignored (static
+     * wins). Heartbeats re-register the same id (same name + URL), so they update in place.
+     */
     fun register(request: RegistrationRequest): Target {
-        val target = Target(
-            id = request.name, name = request.name, type = request.type,
-            url = request.url, tags = request.tags, source = TargetSource.REGISTERED,
-        )
-        if (target.id in staticIds) {
-            log.warn("Registration for '{}' ignored: a static target already owns that name.", target.id)
-            return target
+        if (request.name in staticIds) {
+            log.warn("Registration for '{}' ignored: a static target already owns that name.", request.name)
+            return Target(request.name, request.name, request.type, request.url, request.tags, TargetSource.REGISTERED)
         }
-        registered[target.id] = target
-        log.info("Registered target '{}' ({}) at {}", target.name, target.type, target.url)
+        val urlKey = instanceOf(request.url)              // "host:port" — stable, unique per instance → id
+        val port = urlKey.substringAfter(':', "")
+        val host = request.instance?.takeIf { it.isNotBlank() }
+        // Display label: reported hostname (+ port, so replicas on one host still differ); else host:port.
+        val instance = when {
+            host != null && port.isNotEmpty() -> "$host:$port"
+            host != null -> host
+            else -> urlKey
+        }
+        val id = "${request.name}@$urlKey"
+        val target = Target(id, request.name, request.type, request.url, request.tags, TargetSource.REGISTERED, instance)
+        registered[id] = target
+        log.info("Registered '{}' instance [{}] ({}) at {}", target.name, instance, target.type, target.url)
         return target
+    }
+
+    /** Host:port from a target URL — the stable per-instance key; falls back to the raw URL. */
+    private fun instanceOf(url: String): String = try {
+        val u = java.net.URI(url)
+        val host = u.host ?: return url
+        if (u.port >= 0) "$host:${u.port}" else host
+    } catch (e: Exception) {
+        url
     }
 
     sealed interface AddUiResult {

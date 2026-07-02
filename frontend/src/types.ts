@@ -28,6 +28,7 @@ export interface ResolvedGroup {
 export interface ServiceView {
   id: string
   name: string
+  instance?: string | null // host:port for a same-named replica (registered targets); null otherwise
   type: ServiceType
   state: ServiceState
   source: TargetSource

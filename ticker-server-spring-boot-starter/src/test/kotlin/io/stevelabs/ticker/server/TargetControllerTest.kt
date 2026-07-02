@@ -34,11 +34,13 @@ class TargetControllerTest(@Autowired val mvc: MockMvc) {
             post("/api/targets").contentType(MediaType.APPLICATION_JSON)
                 .content("""{"name":"edge","type":"HTTP","url":"http://edge:80"}"""),
         ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.id").value("edge"))
+            .andExpect(jsonPath("$.id").value("edge@edge:80"))
+            .andExpect(jsonPath("$.name").value("edge"))
+            .andExpect(jsonPath("$.instance").value("edge:80"))
             .andExpect(jsonPath("$.source").value("REGISTERED"))
         mvc.perform(get("/api/targets"))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$[?(@.id=='edge')]").exists())
+            .andExpect(jsonPath("$[?(@.name=='edge')]").exists())
     }
 
     @Test fun `DELETE a registered target returns 204 and removes it`() {
@@ -46,8 +48,8 @@ class TargetControllerTest(@Autowired val mvc: MockMvc) {
             post("/api/targets").contentType(MediaType.APPLICATION_JSON)
                 .content("""{"name":"temp","type":"HTTP","url":"http://temp:80"}"""),
         ).andExpect(status().isOk)
-        mvc.perform(delete("/api/targets/temp")).andExpect(status().isNoContent)
-        mvc.perform(get("/api/targets")).andExpect(jsonPath("$[?(@.id=='temp')]").doesNotExist())
+        mvc.perform(delete("/api/targets/{id}", "temp@temp:80")).andExpect(status().isNoContent)
+        mvc.perform(get("/api/targets")).andExpect(jsonPath("$[?(@.name=='temp')]").doesNotExist())
     }
 
     @Test fun `DELETE an unknown target returns 404 with error envelope`() {

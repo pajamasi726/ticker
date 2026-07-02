@@ -39,6 +39,21 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .tile--down .tile__glyph   { color: var(--down); }
 .tile--unknown .tile__glyph { color: var(--unknown); }
 .tile__name { font-weight: 600; font-size: 13px; }
+/* Instance discriminator (hostname:port) for same-named replicas — dim, monospace. Wraps (capped at
+   2 lines) rather than truncating, so the distinguishing suffix (port / pod-hash) stays visible. */
+.tile__instance {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  opacity: 0.8;
+  margin-top: 1px;
+  line-height: 1.25;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .tile__meta {
   display: flex;
   justify-content: space-between;

@@ -11,4 +11,10 @@ data class Target(
     val url: String,
     val tags: List<String> = emptyList(),
     val source: TargetSource = TargetSource.STATIC,
+    /**
+     * Instance discriminator (host:port from [url]) for telling apart multiple replicas that register
+     * under the same [name] — e.g. three `orders-api` pods. Null for static / UI targets and for the
+     * displayed grouping name. Registered targets set it so the wall can show which instance is which.
+     */
+    val instance: String? = null,
 )
