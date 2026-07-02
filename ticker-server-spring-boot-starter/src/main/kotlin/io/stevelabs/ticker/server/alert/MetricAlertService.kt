@@ -115,6 +115,7 @@ class MetricAlertService(
             title = "⚠️ *${target.name}* — ${rule.label}",
             fields = buildList {
                 target.instance?.let { add("Instance" to it) }
+                target.ip?.let { add("IP" to it) }
                 add("Value" to formattedValue)
                 add("Threshold" to "$direction $formattedThreshold" + (rule.forSeconds.takeIf { it > 0 }?.let { " (sustained ${it}s)" } ?: ""))
             },
