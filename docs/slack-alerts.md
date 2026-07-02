@@ -3,15 +3,19 @@
 Ticker sends two kinds of alerts to one Slack **incoming webhook**: incident alerts
 (🔴 DOWN / 🟢 recovered, debounced + cooldown) and metric-threshold alerts (⚠️, per-rule cooldown).
 
-Messages are rendered as colour-coded Block Kit cards (red / green / amber bar), with a field grid
-and a dim footer:
+Messages are rendered as colour-coded Block Kit cards (red / green / amber bar): a short headline,
+then **one labelled item per line** — scannable top-to-bottom, nothing repeated:
 
-- **🔴 DOWN** — title with the app name + instance, fields for Instance / IP / URL, and a recent
-  latency sparkline (`latency ▅▃▄▅··`) in the footer.
-- **🟢 recovered** — includes the **downtime duration**: `🟢 *orders-api* [701e…:8081] recovered (down 2m 2s)`.
-- **⚠️ metric** — value vs threshold fields plus a short trend sparkline of the recent samples.
+```
+🔴 orders-api is DOWN            🟢 orders-api recovered        ⚠️ orders-api — CPU (process)
+Instance:  eb919f6499d7:8081     Instance:  eb919f6499d7:8081   Instance:  701e311941b8:8081
+IP:  172.20.0.3                  Downtime:  2m 11s              IP:  172.20.0.4
+URL:  http://orders-1:8081                                      Value:  86%
+                                                                Threshold:  > 80% (sustained 30s)
+```
+
 - Set `ticker.alert.board-url` (e.g. `https://ops.acme.com/ticker`) and every card carries an
-  **Open Ticker board** link.
+  **Open Ticker board** footer link.
 
 Multi-instance targets always name the instance, so `recovered` for one replica can't read as an
 all-clear for the app. One webhook = **one channel** (chosen when the webhook is created below);

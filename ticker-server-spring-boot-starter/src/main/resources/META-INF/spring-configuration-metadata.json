@@ -14,6 +14,63 @@
   ],
   "properties": [
     {
+      "name": "ticker.server.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Activate the Ticker collector (REST API + bundled UI + poller).",
+      "defaultValue": true
+    },
+    {
+      "name": "ticker.server.base-path",
+      "type": "java.lang.String",
+      "description": "Optional prefix to relocate the whole UI + API under, e.g. `/ticker` (UI at /ticker/, API at /ticker/api/**) for when a bare /api clashes behind a shared gateway. The collector's own /actuator stays put so external liveness probes keep a stable path."
+    },
+    {
+      "name": "ticker.server.registration-expiry",
+      "type": "java.time.Duration",
+      "description": "Opt-in: evict a self-registered instance whose heartbeat stopped for this long (e.g. 10m). 0 (default) = never — a crashed instance should stay red on the wall; graceful shutdowns deregister themselves.",
+      "defaultValue": "0"
+    },
+    {
+      "name": "ticker.poll.interval",
+      "type": "java.time.Duration",
+      "description": "How often every target is polled (virtual-thread fan-out).",
+      "defaultValue": "10s"
+    },
+    {
+      "name": "ticker.poll.failure-threshold",
+      "type": "java.lang.Integer",
+      "description": "Consecutive failed polls before a target flips DOWN (debounce — never alert on a single blip).",
+      "defaultValue": 3
+    },
+    {
+      "name": "ticker.alert.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable alerting (incident DOWN/recovery + per-metric thresholds). Without a webhook, alerts are inert and logged once.",
+      "defaultValue": false
+    },
+    {
+      "name": "ticker.alert.slack-webhook-url",
+      "type": "java.lang.String",
+      "description": "Slack incoming-webhook URL. Provide via environment (TICKER_ALERT_SLACK_WEBHOOK_URL) only — never commit it, and avoid ${...:} placeholders that resolve to an empty string."
+    },
+    {
+      "name": "ticker.alert.cooldown",
+      "type": "java.time.Duration",
+      "description": "Minimum gap before re-alerting the same incident (suppresses flapping).",
+      "defaultValue": "15m"
+    },
+    {
+      "name": "ticker.alert.metric-interval",
+      "type": "java.time.Duration",
+      "description": "How often metric-threshold rules are evaluated against live SPRING targets.",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "ticker.alert.board-url",
+      "type": "java.lang.String",
+      "description": "Absolute URL of the Ticker board (include the base-path if set), e.g. https://ops.acme.com/ticker. Adds an 'Open Ticker board' link to every Slack alert."
+    },
+    {
       "name": "ticker.history.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable opt-in persisted metric history (off by default; fully in-memory when false).",

@@ -1,0 +1,55 @@
+{
+  "groups": [
+    {
+      "name": "ticker.client",
+      "type": "io.stevelabs.ticker.client.TickerClientProperties",
+      "sourceType": "io.stevelabs.ticker.client.TickerClientProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "ticker.client.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Register this app with a Ticker collector on startup and keep it fresh via heartbeat.",
+      "defaultValue": true
+    },
+    {
+      "name": "ticker.client.collector-url",
+      "type": "java.lang.String",
+      "description": "Base URL of the Ticker collector, e.g. http://ticker:8080 (include its base-path if one is set). Required."
+    },
+    {
+      "name": "ticker.client.url",
+      "type": "java.lang.String",
+      "description": "The URL the collector should poll THIS instance at. Leave unset to default to this machine's own http://<ip>:<server.port> — the right thing when N replicas share one config. Never point replicas at one shared/load-balanced URL."
+    },
+    {
+      "name": "ticker.client.name",
+      "type": "java.lang.String",
+      "description": "Display name on the wall; defaults to spring.application.name. Replicas SHARE this — the wall groups by it and distinguishes instances by hostname:port."
+    },
+    {
+      "name": "ticker.client.type",
+      "type": "io.stevelabs.ticker.core.ServiceType",
+      "description": "How the collector checks this target: SPRING (actuator health + curated metrics) or HTTP (plain GET, 2xx = up).",
+      "defaultValue": "spring"
+    },
+    {
+      "name": "ticker.client.tags",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Free-form tags shown on the tile (e.g. team, environment)."
+    },
+    {
+      "name": "ticker.client.heartbeat-interval",
+      "type": "java.time.Duration",
+      "description": "Periodic re-registration so a collector restart repopulates the wall. <= 0 disables the heartbeat.",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "ticker.client.deregister-on-shutdown",
+      "type": "java.lang.Boolean",
+      "description": "Deregister from the collector on graceful shutdown, so rolling deploys clean up their old instances (deploys are not incidents). A crash skips this and correctly stays on the wall as DOWN.",
+      "defaultValue": true
+    }
+  ]
+}
