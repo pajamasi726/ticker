@@ -15,7 +15,7 @@ plugins {
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"
-    version = "0.2.1"   // 0.2.1: alerts-off collectors still serve the /api/alerts read/edit API (severity thresholds; no 404 spam)
+    version = "0.2.2"   // 0.2.2: friendlier config failures (scheme hint, named bind errors, loud configureAlert typo) + Docker config docs
     repositories { mavenCentral() }
 
     apply(plugin = "jacoco")

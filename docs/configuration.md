@@ -6,6 +6,11 @@ Every Ticker property, with its type, default, and what it does. All properties 
 [`TickerConfigurer` bean](../README.md#3-optional-configure-in-code). IDE autocomplete + inline docs
 are bundled for all of them.
 
+**On the Docker image** (`pajamasi726/ticker`) the same two non-code routes apply: `-e` env vars, or
+mount a yaml at `/workspace/config/application.yml` (the app's working dir is `/workspace`, so
+Spring's default `./config/` location finds it). List properties like `ticker.targets` are replaced,
+not merged, by a mounted file. Examples: [README → Kick the tires](../README.md#0-kick-the-tires-docker-10-seconds).
+
 **Convention: everything beyond the basics is off by default.** A collector with zero config gives you
 the wall + drill-down, in-memory, no alerts, no DB.
 
@@ -37,7 +42,7 @@ the wall + drill-down, in-memory, no alerts, no DB.
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `ticker.targets` | list | `[]` | Things that can't self-register (nginx, external HTTP endpoints). Each entry: `name`, `type` (`SPRING` \| `HTTP`), `url`, optional `tags`. |
+| `ticker.targets` | list | `[]` | Things that can't self-register (nginx, external HTTP endpoints). Each entry: `name`, `url`, optional `type` (`SPRING` \| `HTTP`, default `HTTP`) and `tags`. A missing `name`/`url` fails startup with a message naming the entry. |
 | `ticker.ui-targets-store-path` | String | *(none)* | Opt-in file persistence for monitors added from the UI (a flat JSON file — consistent with the no-DB stance). Unset → UI monitors are in-memory and lost on restart. |
 
 ```yaml

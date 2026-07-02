@@ -111,6 +111,11 @@ class TickerClientRegistrarTest {
         assertThat(server.requestCount).isEqualTo(0)
     }
 
+    @Test fun `skips registration when collector-url has no http scheme (plain hint, not a retry storm)`() {
+        registrar(TickerClientProperties(collectorUrl = "localhost:9999", url = "http://my-app:8081", name = "x")).onApplicationReady()
+        assertThat(server.requestCount).isEqualTo(0)
+    }
+
     @Test fun `retries then gives up without throwing on persistent failure`() {
         repeat(3) { server.enqueue(MockResponse().setResponseCode(500)) }
         val props = TickerClientProperties(collectorUrl = base(), url = "http://my-app:8081", name = "my-app")

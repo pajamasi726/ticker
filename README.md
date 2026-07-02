@@ -62,6 +62,27 @@ Open `http://localhost:8080` — a demo collector (amd64 + arm64) with a few sam
 bundled UI. Point real services at it with the client starter below, or add an HTTP monitor
 straight from the wall.
 
+**Configuring the image.** Every property in this README works on the Docker image, two ways:
+
+```bash
+# 1) Environment variables (Spring relaxed binding: ticker.alert.enabled -> TICKER_ALERT_ENABLED)
+docker run -p 8080:8080 \
+  -e TICKER_ALERT_ENABLED=true \
+  -e TICKER_ALERT_SLACK_WEBHOOK_URL="$SLACK_WEBHOOK_URL" \
+  -e TICKER_SERVER_PUBLIC_URL=https://ops.acme.com/ticker \
+  pajamasi726/ticker
+
+# 2) A mounted application.yml (the app's working dir is /workspace, so Spring's
+#    default ./config/ location picks this up)
+docker run -p 8080:8080 \
+  -v ./application.yml:/workspace/config/application.yml \
+  pajamasi726/ticker
+```
+
+Note: list properties like `ticker.targets` are **replaced, not merged** — a mounted yaml that
+defines `ticker.targets` fully overrides the image's demo targets (usually what you want).
+If you enable history, mount a volume for it too: `-v ticker-data:/workspace/data`.
+
 ### 1. Run a collector
 
 Add the **server** starter to a Spring Boot app and enable it:
@@ -69,7 +90,7 @@ Add the **server** starter to a Spring Boot app and enable it:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.2.1")
+    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.2.2")
 }
 ```
 ```yaml
@@ -97,9 +118,9 @@ always runs on Boot 4 / Java 21; a Boot 3.2+ app on Java 17+ registers with it o
 ```kotlin
 dependencies {
     // on a Spring Boot 4.x app:
-    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.2.1")
+    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.2.2")
     // …or on a Spring Boot 3.2+ app instead (same config, same behaviour — only the artifact differs):
-    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.2.1")
+    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.2.2")
 }
 ```
 ```yaml

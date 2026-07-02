@@ -37,6 +37,15 @@ class TickerClientRegistrar(
             log.warn("ticker.client enabled but collector-url is unset; self-registration skipped.")
             return
         }
+        // Catch the classic "localhost:8080" (no scheme) here with a plain hint — otherwise it only
+        // surfaces as a cryptic "unknown protocol: localhost" I/O error after the retry loop.
+        if (!collectorUrl.startsWith("http://") && !collectorUrl.startsWith("https://")) {
+            log.warn(
+                "ticker.client.collector-url '{}' has no http(s) scheme — did you mean 'http://{}'? Self-registration skipped.",
+                collectorUrl, collectorUrl,
+            )
+            return
+        }
         val (host, ip) = localIdentity()
         // No explicit url? Advertise this instance's own address. That's what makes N replicas sharing
         // one config each register uniquely — pointing them all at a shared URL would collapse them
