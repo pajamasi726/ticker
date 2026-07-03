@@ -22,3 +22,10 @@ frontend/dist/
 
 # local Maven signing key / token backups — never commit
 keys/
+
+# Local-only AI-workflow files (never published)
+CLAUDE.md
+.claude/
+INSTALL.txt
+docs/superpowers/
+docs/qa/

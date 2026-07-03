@@ -47,7 +47,7 @@ nginx and other non-Spring endpoints only need up/down.
    Apache-2.0), so any Spring Boot team can adopt them.
 
 ## Non-goals
-See `CLAUDE.md` → Non-goals. Short version: no TSDB, no logs, no tracing, no query language,
+Short version: no TSDB, no logs, no tracing, no query language,
 no **end-user** dashboard builder (the curated server-owned dashboard is in scope), no RBAC at MVP.
 
 ## Success criteria
@@ -63,7 +63,6 @@ no **end-user** dashboard builder (the curated server-owned dashboard is in scop
 ## UX & design direction
 The subject is a fintech **operations board** — closer to a NOC / control-room wall than a
 generic SaaS dashboard. Lean into that, but avoid the default "black bg + one neon accent"
-look (the AI-dashboard cliché). Starting direction (Claude Code: refine with the
 `frontend-design` skill; this is a brief, not final CSS):
 
 - **Signature — the heartbeat.** Every tile carries a live **heartbeat sparkline**: a thin,

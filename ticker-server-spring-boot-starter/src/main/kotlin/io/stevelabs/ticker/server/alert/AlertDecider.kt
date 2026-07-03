@@ -8,7 +8,7 @@ enum class AlertKind { NONE, INCIDENT, RECOVERY }
 
 data class AlertOutcome(val kind: AlertKind, val lastIncidentAt: Instant?)
 
-/** Pure transition→alert decision (no Spring, no HTTP) — the unit-tested core, per CLAUDE.md. */
+/** Pure transition→alert decision (no Spring, no HTTP) — the unit-tested core. */
 class AlertDecider {
     fun decide(
         previous: ServiceState?,

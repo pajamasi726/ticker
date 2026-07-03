@@ -110,7 +110,7 @@ recent-fires log (`GET /api/alerts/recent`) so breaches are visible without Slac
 **in-memory** (seeded from defaults; no-DB); REST `GET/PUT /api/alerts/rules`. Runs **alongside**
 incident alerting (guardrail #3).
 **Done when:** ✓ a low threshold set in the UI fires within the eval interval and shows in "Recent
-alerts"; tests green; Playwright shows the 🔔 popover + fired strip. (`docs/qa/2026-07-01-alerting/`.)
+alerts"; tests green; Playwright shows the 🔔 popover + fired strip.
 
 > *The Phase 7b dashboard-richness expansion and the Phase 6 opt-in DB history were deliberate
 > product-owner scope calls made during development; both stay within the prime directive
