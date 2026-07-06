@@ -201,9 +201,23 @@ one row per resolved dashboard widget per sample into `metric_sample` — so the
   `ticker.history.url` / `username` / `password` (**credentials from env only**). The schema auto-creates
   from the bundled DDL, or a DBA pre-provisions it with `ticker.history.init-schema=false`. At high volume,
   prefer **RANGE partitioning by `ts_millis`** with `DROP PARTITION` for retention (instant vs row-by-row
-  DELETE). Upgrading a table first created by 0.1.x? Add the index once:
+  DELETE) — the bundled DDL deliberately ships *unpartitioned* (partition boundaries are an ops decision),
+  but `ts_millis` is already part of the primary key, so `ALTER TABLE … PARTITION BY RANGE (ts_millis)`
+  works as-is. Upgrading a table first created by 0.1.x? Add the index once:
   `ALTER TABLE metric_sample ADD INDEX idx_metric_sample_ts (ts_millis);` (MySQL) or the equivalent
   `CREATE INDEX` (PostgreSQL).
+- **Wiping history manually.** `TRUNCATE TABLE metric_sample` is safe **while the app runs** — the recorder
+  keeps inserting from the next sample and the charts refill. `DROP TABLE` won't crash anything either
+  (each failed save logs a WARN), but saves keep failing until a restart, when `init-schema=true` (default)
+  recreates the table. Usually you want neither: lower `ticker.history.retention` and the hourly prune does
+  it. (H2 only: neither TRUNCATE nor the prune shrinks the `*.mv.db` file — to reclaim disk, stop the app
+  and delete the file.)
+- **Backup / moving servers.** Treat history as rebuildable — the archive job above is the intended cold
+  storage, and an empty DB just auto-creates the schema and starts refilling. To carry data over anyway:
+  H2 → stop the app, copy the `*.mv.db` file (copying a live file risks a torn copy);
+  MySQL → `mysqldump --single-transaction <db> metric_sample > ticker-history.sql` (safe on a live app),
+  restore with `mysql <db> < ticker-history.sql`, then point `ticker.history.url` at the new host;
+  PostgreSQL → `pg_dump -t metric_sample`.
 
 ## Deploying behind a path / gateway
 
