@@ -15,7 +15,7 @@ plugins {
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"
-    version = "0.2.2"   // 0.2.2: friendlier config failures (scheme hint, named bind errors, loud configureAlert typo) + Docker config docs
+    version = "0.3.0"   // 0.3.0: admin view (⚙) + zero-downtime H2 backups
     repositories { mavenCentral() }
 
     apply(plugin = "jacoco")
