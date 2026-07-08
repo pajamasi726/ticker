@@ -45,6 +45,10 @@ at a glance — not arbitrary-metric exploration.
   to cold storage (guardrail #5).
 - **Add monitors from the UI or from code** — a plain HTTP endpoint from the wall, or targets /
   alert rules from a `TickerConfigurer` bean. Static `targets.yml` also works.
+- **Admin view (⚙)** — operate the collector from the UI: storage stats + one-click zero-downtime
+  H2 backup (list/download), deploy silence windows, alert-rule toggles, the target registry with
+  per-instance heartbeats, and the collector's own config at a glance. `ticker.server.admin-enabled=false`
+  hides the whole surface.
 - **i18n** — Korean / English, switchable top-right.
 - **Single Docker image** — Spring Boot serves the built React assets; Java 21, virtual threads on.
 
@@ -206,18 +210,27 @@ one row per resolved dashboard widget per sample into `metric_sample` — so the
   works as-is. Upgrading a table first created by 0.1.x? Add the index once:
   `ALTER TABLE metric_sample ADD INDEX idx_metric_sample_ts (ts_millis);` (MySQL) or the equivalent
   `CREATE INDEX` (PostgreSQL).
+- **Online backup (H2, zero downtime).** The app can snapshot its own live H2 file — H2's built-in
+  `BACKUP TO` produces a consistent zip while recording continues (and since an embedded H2 file is
+  exclusively locked, the app is the only thing that *can*):
+
+  ```bash
+  curl -X POST http://ticker:8080/api/history/backup
+  # → {"file":"./data/backups/ticker-history-20260709-015036.zip","bytes":1510,"tookMs":4}
+  ```
+
+  Same button lives in the **admin view** (gear icon), plus `GET /api/history/backups` to list and
+  `GET /api/history/backups/<name>` to download. Automate with `ticker.history.backup.schedule`
+  (Spring cron); rolling caps (`file-retention`, `max-total-size-mb`) default **off** so a manual
+  backup is never silently deleted. **Restore** = unzip, place the `.mv.db` at `ticker.history.h2-path`,
+  start. MySQL/PostgreSQL keep using their native tools: `mysqldump --single-transaction <db>
+  metric_sample` (safe live) / `pg_dump -t metric_sample` — the endpoint answers 400 with that hint.
 - **Wiping history manually.** `TRUNCATE TABLE metric_sample` is safe **while the app runs** — the recorder
   keeps inserting from the next sample and the charts refill. `DROP TABLE` won't crash anything either
   (each failed save logs a WARN), but saves keep failing until a restart, when `init-schema=true` (default)
   recreates the table. Usually you want neither: lower `ticker.history.retention` and the hourly prune does
   it. (H2 only: neither TRUNCATE nor the prune shrinks the `*.mv.db` file — to reclaim disk, stop the app
   and delete the file.)
-- **Backup / moving servers.** Treat history as rebuildable — the archive job above is the intended cold
-  storage, and an empty DB just auto-creates the schema and starts refilling. To carry data over anyway:
-  H2 → stop the app, copy the `*.mv.db` file (copying a live file risks a torn copy);
-  MySQL → `mysqldump --single-transaction <db> metric_sample > ticker-history.sql` (safe on a live app),
-  restore with `mysql <db> < ticker-history.sql`, then point `ticker.history.url` at the new host;
-  PostgreSQL → `pg_dump -t metric_sample`.
 
 ## Deploying behind a path / gateway
 

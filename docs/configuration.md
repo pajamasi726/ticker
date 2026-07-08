@@ -27,6 +27,7 @@ the wall + drill-down, in-memory, no alerts, no DB.
 | `ticker.server.public-url` | String | *(none)* | The externally-reachable URL people open this Ticker at — scheme + host + port + path, e.g. `https://ops.acme.com/ticker`. Ticker can't discover its own domain/port-mapping/ingress prefix, so tell it once; used wherever it points humans back at itself (the "Open Ticker board" link in Slack alerts). Unset → links are omitted. Same idea as Grafana's `root_url`. |
 | `ticker.server.registration-expiry` | Duration | `0` (off) | Opt-in: evict a self-registered instance whose heartbeat stopped for this long (e.g. `10m`). Off by default on purpose — a *crashed* instance should stay red on the wall (that's the board's job), and gracefully-stopped clients deregister themselves. Enable for autoscaling churn. |
 | `ticker.server.exclude-self-requests` | boolean | `true` | Drop the collector's own monitoring traffic (`/actuator` self-poll + its `/api` UI polling, base-path aware) from its `http.server.requests`, so the "self" tile shows real traffic. |
+| `ticker.server.admin-enabled` | boolean | `true` | The admin view (⚙) + its `/api/admin/**` endpoints: collector info, target registry, storage & backup management. Set `false` to hide the whole surface. |
 
 ### `ticker.poll.*` — health polling
 
@@ -71,6 +72,15 @@ Runtime (not yaml) alert controls — available even when `ticker.alert.enabled`
 | `GET /api/alerts/recent` | Recent fires, visible without Slack. |
 | `POST /api/alerts/silence` `{"minutes":10}` · `GET` · `DELETE` | Deploy/maintenance window: dispatch is suppressed while active; anything **still DOWN when the window ends is announced then**, so a silence can never swallow a real outage. |
 
+Storage & admin runtime APIs (the admin view's backing endpoints — also curl-able):
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/history/stats` | History state: db, row count, data span, H2 file size, retention, archive totals. Answers `{enabled:false}` when history is off — never a 404. |
+| `POST /api/history/backup` | Zero-downtime H2 snapshot to `backup.dir` (409 while one runs; 400 with a `mysqldump`/`pg_dump` hint on other DBs). |
+| `GET /api/history/backups` · `GET /api/history/backups/{name}` | List / download backup zips (names strictly whitelisted — no traversal). |
+| `GET /api/admin/info` · `GET /api/admin/targets` | Collector version/uptime/config facts (secrets as booleans only) and the target registry with per-instance heartbeats. Gated by `ticker.server.admin-enabled`. |
+
 ### `ticker.history.*` — opt-in persisted metric history
 
 | Property | Type | Default | Description |
@@ -84,6 +94,10 @@ Runtime (not yaml) alert controls — available even when `ticker.alert.enabled`
 | `ticker.history.sample-interval` | Duration | `15s` | How often the recorder samples whitelisted metrics. |
 | `ticker.history.retention` | Duration | `7d` | Hourly prune deletes samples older than this. |
 | `ticker.history.max-buckets` | int | `240` | Max downsampled points a range query returns. |
+| `ticker.history.backup.dir` | String | `./data/backups` | Where online H2 backup zips land (`POST /api/history/backup`, the admin button, or the schedule). Durable volume in production. |
+| `ticker.history.backup.schedule` | String | *(none)* | Optional Spring cron (e.g. `0 0 4 * * *`) for automatic backups. Unset = manual only. |
+| `ticker.history.backup.file-retention` | Duration | `0` (off) | Rolling cap: delete backup zips older than this. Off by default — a manual backup is never silently deleted. |
+| `ticker.history.backup.max-total-size-mb` | long | `0` (unlimited) | Rolling cap: keep the backup dir under this size, deleting oldest first. |
 | `ticker.history.archive.enabled` | boolean | `false` | Archive-before-prune: aged rows are exported to gzip CSV and **verified before** anything is deleted (guardrail #5 — a failed export retries, data is never dropped). |
 | `ticker.history.archive.dir` | String | `./data/ticker-history-archive` | Where archive files land. |
 | `ticker.history.archive.file-retention` | Duration | `90d` | Rolling cap: archive files older than this are deleted (Logback-style). |
