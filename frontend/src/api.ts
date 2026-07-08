@@ -1,4 +1,4 @@
-import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat, MetricHistory } from './types'
+import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat, MetricHistory, HistoryStats, BackupResult, BackupFile, SilenceView, AdminInfo, AdminTarget } from './types'
 
 /**
  * Base path the collector is served under. Injected into index.html as `window.__TICKER_BASE__` when
@@ -86,5 +86,64 @@ export async function fetchMetricBreakdown(id: string, metric: string, tag: stri
   if (filter) q.set('filter', filter)
   const res = await fetch(`${BASE}/api/services/${encodeURIComponent(id)}/metric-breakdown?${q.toString()}`)
   if (!res.ok) throw new Error(`GET metric-breakdown ${metric}/${tag}: ${res.status}`)
+  return res.json()
+}
+
+// ---- Admin: storage ops + collector self-info ----
+
+export async function fetchHistoryStats(): Promise<HistoryStats> {
+  const res = await fetch(`${BASE}/api/history/stats`)
+  if (!res.ok) throw new Error(`GET /api/history/stats: ${res.status}`)
+  return res.json()
+}
+
+/** Zero-downtime H2 backup. Throws ApiError with the server's code (UNSUPPORTED_DB, BACKUP_IN_PROGRESS…). */
+export async function triggerBackup(): Promise<BackupResult> {
+  const res = await fetch(`${BASE}/api/history/backup`, { method: 'POST' })
+  if (!res.ok) throw await asApiError(res)
+  return res.json()
+}
+
+export async function fetchBackups(): Promise<BackupFile[]> {
+  const res = await fetch(`${BASE}/api/history/backups`)
+  if (!res.ok) throw new Error(`GET /api/history/backups: ${res.status}`)
+  return res.json()
+}
+
+export function backupDownloadUrl(name: string): string {
+  return `${BASE}/api/history/backups/${encodeURIComponent(name)}`
+}
+
+export async function fetchSilence(): Promise<SilenceView> {
+  const res = await fetch(`${BASE}/api/alerts/silence`)
+  if (!res.ok) throw new Error(`GET /api/alerts/silence: ${res.status}`)
+  return res.json()
+}
+
+export async function startSilence(minutes: number): Promise<SilenceView> {
+  const res = await fetch(`${BASE}/api/alerts/silence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ minutes }),
+  })
+  if (!res.ok) throw await asApiError(res)
+  return res.json()
+}
+
+export async function clearSilence(): Promise<SilenceView> {
+  const res = await fetch(`${BASE}/api/alerts/silence`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`DELETE /api/alerts/silence: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchAdminInfo(): Promise<AdminInfo> {
+  const res = await fetch(`${BASE}/api/admin/info`)
+  if (!res.ok) throw new Error(`GET /api/admin/info: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchAdminTargets(): Promise<AdminTarget[]> {
+  const res = await fetch(`${BASE}/api/admin/targets`)
+  if (!res.ok) throw new Error(`GET /api/admin/targets: ${res.status}`)
   return res.json()
 }

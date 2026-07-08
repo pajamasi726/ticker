@@ -3,6 +3,7 @@ import type { ServiceView } from './types'
 import { fetchServices, removeTarget } from './api'
 import { StatusWall } from './components/StatusWall'
 import { ServiceDetailPanel } from './components/ServiceDetailPanel'
+import { AdminPanel } from './components/AdminPanel'
 import { SummaryBar } from './components/SummaryBar'
 import { AddMonitor } from './components/AddMonitor'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
@@ -16,6 +17,7 @@ export default function App() {
   const [lastOkAt, setLastOkAt] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [adminOpen, setAdminOpen] = useState(false)
   const t = useT()
 
   // Guardrail #1: a dead collector must be visible, not silently trusted as "all healthy".
@@ -43,9 +45,19 @@ export default function App() {
 
   return (
     <>
-      <div className="app__lang"><LanguageSwitcher /></div>
+      <div className="app__lang">
+        <button
+          className={`app__gear${adminOpen ? ' app__gear--active' : ''}`}
+          onClick={() => setAdminOpen((v) => !v)}
+          aria-label={t('admin.title')}
+          title={t('admin.title')}
+        >⚙</button>
+        <LanguageSwitcher />
+      </div>
       <main className="app">
-        {selectedId ? (
+        {adminOpen ? (
+          <AdminPanel onClose={() => setAdminOpen(false)} />
+        ) : selectedId ? (
           <ServiceDetailPanel
             id={selectedId}
             siblings={services.filter((s) => s.name === services.find((x) => x.id === selectedId)?.name)}

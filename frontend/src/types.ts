@@ -97,3 +97,51 @@ export interface MetricHistory {
   bucketMs: number
   points: HistoryPoint[]
 }
+
+// ---- Admin view (storage ops + collector self-info) ----
+
+export interface ArchiveStats { enabled: boolean; fileCount: number; totalBytes: number }
+
+export interface HistoryStats {
+  enabled: boolean
+  db?: 'H2' | 'MYSQL' | 'POSTGRESQL'
+  rowCount?: number
+  oldestTsMillis?: number | null
+  newestTsMillis?: number | null
+  h2FileBytes?: number | null
+  retentionMillis?: number
+  sampleIntervalMillis?: number
+  archive?: ArchiveStats
+  backupSupported: boolean
+}
+
+export interface BackupResult { file: string; bytes: number; tookMs: number }
+export interface BackupFile { name: string; bytes: number; createdAtMillis: number }
+
+export interface SilenceView { active: boolean; until: string | null }
+
+export interface AdminInfo {
+  version: string
+  uptimeMillis: number
+  poll: {
+    intervalMillis: number
+    timeoutMillis: number
+    failureThreshold: number
+    degradedLatencyMs: number
+    stalenessMultiplier: number
+  }
+  server: { basePath: string | null; publicUrlConfigured: boolean; registrationExpiryMillis: number }
+  alert: { enabled: boolean; webhookConfigured: boolean }
+  history: { enabled: boolean; db: 'H2' | 'MYSQL' | 'POSTGRESQL' }
+}
+
+export interface AdminTarget {
+  id: string
+  name: string
+  type: 'SPRING' | 'HTTP'
+  url: string
+  source: 'STATIC' | 'REGISTERED' | 'UI'
+  instance: string | null
+  ip: string | null
+  lastSeenMillis: number | null
+}
