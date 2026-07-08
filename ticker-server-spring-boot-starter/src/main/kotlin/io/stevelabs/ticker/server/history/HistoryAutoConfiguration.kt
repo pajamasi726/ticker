@@ -37,6 +37,16 @@ class HistoryAutoConfiguration {
             ds.poolName = "ticker-history"
         }
 
+    @Bean
+    fun historyBackupService(historyJdbcTemplate: JdbcTemplate, props: HistoryProperties): HistoryBackupService =
+        HistoryBackupService(historyJdbcTemplate, props)
+
+    @Bean
+    fun historyBackupScheduler(historyBackupService: HistoryBackupService, props: HistoryProperties): HistoryBackupScheduler =
+        HistoryBackupScheduler(historyBackupService).also {
+            props.backup.schedule?.let { cron -> log.info("Scheduled history backups: cron '{}' -> {}", cron, props.backup.dir) }
+        }
+
     /** A missing JDBC driver otherwise dies as Hikari's "No suitable driver" — name the dependency instead. */
     private fun requireDriver(db: HistoryDb) {
         val (driverClass, dependency) = when (db) {

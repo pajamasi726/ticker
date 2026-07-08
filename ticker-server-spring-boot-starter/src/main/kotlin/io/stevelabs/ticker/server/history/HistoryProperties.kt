@@ -29,6 +29,8 @@ data class HistoryProperties(
     val maxBuckets: Int = 240,
     /** Archive cold-storage settings (guardrail #5 — write+verify before prune). */
     val archive: ArchiveProperties = ArchiveProperties(),
+    /** Zero-downtime H2 backup settings (db=H2 only; MySQL/PostgreSQL use their native dump tools). */
+    val backup: BackupProperties = BackupProperties(),
 ) {
     /** Configuration for the archive-before-prune guardrail (#5). */
     data class ArchiveProperties(
@@ -40,6 +42,22 @@ data class HistoryProperties(
         val fileRetention: Duration = Duration.ofDays(90),
         /** Rolling cap (Logback-style totalSizeCap): keep the archive dir under this many MB, deleting
          *  oldest files first. 0 = unlimited (only fileRetention applies). */
+        val maxTotalSizeMb: Long = 0,
+    )
+
+    /**
+     * Online H2 backup — the app executes H2's built-in `BACKUP TO 'file.zip'`, producing a
+     * consistent snapshot with zero downtime (an embedded H2 file is exclusively locked, so
+     * only the app itself can do this). Trigger via `POST /api/history/backup` or the schedule.
+     */
+    data class BackupProperties(
+        /** Directory backup zips land in. Use a durable path/volume in production. */
+        val dir: String = "./data/backups",
+        /** Optional cron (Spring format, e.g. "0 0 4 * * *") for automatic backups. Unset = manual only. */
+        val schedule: String? = null,
+        /** Rolling cap: delete backup zips older than this. ZERO (default) = keep everything — a manual backup is never silently deleted. */
+        val fileRetention: Duration = Duration.ZERO,
+        /** Rolling cap: keep the backup dir under this many MB, deleting oldest first. 0 (default) = unlimited. */
         val maxTotalSizeMb: Long = 0,
     )
 }

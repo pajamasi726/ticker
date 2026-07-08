@@ -68,4 +68,16 @@ class MetricHistoryRepository(private val jdbc: JdbcTemplate) {
 
     fun prune(beforeMillis: Long): Int =
         jdbc.update("DELETE FROM metric_sample WHERE ts_millis < ?", beforeMillis)
+
+    data class TableStats(val rowCount: Long, val oldestTsMillis: Long?, val newestTsMillis: Long?)
+
+    /** One aggregate scan for the admin page — count + data time-range. */
+    fun stats(): TableStats =
+        jdbc.query("SELECT COUNT(*), MIN(ts_millis), MAX(ts_millis) FROM metric_sample") { rs, _ ->
+            TableStats(
+                rowCount = rs.getLong(1),
+                oldestTsMillis = rs.getLong(2).takeIf { !rs.wasNull() },
+                newestTsMillis = rs.getLong(3).takeIf { !rs.wasNull() },
+            )
+        }.first()
 }

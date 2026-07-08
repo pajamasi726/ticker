@@ -5,6 +5,10 @@ import io.stevelabs.ticker.server.check.HealthChecker
 import io.stevelabs.ticker.server.check.HttpHealthChecker
 import io.stevelabs.ticker.server.check.SpringHealthChecker
 import io.stevelabs.ticker.server.config.TickerConfig
+import io.stevelabs.ticker.server.history.HistoryBackupService
+import io.stevelabs.ticker.server.history.HistoryOpsController
+import io.stevelabs.ticker.server.history.HistoryProperties
+import io.stevelabs.ticker.server.history.MetricHistoryRepository
 import io.stevelabs.ticker.server.config.TickerConfigurer
 import io.stevelabs.ticker.server.detail.DetailProperties
 import io.stevelabs.ticker.server.detail.MetricFetcher
@@ -35,7 +39,10 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 @AutoConfiguration
-@EnableConfigurationProperties(TickerServerProperties::class, PollProperties::class, TargetsProperties::class, DetailProperties::class)
+@EnableConfigurationProperties(
+    TickerServerProperties::class, PollProperties::class, TargetsProperties::class, DetailProperties::class,
+    HistoryProperties::class,
+)
 @EnableScheduling
 @ConditionalOnProperty(prefix = "ticker.server", name = ["enabled"], matchIfMissing = true)
 class TickerServerAutoConfiguration {
@@ -68,6 +75,19 @@ class TickerServerAutoConfiguration {
     @Bean fun targetController(registry: TargetRegistry, store: HealthStateStore) = TargetController(registry, store)
     @Bean fun detailController(registry: TargetRegistry, store: HealthStateStore, metricSource: MetricSource, detailProperties: DetailProperties) =
         DetailController(registry, store, metricSource, detailProperties)
+
+    /**
+     * Storage-ops endpoints (stats + backups) — always registered, with the history beans as
+     * OPTIONAL deps: the UI polls /api/history/stats unconditionally and must get a friendly
+     * `{enabled:false}` instead of a 404 when history is off (the 0.2.1 alerts lesson).
+     */
+    @Bean
+    fun historyOpsController(
+        historyProps: HistoryProperties,
+        repository: ObjectProvider<MetricHistoryRepository>,
+        backupService: ObjectProvider<HistoryBackupService>,
+    ) = HistoryOpsController(historyProps, repository.ifAvailable, backupService.ifAvailable)
+
     @Bean fun spaCacheControlFilter(props: TickerServerProperties) = SpaCacheControlFilter(props.basePath)
 
     /** Relocates UI + API under ticker.server.base-path (no-op when unset). */
