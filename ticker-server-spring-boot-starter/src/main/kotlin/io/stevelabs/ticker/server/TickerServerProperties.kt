@@ -35,4 +35,10 @@ data class TickerServerProperties(
      * the collector's "self" tile shows real traffic. Set false to count everything again.
      */
     val excludeSelfRequests: Boolean = true,
+    /**
+     * The admin view (gear icon) + its `/api/admin/..` endpoints: collector info, target registry,
+     * storage & backup management. On by default — Ticker is a network-restricted internal tool and
+     * every admin action is an existing runtime API. Set false to hide the whole surface.
+     */
+    val adminEnabled: Boolean = true,
 )

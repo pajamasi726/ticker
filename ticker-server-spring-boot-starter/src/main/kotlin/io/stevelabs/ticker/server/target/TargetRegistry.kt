@@ -89,6 +89,9 @@ class TargetRegistry(
      * on by default: a crashed instance SHOULD stay on the wall as a red tile — that's the board's
      * job — and graceful shutdowns already deregister themselves.
      */
+    /** Last heartbeat/registration time for a self-registered instance; null for static/UI targets. */
+    fun lastSeenMillis(id: String): Long? = lastSeenMillis[id]
+
     fun evictExpired(maxAgeMillis: Long, nowMillis: Long = System.currentTimeMillis()): List<Target> {
         if (maxAgeMillis <= 0) return emptyList()
         val expired = registered.values.filter { (nowMillis - (lastSeenMillis[it.id] ?: nowMillis)) > maxAgeMillis }

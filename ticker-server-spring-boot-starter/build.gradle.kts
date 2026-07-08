@@ -40,3 +40,10 @@ tasks.processResources {
 }
 
 tasks.test { useJUnitPlatform() }
+
+// The admin view reports the collector's version from the jar manifest ("dev" when run from classes).
+tasks.jar {
+    manifest {
+        attributes("Implementation-Title" to "ticker-server-spring-boot-starter", "Implementation-Version" to project.version)
+    }
+}

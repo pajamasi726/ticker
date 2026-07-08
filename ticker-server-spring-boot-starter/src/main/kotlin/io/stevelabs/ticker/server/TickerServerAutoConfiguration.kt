@@ -88,6 +88,17 @@ class TickerServerAutoConfiguration {
         backupService: ObjectProvider<HistoryBackupService>,
     ) = HistoryOpsController(historyProps, repository.ifAvailable, backupService.ifAvailable)
 
+    /** Admin view backing endpoints — hide the whole surface with ticker.server.admin-enabled=false. */
+    @Bean
+    @ConditionalOnProperty(prefix = "ticker.server", name = ["admin-enabled"], matchIfMissing = true)
+    fun adminController(
+        props: TickerServerProperties,
+        poll: PollProperties,
+        historyProps: HistoryProperties,
+        registry: TargetRegistry,
+        environment: org.springframework.core.env.Environment,
+    ) = io.stevelabs.ticker.server.admin.AdminController(props, poll, historyProps, registry, environment)
+
     @Bean fun spaCacheControlFilter(props: TickerServerProperties) = SpaCacheControlFilter(props.basePath)
 
     /** Relocates UI + API under ticker.server.base-path (no-op when unset). */

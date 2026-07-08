@@ -37,6 +37,12 @@
       "defaultValue": true
     },
     {
+      "name": "ticker.server.admin-enabled",
+      "type": "java.lang.Boolean",
+      "description": "The admin view (gear icon) + its /api/admin/.. endpoints: collector info, target registry, storage & backup management. Set false to hide the whole surface.",
+      "defaultValue": true
+    },
+    {
       "name": "ticker.poll.interval",
       "type": "java.time.Duration",
       "description": "How often every target is polled (virtual-thread fan-out).",
