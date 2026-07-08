@@ -51,6 +51,12 @@ class HistoryBackupServiceTest {
         assertThat(service.list().first().name).isEqualTo(file.fileName.toString())
     }
 
+    @Test fun `default backup dir is a backups folder NEXT TO the H2 file`() {
+        val service = HistoryBackupService(openDb(), props(backup = HistoryProperties.BackupProperties(dir = null)))
+        val result = service.backupNow()
+        assertThat(Path.of(result.file).parent).isEqualTo(tmp.toAbsolutePath().resolve("backups"))
+    }
+
     @Test fun `non-H2 db is refused with the native-tool hint`() {
         val service = HistoryBackupService(openDb(), props(db = HistoryDb.MYSQL, backup = HistoryProperties.BackupProperties(dir = tmp.resolve("bk").toString())))
         assertThatThrownBy { service.backupNow() }

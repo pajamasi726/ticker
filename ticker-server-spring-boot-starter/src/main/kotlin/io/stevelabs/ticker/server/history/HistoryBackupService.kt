@@ -32,7 +32,10 @@ class HistoryBackupService(
 ) {
     private val log = LoggerFactory.getLogger(HistoryBackupService::class.java)
     private val running = AtomicBoolean(false)
-    private val dir: Path get() = Path.of(props.backup.dir)
+
+    /** Explicit dir wins; default = `backups/` next to the H2 file (same volume as the data). */
+    private val dir: Path get() = props.backup.dir?.let { Path.of(it) }
+        ?: (Path.of(props.h2Path).toAbsolutePath().parent ?: Path.of(".")).resolve("backups")
 
     fun backupNow(nowMillis: Long = System.currentTimeMillis()): BackupResult {
         if (props.db != HistoryDb.H2) throw UnsupportedBackupDbException(props.db)

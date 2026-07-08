@@ -51,8 +51,12 @@ data class HistoryProperties(
      * only the app itself can do this). Trigger via `POST /api/history/backup` or the schedule.
      */
     data class BackupProperties(
-        /** Directory backup zips land in. Use a durable path/volume in production. */
-        val dir: String = "./data/backups",
+        /**
+         * Directory backup zips land in. Default (unset) = a `backups/` dir NEXT TO the H2 file
+         * (`<h2-path parent>/backups`) — the backup belongs on the same volume as the data it
+         * snapshots, and inside a container that parent is already the writable one.
+         */
+        val dir: String? = null,
         /** Optional cron (Spring format, e.g. "0 0 4 * * *") for automatic backups. Unset = manual only. */
         val schedule: String? = null,
         /** Rolling cap: delete backup zips older than this. ZERO (default) = keep everything — a manual backup is never silently deleted. */

@@ -83,6 +83,10 @@ class HistoryOpsController(
         } catch (_: BackupInProgressException) {
             ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError("BACKUP_IN_PROGRESS", "A backup is already running; try again when it finishes."))
+        } catch (e: Exception) {
+            // Never a raw stack page (API convention) — e.g. an unwritable dir inside a container.
+            ResponseEntity.internalServerError()
+                .body(ApiError("BACKUP_FAILED", "${e.message} — check that ticker.history.backup.dir points somewhere writable."))
         }
     }
 

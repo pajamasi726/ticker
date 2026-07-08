@@ -94,7 +94,7 @@ Storage & admin runtime APIs (the admin view's backing endpoints — also curl-a
 | `ticker.history.sample-interval` | Duration | `15s` | How often the recorder samples whitelisted metrics. |
 | `ticker.history.retention` | Duration | `7d` | Hourly prune deletes samples older than this. |
 | `ticker.history.max-buckets` | int | `240` | Max downsampled points a range query returns. |
-| `ticker.history.backup.dir` | String | `./data/backups` | Where online H2 backup zips land (`POST /api/history/backup`, the admin button, or the schedule). Durable volume in production. |
+| `ticker.history.backup.dir` | String | *(next to the H2 file)* | Where online H2 backup zips land. Default (unset) = `<h2-path parent>/backups` — same volume as the data it snapshots, writable inside containers. |
 | `ticker.history.backup.schedule` | String | *(none)* | Optional Spring cron (e.g. `0 0 4 * * *`) for automatic backups. Unset = manual only. |
 | `ticker.history.backup.file-retention` | Duration | `0` (off) | Rolling cap: delete backup zips older than this. Off by default — a manual backup is never silently deleted. |
 | `ticker.history.backup.max-total-size-mb` | long | `0` (unlimited) | Rolling cap: keep the backup dir under this size, deleting oldest first. |

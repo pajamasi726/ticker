@@ -142,8 +142,7 @@
     {
       "name": "ticker.history.backup.dir",
       "type": "java.lang.String",
-      "description": "Directory online H2 backup zips land in (POST /api/history/backup or the schedule). Use a durable path/volume in production.",
-      "defaultValue": "./data/backups"
+      "description": "Directory online H2 backup zips land in (POST /api/history/backup, the admin button, or the schedule). Default (unset) = a backups/ dir NEXT TO the H2 file — same volume as the data, writable inside containers."
     },
     {
       "name": "ticker.history.backup.schedule",
