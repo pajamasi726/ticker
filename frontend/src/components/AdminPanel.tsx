@@ -204,30 +204,32 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
 
           <div className="admin-silence">
             {silence?.active ? (
-              <>
+              <div className="admin-silence__row">
                 <span className="admin-chip admin-chip--warn">
                   {t('admin.silence.active', { until: silence.until ? new Date(silence.until).toLocaleTimeString() : '' })}
                 </span>
                 <button className="admin-btn admin-btn--warn" onClick={() => { clearSilence().then(setSilence).catch(() => {}) }}>
                   {t('admin.silence.clear')}
                 </button>
-              </>
+              </div>
             ) : (
               <>
-                <span className="admin-muted admin-small">{t('admin.silence.label')}</span>
-                {SILENCE_PRESETS.map((m) => (
-                  <button key={m} className="admin-btn" onClick={() => onSilence(m)}>
-                    {t('admin.silence.preset', { m })}
-                  </button>
-                ))}
-                <span className="admin-silence__custom">
+                <div className="admin-silence__row">
+                  <span className="admin-muted admin-small">{t('admin.silence.label')}</span>
+                  {SILENCE_PRESETS.map((m) => (
+                    <button key={m} className="admin-btn" onClick={() => onSilence(m)}>
+                      {t('admin.silence.preset', { m })}
+                    </button>
+                  ))}
+                </div>
+                <div className="admin-silence__row">
                   <input
                     className="admin-input" type="number" min="1" max="1440" value={minutes}
                     onChange={(e) => setMinutes(e.target.value)} aria-label={t('admin.silence.minutes')}
                   />
                   <span className="admin-muted admin-small">{t('admin.silence.minutes')}</span>
                   <button className="admin-btn" onClick={() => onSilence(parseInt(minutes, 10))}>{t('admin.silence.start')}</button>
-                </span>
+                </div>
               </>
             )}
           </div>
@@ -299,7 +301,7 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
                   <td className="admin-nowrap"><span className={`admin-dot ${STATE_DOT[tg.state]}`} aria-hidden>●</span> <span className="admin-small">{tg.state}</span></td>
                   <td>{tg.name}</td>
                   <td className="admin-mono">{tg.instance ?? '—'}</td>
-                  <td className="admin-mono admin-muted admin-ellipsis" title={tg.url}>{tg.url}</td>
+                  <td className="admin-mono admin-ellipsis" title={tg.url}>{tg.url}</td>
                   <td className="admin-mono">{tg.ip ?? '—'}</td>
                   <td><span className={`admin-chip admin-chip--${tg.source.toLowerCase()}`}>{t(`admin.source.${tg.source.toLowerCase()}`)}</span></td>
                   <td className="admin-nowrap">{tg.lastSeenMillis != null ? `${humanMillis(now - tg.lastSeenMillis)} ${t('admin.ago')}` : '—'}</td>

@@ -600,3 +600,18 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .admin-table--backups th:nth-child(3), .admin-table--backups td:nth-child(3) { width: 88px; }
 .admin-table--backups th:nth-child(4), .admin-table--backups td:nth-child(4) { width: 72px; }
 .admin-table--backups .admin-ellipsis { max-width: none; }
+
+/* ---- Admin polish (round 3): corner group + alignment ---- */
+.app__lang { display: flex; align-items: center; gap: 8px; background: color-mix(in srgb, var(--bg-0) 88%, transparent); padding: 4px 6px; border-radius: 10px; }
+.app__gear {
+  margin-right: 0; width: auto; height: 24px; display: inline-flex; align-items: center;
+  padding: 0 11px; font-size: 14px; border-radius: var(--r-sm);
+}
+.app__header { padding-right: 170px; }
+.admin-silence { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; }
+.admin-silence__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-silence__custom { border-left: none; padding-left: 0; margin-left: 0; }
+.admin-kv--cols { grid-template-columns: max-content max-content max-content max-content; justify-content: start; column-gap: 20px; }
+.admin-kv--cols dd:nth-of-type(odd) { margin-right: 48px; }
+.admin-editbtn { margin-left: -4px; }
+.admin-table th { font-size: 12px; letter-spacing: 0.02em; }
