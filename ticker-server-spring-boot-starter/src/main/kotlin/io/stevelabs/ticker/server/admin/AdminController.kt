@@ -5,6 +5,7 @@ import io.stevelabs.ticker.server.TickerServerProperties
 import io.stevelabs.ticker.server.history.HistoryDb
 import io.stevelabs.ticker.server.history.HistoryProperties
 import io.stevelabs.ticker.server.poll.PollProperties
+import io.stevelabs.ticker.server.state.HealthStateStore
 import io.stevelabs.ticker.server.target.TargetRegistry
 import io.stevelabs.ticker.server.target.TargetSource
 import org.springframework.core.env.Environment
@@ -27,6 +28,7 @@ class AdminController(
     private val poll: PollProperties,
     private val history: HistoryProperties,
     private val registry: TargetRegistry,
+    private val store: HealthStateStore,
     private val environment: Environment,
 ) {
 
@@ -69,6 +71,7 @@ class AdminController(
         val instance: String?,
         val ip: String?,
         val lastSeenMillis: Long?,
+        val state: String,
     )
 
     @GetMapping("/info")
@@ -95,16 +98,20 @@ class AdminController(
     )
 
     @GetMapping("/targets")
-    fun targets(): List<AdminTarget> = registry.all().map { t ->
-        AdminTarget(
-            id = t.id,
-            name = t.name,
-            type = t.type,
-            url = t.url,
-            source = t.source,
-            instance = t.instance,
-            ip = t.ip,
-            lastSeenMillis = if (t.source == TargetSource.REGISTERED) registry.lastSeenMillis(t.id) else null,
-        )
+    fun targets(): List<AdminTarget> {
+        val states = store.snapshot().associate { it.target.id to it.state.name }
+        return registry.all().map { t ->
+            AdminTarget(
+                id = t.id,
+                name = t.name,
+                type = t.type,
+                url = t.url,
+                source = t.source,
+                instance = t.instance,
+                ip = t.ip,
+                lastSeenMillis = if (t.source == TargetSource.REGISTERED) registry.lastSeenMillis(t.id) else null,
+                state = states[t.id] ?: "UNKNOWN",
+            )
+        }
     }
 }

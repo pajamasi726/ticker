@@ -96,8 +96,9 @@ class TickerServerAutoConfiguration {
         poll: PollProperties,
         historyProps: HistoryProperties,
         registry: TargetRegistry,
+        store: HealthStateStore,
         environment: org.springframework.core.env.Environment,
-    ) = io.stevelabs.ticker.server.admin.AdminController(props, poll, historyProps, registry, environment)
+    ) = io.stevelabs.ticker.server.admin.AdminController(props, poll, historyProps, registry, store, environment)
 
     @Bean fun spaCacheControlFilter(props: TickerServerProperties) = SpaCacheControlFilter(props.basePath)
 

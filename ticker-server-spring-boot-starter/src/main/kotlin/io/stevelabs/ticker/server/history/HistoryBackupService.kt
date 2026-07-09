@@ -72,6 +72,12 @@ class HistoryBackupService(
         return if (Files.isRegularFile(file)) file else null
     }
 
+    /** Delete one backup zip by (whitelisted) name. Returns false when it doesn't exist. */
+    fun delete(name: String): Boolean {
+        val file = resolve(name) ?: return false
+        return tryDelete(file)
+    }
+
     /** Rolling caps, same semantics as the archiver — but both default OFF for backups. */
     private fun enforceCaps(now: Long) {
         val maxAge = props.backup.fileRetention.toMillis()

@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -103,6 +104,14 @@ class HistoryOpsController(
             .contentType(MediaType.APPLICATION_OCTET_STREAM)
             .body(FileSystemResource(file))
     }
+
+    @DeleteMapping("/backups/{name}")
+    fun deleteBackup(@PathVariable name: String): ResponseEntity<Any> =
+        if (backupService?.delete(name) == true) {
+            ResponseEntity.noContent().build()
+        } else {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError("BACKUP_NOT_FOUND", "No such backup file."))
+        }
 
     private fun archiveFiles(): List<Path> {
         val dir = Path.of(props.archive.dir)

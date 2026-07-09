@@ -147,3 +147,8 @@ export async function fetchAdminTargets(): Promise<AdminTarget[]> {
   if (!res.ok) throw new Error(`GET /api/admin/targets: ${res.status}`)
   return res.json()
 }
+
+export async function deleteBackup(name: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/history/backups/${encodeURIComponent(name)}`, { method: 'DELETE' })
+  if (!res.ok) throw await asApiError(res)
+}

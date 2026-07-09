@@ -5,6 +5,7 @@ import io.stevelabs.ticker.core.ServiceType
 import io.stevelabs.ticker.server.TickerServerProperties
 import io.stevelabs.ticker.server.history.HistoryProperties
 import io.stevelabs.ticker.server.poll.PollProperties
+import io.stevelabs.ticker.server.state.HealthStateStore
 import io.stevelabs.ticker.server.target.TargetDefinition
 import io.stevelabs.ticker.server.target.TargetRegistry
 import org.hamcrest.Matchers.containsString
@@ -55,6 +56,7 @@ class AdminControllerTest(@Autowired val mvc: MockMvc) {
                 poll = PollProperties(),
                 history = HistoryProperties(enabled = true),
                 registry = registry,
+                store = HealthStateStore(registry, PollProperties()),
                 environment = environment,
             )
     }
@@ -80,5 +82,6 @@ class AdminControllerTest(@Autowired val mvc: MockMvc) {
             .andExpect(jsonPath("$[?(@.name=='orders-api')].source").value("REGISTERED"))
             .andExpect(jsonPath("$[?(@.name=='orders-api')].lastSeenMillis").value(1_720_000_000_000))
             .andExpect(jsonPath("$[?(@.name=='orders-api')].instance").value("pod-a:8081"))
+            .andExpect(jsonPath("$[?(@.name=='orders-api')].state").exists())
     }
 }

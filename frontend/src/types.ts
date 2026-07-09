@@ -144,4 +144,5 @@ export interface AdminTarget {
   instance: string | null
   ip: string | null
   lastSeenMillis: number | null
+  state: 'UP' | 'DEGRADED' | 'DOWN' | 'UNKNOWN'
 }
