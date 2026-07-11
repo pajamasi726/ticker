@@ -88,6 +88,14 @@ class TickerServerAutoConfiguration {
         backupService: ObjectProvider<HistoryBackupService>,
     ) = HistoryOpsController(historyProps, repository.ifAvailable, backupService.ifAvailable)
 
+    @Bean
+    fun graphService(registry: TargetRegistry, store: HealthStateStore, metricSource: MetricSource) =
+        io.stevelabs.ticker.server.graph.GraphService(registry, store, metricSource)
+
+    @Bean
+    fun graphController(graphService: io.stevelabs.ticker.server.graph.GraphService) =
+        io.stevelabs.ticker.server.graph.GraphController(graphService)
+
     /** Admin view backing endpoints — hide the whole surface with ticker.server.admin-enabled=false. */
     @Bean
     @ConditionalOnProperty(prefix = "ticker.server", name = ["admin-enabled"], matchIfMissing = true)
