@@ -202,7 +202,7 @@ export function ServiceDetailPanel({ id, siblings = [], onSwitch, onClose }: { i
       {detail?.type === 'SPRING' && detail.groups.length === 0 && (
         <p className="detail-note">{t('detail.noMetrics')}</p>
       )}
-      {detail?.type === 'SPRING' && <OutboundCalls id={id} onSwitch={onSwitch} />}
+      {detail?.type === 'SPRING' && <OutboundCalls id={id} name={detail.name} onSwitch={onSwitch} />}
       {detail && detail.groups.length > 0 && (
         <p className="detail-legend">
           <span><span className="detail-legend__star" aria-hidden>★</span>{t('legend.star')}</span>

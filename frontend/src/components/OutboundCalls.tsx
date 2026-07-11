@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { OutboundCall, TagStat } from '../types'
-import { fetchMetricBreakdown, fetchOutbound } from '../api'
+import type { GraphEdge, OutboundCall, TagStat } from '../types'
+import { fetchGraph, fetchMetricBreakdown, fetchOutbound } from '../api'
 import { formatValue } from '../format'
 import { useT } from '../i18n'
 
@@ -15,13 +15,14 @@ const DOT: Record<string, string> = {
  * auto-instrumented http.client.requests), how often, how slowly — with a jump chip when the
  * called host is a target on our own wall. Aggregates, deliberately not per-request traces.
  */
-export function OutboundCalls({ id, onSwitch }: { id: string; onSwitch?: (id: string) => void }) {
+export function OutboundCalls({ id, name, onSwitch }: { id: string; name?: string; onSwitch?: (id: string) => void }) {
   const t = useT()
   const [calls, setCalls] = useState<OutboundCall[] | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [uris, setUris] = useState<Record<string, TagStat[]>>({})
   const prev = useRef<{ at: number; counts: Record<string, number> } | null>(null)
   const [rates, setRates] = useState<Record<string, number>>({})
+  const [inbound, setInbound] = useState<GraphEdge[]>([])
 
   useEffect(() => {
     let active = true
@@ -47,10 +48,17 @@ export function OutboundCalls({ id, onSwitch }: { id: string; onSwitch?: (id: st
         prev.current = { at: now, counts }
       })
       .catch(() => { if (active) setCalls([]) })
+    const loadInbound = () => {
+      if (!name) return
+      fetchGraph()
+        .then((g) => { if (active) setInbound(g.edges.filter((e) => e.to === name)) })
+        .catch(() => {})
+    }
     load()
-    const tmr = setInterval(load, POLL_MS)
+    loadInbound()
+    const tmr = setInterval(() => { load(); loadInbound() }, POLL_MS)
     return () => { active = false; clearInterval(tmr) }
-  }, [id])
+  }, [id, name])
 
   const toggle = (host: string) => {
     const next = expanded === host ? null : host
@@ -71,9 +79,9 @@ export function OutboundCalls({ id, onSwitch }: { id: string; onSwitch?: (id: st
         {t('outbound.title')}
         <span className="detail-group__count">{calls.length}</span>
       </h3>
-      {calls.length === 0 ? (
+      {calls.length === 0 && inbound.length === 0 ? (
         <p className="outbound__hint">{t('outbound.empty')}</p>
-      ) : (
+      ) : calls.length === 0 ? null : (
         <div className="outbound__table" role="table">
           <div className="outbound__row outbound__row--head" role="row">
             <span>{t('outbound.target')}</span>
@@ -144,6 +152,28 @@ export function OutboundCalls({ id, onSwitch }: { id: string; onSwitch?: (id: st
                     )}
                   </div>
                 )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {inbound.length > 0 && (
+        <div className="outbound__inbound">
+          <h4 className="outbound__sub">{t('outbound.inboundTitle', { n: inbound.length })}</h4>
+          {inbound.map((e) => {
+            const errPct = e.count > 0 ? (e.error5xx / e.count) * 100 : 0
+            return (
+              <div key={e.from} className="outbound__row outbound__row--in">
+                <span className="outbound__host">
+                  <span className="outbound__arrow" aria-hidden>←</span>
+                  <span className="outbound__from">{e.from}</span>
+                </span>
+                <span className="outbound__num" />
+                <span className="outbound__num">{Math.round(e.count).toLocaleString()}</span>
+                <span className="outbound__lat">{formatValue(e.mean, 'SECONDS')}</span>
+                <span className="outbound__num">{formatValue(e.max, 'SECONDS')}</span>
+                <span className={`outbound__num${errPct > 0 ? ' outbound__err' : ''}`}>{e.count ? `${errPct.toFixed(errPct > 0 && errPct < 1 ? 1 : 0)}%` : '—'}</span>
+                <span />
               </div>
             )
           })}

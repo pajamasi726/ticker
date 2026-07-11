@@ -1,4 +1,4 @@
-import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat, MetricHistory, HistoryStats, BackupResult, BackupFile, SilenceView, AdminInfo, AdminTarget, OutboundCall } from './types'
+import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat, MetricHistory, HistoryStats, BackupResult, BackupFile, SilenceView, AdminInfo, AdminTarget, OutboundCall, ServiceGraph } from './types'
 
 /**
  * Base path the collector is served under. Injected into index.html as `window.__TICKER_BASE__` when
@@ -156,5 +156,11 @@ export async function deleteBackup(name: string): Promise<void> {
 export async function fetchOutbound(id: string): Promise<OutboundCall[]> {
   const res = await fetch(`${BASE}/api/services/${encodeURIComponent(id)}/outbound`)
   if (!res.ok) throw new Error(`GET outbound ${id}: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchGraph(): Promise<ServiceGraph> {
+  const res = await fetch(`${BASE}/api/graph`)
+  if (!res.ok) throw new Error(`GET /api/graph: ${res.status}`)
   return res.json()
 }

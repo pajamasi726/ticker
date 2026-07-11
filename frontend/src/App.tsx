@@ -4,6 +4,7 @@ import { fetchServices, removeTarget } from './api'
 import { StatusWall } from './components/StatusWall'
 import { ServiceDetailPanel } from './components/ServiceDetailPanel'
 import { AdminPanel } from './components/AdminPanel'
+import { ServiceMap } from './components/ServiceMap'
 import { SummaryBar } from './components/SummaryBar'
 import { AddMonitor } from './components/AddMonitor'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
@@ -18,6 +19,7 @@ export default function App() {
   const [now, setNow] = useState(() => Date.now())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [adminOpen, setAdminOpen] = useState(false)
+  const [wallMode, setWallMode] = useState<'tiles' | 'map'>('tiles')
   const t = useT()
 
   // Guardrail #1: a dead collector must be visible, not silently trusted as "all healthy".
@@ -69,6 +71,10 @@ export default function App() {
             <header className="app__header">
               <h1>Ticker</h1>
               <span className="app__sub">{t('app.sub')}</span>
+              <div className="viewtoggle" role="tablist">
+                <button className={wallMode === 'tiles' ? 'on' : ''} onClick={() => setWallMode('tiles')} role="tab" aria-selected={wallMode === 'tiles'}>{t('wall.tiles')}</button>
+                <button className={wallMode === 'map' ? 'on' : ''} onClick={() => setWallMode('map')} role="tab" aria-selected={wallMode === 'map'}>{t('wall.map')}</button>
+              </div>
               <SummaryBar services={services} />
             </header>
             {!reachable && (
@@ -86,6 +92,8 @@ export default function App() {
               <p className="empty">
                 {t('banner.unreachableA')} <code>/api/services</code>{t('banner.unreachableB')}
               </p>
+            ) : wallMode === 'map' ? (
+              <ServiceMap onSelect={(name) => { const s = services.find((x) => x.name === name); if (s) setSelectedId(s.id) }} />
             ) : (
               <>
                 <AddMonitor onAdded={reload} />

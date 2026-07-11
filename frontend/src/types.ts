@@ -158,3 +158,16 @@ export interface OutboundCall {
   targetName: string | null
   targetState: 'UP' | 'DEGRADED' | 'DOWN' | 'UNKNOWN' | null
 }
+
+// ---- Service map (/api/graph) ----
+export interface GraphNode { name: string; state: 'UP' | 'DEGRADED' | 'DOWN' | 'UNKNOWN'; external: boolean }
+export interface GraphEdge {
+  from: string
+  to: string
+  external: boolean
+  count: number
+  mean: number | null
+  max: number | null
+  error5xx: number
+}
+export interface ServiceGraph { nodes: GraphNode[]; edges: GraphEdge[] }
