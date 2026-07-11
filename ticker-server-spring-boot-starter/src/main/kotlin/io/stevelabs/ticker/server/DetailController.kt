@@ -68,7 +68,9 @@ class DetailController(
                 .body<Any>(ApiError("METRIC_NOT_ALLOWED", "Metric '$metric' is not in the allowed whitelist"))
         }
 
-        val allowedTags = setOf("uri", "method", "status", "outcome")
+        // client.name scopes http.client.requests to one call target — the outbound section's
+        // per-host URI drill-down. Still whitelisted metrics only (guardrail #4).
+        val allowedTags = setOf("uri", "method", "status", "outcome", "client.name")
         if (tag !in allowedTags) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body<Any>(ApiError("TAG_NOT_ALLOWED", "Tag '$tag' is not allowed; permitted: $allowedTags"))
@@ -89,5 +91,68 @@ class DetailController(
 
         val stats: List<TagStat> = metricSource.tagBreakdown(target, metric, tag, filterMap)
         return ResponseEntity.ok<Any>(stats)
+    }
+
+    /** One outbound edge: this service → [host], aggregated from http.client.requests. */
+    data class OutboundCall(
+        val host: String,
+        val count: Double?,
+        val mean: Double?, // seconds (timer), matches TagStat semantics
+        val max: Double?,
+        val error5xx: Double?,
+        /** Set when [host] maps to exactly one target NAME on the wall — the "jump to it" link. */
+        val targetId: String?,
+        val targetName: String?,
+        val targetState: ServiceState?,
+    )
+
+    /**
+     * The service-to-service view for small setups — a monolith split across a few servers —
+     * WITHOUT tracing infrastructure: Boot's auto-instrumented `http.client.requests` already
+     * carries a `client.name` (called host) tag, so each app's actuator tells us who it calls,
+     * how often, and how slowly. Aggregates, not traces (per-request waterfalls stay a non-goal).
+     */
+    @GetMapping("/{id}/outbound")
+    fun outbound(@PathVariable id: String): ResponseEntity<Any> {
+        val target = registry.all().firstOrNull { it.id == id }
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body<Any>(ApiError("SERVICE_NOT_FOUND", "No target with id '$id'"))
+        if (target.type != ServiceType.SPRING) return ResponseEntity.ok<Any>(emptyList<OutboundCall>())
+
+        val rows = metricSource.tagBreakdown(target, "http.client.requests", "client.name")
+        if (rows.isEmpty()) return ResponseEntity.ok<Any>(emptyList<OutboundCall>())
+        val errorsByHost = metricSource
+            .tagBreakdown(target, "http.client.requests", "client.name", mapOf("outcome" to "SERVER_ERROR"))
+            .associate { it.value to it.count }
+
+        // host -> wall target, linked only when unambiguous (one target NAME per host; a host shared
+        // by differently-named targets — e.g. everything on localhost in dev — gets no link).
+        val byHost = registry.all()
+            .filter { it.id != target.id }
+            .mapNotNull { t -> hostOf(t.url)?.let { host -> host to t } }
+            .groupBy({ it.first }, { it.second })
+        val states = store.snapshot(Instant.now()).associate { it.target.id to it.state }
+
+        val calls = rows.map { row ->
+            val candidates = byHost[row.value].orEmpty()
+            val linked = candidates.takeIf { c -> c.isNotEmpty() && c.map { it.name }.distinct().size == 1 }?.first()
+            OutboundCall(
+                host = row.value,
+                count = row.count,
+                mean = row.mean,
+                max = row.max,
+                error5xx = errorsByHost[row.value],
+                targetId = linked?.id,
+                targetName = linked?.name,
+                targetState = linked?.let { states[it.id] },
+            )
+        }.sortedByDescending { it.count ?: 0.0 }
+        return ResponseEntity.ok<Any>(calls)
+    }
+
+    private fun hostOf(url: String): String? = try {
+        java.net.URI(url).host
+    } catch (_: Exception) {
+        null
     }
 }

@@ -33,6 +33,7 @@ class DetailControllerTest(@Autowired val mvc: MockMvc, @Autowired val metricSou
             listOf(
                 TargetDefinition("spring-svc", ServiceType.SPRING, "http://spring-svc:8080"),
                 TargetDefinition("http-svc", ServiceType.HTTP, "http://http-svc"),
+                TargetDefinition("payments-svc", ServiceType.SPRING, "http://payments-svc:8081"),
             ),
         )
         @Bean fun healthStateStore(registry: TargetRegistry) = HealthStateStore(registry, PollProperties())
@@ -117,6 +118,29 @@ class DetailControllerTest(@Autowired val mvc: MockMvc, @Autowired val metricSou
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.code").value("FILTER_NOT_ALLOWED"))
     }
+
+    @Test fun `outbound aggregates per called host and links wall targets unambiguously`() {
+        mvc.perform(get("/api/services/spring-svc/outbound"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].host").value("payments-svc"))
+            .andExpect(jsonPath("$[0].count").value(120.0))
+            .andExpect(jsonPath("$[0].error5xx").value(3.0))
+            .andExpect(jsonPath("$[0].targetName").value("payments-svc")) // linked: host matches one wall target
+            .andExpect(jsonPath("$[0].targetId").value("payments-svc"))
+            .andExpect(jsonPath("$[1].host").value("api.stripe.example"))
+            .andExpect(jsonPath("$[1].targetId").value(null)) // external host: no link
+    }
+
+    @Test fun `outbound for an HTTP target is an empty list, not an error`() {
+        mvc.perform(get("/api/services/http-svc/outbound"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$").isEmpty)
+    }
+
+    @Test fun `client-name is an accepted breakdown tag and filter`() {
+        mvc.perform(get("/api/services/spring-svc/metric-breakdown?metric=http.client.requests&tag=uri&filter=client.name:payments-svc"))
+            .andExpect(status().isOk)
+    }
 }
 
 class CapturingMetricSource : MetricSource {
@@ -136,6 +160,17 @@ class CapturingMetricSource : MetricSource {
 
     override fun tagBreakdown(target: Target, metricName: String, tag: String, filter: Map<String, String>): List<TagStat> {
         lastFilter = filter
+        if (metricName == "http.client.requests" && tag == "client.name") {
+            // The outbound view's two calls: full breakdown, then the SERVER_ERROR-scoped join.
+            return if (filter["outcome"] == "SERVER_ERROR") {
+                listOf(TagStat("payments-svc", 3.0, null, null))
+            } else {
+                listOf(
+                    TagStat("payments-svc", 120.0, 0.040, 0.900),
+                    TagStat("api.stripe.example", 40.0, 0.210, 1.100),
+                )
+            }
+        }
         return listOf(TagStat("/api/foo", 100.0, 0.05, 0.2))
     }
 }
