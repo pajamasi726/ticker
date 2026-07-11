@@ -1,4 +1,4 @@
-import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat, MetricHistory, HistoryStats, BackupResult, BackupFile, SilenceView, AdminInfo, AdminTarget } from './types'
+import type { ServiceView, ServiceDetail, AlertRule, AlertFire, TagStat, MetricHistory, HistoryStats, BackupResult, BackupFile, SilenceView, AdminInfo, AdminTarget, OutboundCall } from './types'
 
 /**
  * Base path the collector is served under. Injected into index.html as `window.__TICKER_BASE__` when
@@ -151,4 +151,10 @@ export async function fetchAdminTargets(): Promise<AdminTarget[]> {
 export async function deleteBackup(name: string): Promise<void> {
   const res = await fetch(`${BASE}/api/history/backups/${encodeURIComponent(name)}`, { method: 'DELETE' })
   if (!res.ok) throw await asApiError(res)
+}
+
+export async function fetchOutbound(id: string): Promise<OutboundCall[]> {
+  const res = await fetch(`${BASE}/api/services/${encodeURIComponent(id)}/outbound`)
+  if (!res.ok) throw new Error(`GET outbound ${id}: ${res.status}`)
+  return res.json()
 }

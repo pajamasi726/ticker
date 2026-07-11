@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchDetail, fetchAlertRules, updateAlertRule, fetchRecentAlerts } from '../api'
+import { OutboundCalls } from './OutboundCalls'
 import type { ServiceDetail, ServiceView, AlertRule, AlertFire, ResolvedWidget } from '../types'
 import { MetricWidget } from './MetricWidget'
 import { MetricInspector } from './MetricInspector'
@@ -201,6 +202,7 @@ export function ServiceDetailPanel({ id, siblings = [], onSwitch, onClose }: { i
       {detail?.type === 'SPRING' && detail.groups.length === 0 && (
         <p className="detail-note">{t('detail.noMetrics')}</p>
       )}
+      {detail?.type === 'SPRING' && <OutboundCalls id={id} onSwitch={onSwitch} />}
       {detail && detail.groups.length > 0 && (
         <p className="detail-legend">
           <span><span className="detail-legend__star" aria-hidden>★</span>{t('legend.star')}</span>

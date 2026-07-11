@@ -146,3 +146,15 @@ export interface AdminTarget {
   lastSeenMillis: number | null
   state: 'UP' | 'DEGRADED' | 'DOWN' | 'UNKNOWN'
 }
+
+/** One outbound edge from the detail view's service: this app → host. */
+export interface OutboundCall {
+  host: string
+  count: number | null
+  mean: number | null // seconds
+  max: number | null // seconds
+  error5xx: number | null
+  targetId: string | null
+  targetName: string | null
+  targetState: 'UP' | 'DEGRADED' | 'DOWN' | 'UNKNOWN' | null
+}

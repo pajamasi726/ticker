@@ -45,6 +45,14 @@ at a glance — not arbitrary-metric exploration.
   to cold storage (guardrail #5).
 - **Add monitors from the UI or from code** — a plain HTTP endpoint from the wall, or targets /
   alert rules from a `TickerConfigurer` bean. Static `targets.yml` also works.
+- **Outbound calls — a service map without tracing.** A SPRING tile's detail shows who this
+  service calls, how often, and how slowly (per called host, expandable to per-path), with a jump
+  chip when the callee is on the wall — aggregated from Boot's auto-instrumented
+  `http.client.requests`. For a monolith split across a few servers this answers "which server,
+  which requests, how slow" with **zero tracing infrastructure** (aggregates, not per-request
+  waterfalls — Zipkin/Tempo remain the tool for that). Collected when apps use Boot-built clients
+  (`RestTemplateBuilder` / `WebClient.Builder` / `RestClient.Builder`; on Boot 4 add
+  `spring-boot-starter-restclient` for RestClient).
 - **Admin view (⚙)** — operate the collector from the UI: storage stats + one-click zero-downtime
   H2 backup (list/download), deploy silence windows, alert-rule toggles, the target registry with
   per-instance heartbeats, and the collector's own config at a glance. `ticker.server.admin-enabled=false`
@@ -94,7 +102,7 @@ Add the **server** starter to a Spring Boot app and enable it:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.3.0")
+    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.4.0")
 }
 ```
 ```yaml
@@ -122,9 +130,9 @@ always runs on Boot 4 / Java 21; a Boot 3.2+ app on Java 17+ registers with it o
 ```kotlin
 dependencies {
     // on a Spring Boot 4.x app:
-    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.3.0")
+    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.4.0")
     // …or on a Spring Boot 3.2+ app instead (same config, same behaviour — only the artifact differs):
-    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.3.0")
+    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.4.0")
 }
 ```
 ```yaml

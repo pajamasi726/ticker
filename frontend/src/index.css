@@ -615,3 +615,35 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .admin-kv--cols dd:nth-of-type(odd) { margin-right: 48px; }
 .admin-editbtn { margin-left: -4px; }
 .admin-table th { font-size: 12px; letter-spacing: 0.02em; }
+
+/* ---- Outbound calls (no-tracing service map, one hop) ---- */
+.outbound__table { display: flex; flex-direction: column; }
+.outbound__row {
+  display: grid; grid-template-columns: minmax(160px, 1.4fr) 70px 76px minmax(150px, 1fr) 76px 56px 28px;
+  gap: 10px; align-items: center; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 12.5px;
+}
+.outbound__row--head { color: var(--text-dim); font-size: 11.5px; border-bottom: 1px solid var(--border); }
+.outbound__host { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.outbound__arrow { color: var(--text-dim); }
+.outbound__link {
+  display: inline-flex; align-items: center; gap: 6px; background: none; cursor: pointer;
+  border: 1px solid #384057; border-radius: 999px; padding: 2px 11px; color: var(--text); font: inherit;
+}
+.outbound__link:hover { border-color: #4a72a8; }
+.outbound__ext { font-family: var(--mono); font-size: 12px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outbound__num { font-family: var(--mono); font-size: 12px; text-align: right; white-space: nowrap; }
+.outbound__err { color: #e5484d; }
+.outbound__lat { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; justify-content: flex-end; }
+.outbound__bar { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; min-width: 40px; }
+.outbound__bar-fill { display: block; height: 100%; background: #3d6fa8; border-radius: 3px; }
+.outbound__bar-fill--worst { background: #e0a106; }
+.outbound__chev { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 11px; padding: 2px; }
+.outbound__chev:hover { color: var(--text); }
+.outbound__uris { padding: 2px 4px 8px 30px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.outbound__uri-row {
+  display: grid; grid-template-columns: minmax(160px, 1fr) 76px 84px 84px; gap: 10px;
+  padding: 3px 0; font-size: 12px; color: var(--text-dim);
+}
+.outbound__uri { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outbound__hint { color: var(--text-dim); font-size: 12px; margin: 6px 0 0; }

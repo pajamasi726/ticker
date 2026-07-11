@@ -15,7 +15,7 @@ plugins {
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"
-    version = "0.3.0"   // 0.3.0: admin view (⚙) + zero-downtime H2 backups
+    version = "0.4.0"   // 0.4.0: outbound calls — the no-tracing service map (per-host latency/errors + wall links)
     repositories { mavenCentral() }
 
     apply(plugin = "jacoco")
