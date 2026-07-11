@@ -23,7 +23,7 @@ class HistoryBackupServiceTest {
 
     /** A REAL file-based H2 (not in-memory) — BACKUP TO snapshots the store file. */
     private fun openDb(): JdbcTemplate {
-        val ds = DriverManagerDataSource("jdbc:h2:file:${tmp.resolve("hist")};DB_CLOSE_DELAY=-1", "sa", "")
+        val ds = DriverManagerDataSource("jdbc:h2:file:${tmp.resolve("hist")};DB_CLOSE_DELAY=-1", "", "")
         jdbc = JdbcTemplate(ds)
         MetricHistoryRepository(jdbc).ensureSchema(HistoryDb.H2)
         MetricHistoryRepository(jdbc).saveAll("t@h:1", listOf("cpu" to 0.5, "heap" to 0.3), 1_000L)
@@ -74,6 +74,35 @@ class HistoryBackupServiceTest {
         assertThat(service.resolve("secrets.txt")).isNull()
         assertThat(service.resolve("../hist.mv.db")).isNull()
         assertThat(service.resolve("ticker-history-99999999-999999.zip")).isNull() // pattern ok, file absent
+    }
+
+    @Test fun `restore round-trip — backup, wipe, restore brings the rows back`() {
+        val service = HistoryBackupService(openDb(), props(backup = HistoryProperties.BackupProperties(dir = tmp.resolve("bk").toString())))
+        val backup = Path.of(service.backupNow().file)
+        // wipe live data, then restore from the snapshot
+        jdbc.execute("TRUNCATE TABLE metric_sample")
+        assertThat(MetricHistoryRepository(jdbc).stats().rowCount).isEqualTo(0)
+        val result = service.restoreFrom(backup.fileName.toString())
+        assertThat(result.rows).isEqualTo(2) // the two samples seeded by openDb()
+        assertThat(MetricHistoryRepository(jdbc).stats().rowCount).isEqualTo(2)
+    }
+
+    @Test fun `restore of a bogus name fails cleanly`() {
+        val service = HistoryBackupService(openDb(), props(backup = HistoryProperties.BackupProperties(dir = tmp.resolve("bk").toString())))
+        assertThatThrownBy { service.restoreFrom("../evil.zip") }
+            .isInstanceOf(RestoreFailedException::class.java)
+    }
+
+    @Test fun `upload validates the zip and lands it under a whitelisted name`() {
+        val service = HistoryBackupService(openDb(), props(backup = HistoryProperties.BackupProperties(dir = tmp.resolve("bk").toString())))
+        val real = Path.of(service.backupNow(nowMillis = 1_720_000_000_000).file)
+        val uploaded = Files.newInputStream(real).use { service.upload(it, nowMillis = 1_720_000_060_000) }
+        assertThat(uploaded.name).matches(HistoryBackupService.NAME_RE.pattern)
+        assertThat(service.list().map { it.name }).contains(uploaded.name)
+        // garbage is rejected and leaves nothing behind
+        assertThatThrownBy { service.upload("not a zip".byteInputStream()) }
+            .isInstanceOf(RestoreFailedException::class.java)
+        assertThat(service.list()).hasSize(2)
     }
 
     @Test fun `size cap deletes oldest backups first`() {

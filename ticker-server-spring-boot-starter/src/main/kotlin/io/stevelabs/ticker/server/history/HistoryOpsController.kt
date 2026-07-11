@@ -113,6 +113,39 @@ class HistoryOpsController(
             ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError("BACKUP_NOT_FOUND", "No such backup file."))
         }
 
+    /** Restore a listed backup into the live table (REPLACE semantics, zero downtime). */
+    @PostMapping("/backups/{name}/restore")
+    fun restore(@PathVariable name: String): ResponseEntity<Any> {
+        if (!props.enabled || backupService == null) {
+            return ResponseEntity.badRequest()
+                .body(ApiError("HISTORY_DISABLED", "ticker.history.enabled=false — there is nothing to restore into."))
+        }
+        return try {
+            ResponseEntity.ok(backupService.restoreFrom(name))
+        } catch (e: UnsupportedBackupDbException) {
+            ResponseEntity.badRequest().body(ApiError("UNSUPPORTED_DB", e.message ?: "H2 only"))
+        } catch (_: BackupInProgressException) {
+            ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError("BACKUP_IN_PROGRESS", "A backup or restore is already running; try again when it finishes."))
+        } catch (e: RestoreFailedException) {
+            ResponseEntity.badRequest().body(ApiError("RESTORE_FAILED", e.message ?: "restore failed"))
+        }
+    }
+
+    /** Accept an external backup zip (raw body) into the backup dir — e.g. carried from another server. */
+    @PostMapping("/backups")
+    fun upload(request: jakarta.servlet.http.HttpServletRequest): ResponseEntity<Any> {
+        if (!props.enabled || backupService == null) {
+            return ResponseEntity.badRequest()
+                .body(ApiError("HISTORY_DISABLED", "ticker.history.enabled=false."))
+        }
+        return try {
+            ResponseEntity.status(HttpStatus.CREATED).body(backupService.upload(request.inputStream))
+        } catch (e: RestoreFailedException) {
+            ResponseEntity.badRequest().body(ApiError("UPLOAD_INVALID", e.message ?: "not a valid backup zip"))
+        }
+    }
+
     private fun archiveFiles(): List<Path> {
         val dir = Path.of(props.archive.dir)
         if (!Files.isDirectory(dir)) return emptyList()
