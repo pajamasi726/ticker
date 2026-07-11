@@ -79,6 +79,8 @@ Storage & admin runtime APIs (the admin view's backing endpoints — also curl-a
 | `GET /api/history/stats` | History state: db, row count, data span, H2 file size, retention, archive totals. Answers `{enabled:false}` when history is off — never a 404. |
 | `POST /api/history/backup` | Zero-downtime H2 snapshot to `backup.dir` (409 while one runs; 400 with a `mysqldump`/`pg_dump` hint on other DBs). |
 | `GET /api/history/backups` · `GET /api/history/backups/{name}` | List / download backup zips (names strictly whitelisted — no traversal). |
+| `POST /api/history/backups/{name}/restore` | Replace the live history rows from that backup, zero downtime (replace semantics; 409 while a backup/restore runs; 400 `RESTORE_FAILED` with the cause). |
+| `POST /api/history/backups` | Upload a backup zip (raw body, `application/octet-stream`) into the backup dir under a fresh whitelisted name — validated to contain exactly one `.mv.db`. |
 | `GET /api/services/{id}/outbound` | The no-tracing service map, one hop: per called host — count, mean/max latency, 5xx — aggregated from the app's `http.client.requests`, with a wall-target link when the host matches unambiguously. |
 | `GET /api/graph` | The whole map: wall services as nodes (worst-of-replicas state) + aggregated call edges (replicas merged, callees resolved to service names, externals kept separate). Cached ~10s. |
 | `GET /api/admin/info` · `GET /api/admin/targets` | Collector version/uptime/config facts (secrets as booleans only) and the target registry with per-instance heartbeats. Gated by `ticker.server.admin-enabled`. |

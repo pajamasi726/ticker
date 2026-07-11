@@ -15,7 +15,7 @@ plugins {
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"
-    version = "0.5.0"   // 0.5.0: service MAP view (wall toggle) + inbound "who calls me" on detail
+    version = "0.6.0"   // 0.6.0: map v2 (layered layout, live traffic animation, side panel) + backup restore/upload from the UI
     repositories { mavenCentral() }
 
     apply(plugin = "jacoco")

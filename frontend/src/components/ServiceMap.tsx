@@ -1,26 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ServiceGraph } from '../types'
+import type { GraphEdge, ServiceGraph } from '../types'
 import { fetchGraph } from '../api'
 import { formatValue } from '../format'
 import { useT } from '../i18n'
 
-const POLL_MS = 10_000
+const POLL_MS = 5_000
+const NODE_W = 158
+const NODE_H = 48
+const COL_GAP = 270
+const ROW_GAP = 96
 
 const STATE_COLOR: Record<string, string> = {
   UP: '#2ecc71', DEGRADED: '#e0a106', DOWN: '#e5484d', UNKNOWN: '#5a6270',
 }
 
-interface Hover { x: number; y: number; from: string; to: string; rate: number | null; mean: number | null; max: number | null; errPct: number }
+interface Pos { x: number; y: number }
 
 /**
- * The Zipkin-style dependency picture, minus Zipkin: nodes are wall services (state-colored),
- * arrows are aggregated call edges from /api/graph. Hand-rolled SVG on a circular layout —
- * built for the small-team case (a handful of services), no graph library.
+ * Service map v2 — reads like a flow, not a shape: layered left→right columns (callers before
+ * callees, externals last, idle services parked in a bottom band), node CARDS with live in/out
+ * rates, bezier edges with always-visible rate·latency pills, and animated traffic particles whose
+ * count/speed follow the live call rate. Clicking a node opens a side panel (uses / used-by, à la
+ * Zipkin) instead of yanking you away from the map. Still zero graph-library dependencies.
  */
 export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
   const t = useT()
   const [graph, setGraph] = useState<ServiceGraph | null>(null)
-  const [hover, setHover] = useState<Hover | null>(null)
+  const [selected, setSelected] = useState<string | null>(null)
   const prev = useRef<{ at: number; counts: Record<string, number> } | null>(null)
   const [rates, setRates] = useState<Record<string, number>>({})
 
@@ -33,6 +39,11 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
         const now = Date.now()
         const counts = Object.fromEntries(g.edges.map((e) => [`${e.from}→${e.to}`, e.count]))
         const last = prev.current
+        // The server caches the graph (~10s TTL): a poll can return the SAME snapshot as the last
+        // one. A zero delta over that interval is aliasing, not silence — keep the previous rates
+        // and keep prev anchored at the last DISTINCT snapshot so the next delta uses real elapsed time.
+        if (last && Object.keys(counts).length === Object.keys(last.counts).length
+            && Object.entries(counts).every(([k, v]) => last.counts[k] === v)) return
         if (last && now > last.at) {
           const next: Record<string, number> = {}
           for (const e of g.edges) {
@@ -52,110 +63,220 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
 
   const layout = useMemo(() => {
     if (!graph) return null
-    const W = 1080
-    const H = 560
-    const cx = W / 2
-    const cy = H / 2
-    const services = graph.nodes.filter((n) => !n.external)
-    const externals = graph.nodes.filter((n) => n.external)
-    const pos = new Map<string, { x: number; y: number }>()
-    const r = Math.min(W, H) / 2 - 90
-    services.forEach((n, i) => {
-      const a = (2 * Math.PI * i) / Math.max(services.length, 1) - Math.PI / 2
-      pos.set(n.name, { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) })
+    const services = graph.nodes.filter((n) => !n.external).map((n) => n.name)
+    const externals = graph.nodes.filter((n) => n.external).map((n) => n.name)
+    const outEdges = new Map<string, string[]>()
+    const hasInbound = new Set<string>()
+    for (const e of graph.edges) {
+      outEdges.set(e.from, [...(outEdges.get(e.from) ?? []), e.to])
+      if (!e.external) hasInbound.add(e.to)
+    }
+    const connected = new Set<string>()
+    for (const e of graph.edges) { connected.add(e.from); if (!e.external) connected.add(e.to) }
+
+    // BFS layering: roots (connected services nobody calls) in column 0.
+    const col = new Map<string, number>()
+    const roots = services.filter((s) => connected.has(s) && !hasInbound.has(s))
+    let frontier = roots.length > 0 ? roots : services.filter((s) => connected.has(s)).slice(0, 1)
+    frontier.forEach((s) => col.set(s, 0))
+    let depth = 0
+    while (frontier.length > 0 && depth < 8) {
+      depth++
+      const next: string[] = []
+      for (const s of frontier) {
+        for (const to of outEdges.get(s) ?? []) {
+          if (!externals.includes(to) && !col.has(to)) { col.set(to, depth); next.push(to) }
+        }
+      }
+      frontier = next
+    }
+    services.filter((s) => connected.has(s) && !col.has(s)).forEach((s) => col.set(s, 0))
+    const maxCol = Math.max(0, ...col.values())
+    externals.forEach((x) => col.set(x, maxCol + 1))
+    const idle = services.filter((s) => !connected.has(s))
+
+    const byCol = new Map<number, string[]>()
+    for (const [name, c] of col) byCol.set(c, [...(byCol.get(c) ?? []), name])
+    const tallest = Math.max(1, ...[...byCol.values()].map((v) => v.length))
+    const MARGIN = 24 + NODE_W / 2 // pos.x is the card CENTER — keep col 0's left edge inside the viewBox
+    const W = MARGIN * 2 + (maxCol + (externals.length ? 1 : 0)) * COL_GAP
+    const flowH = Math.max(300, tallest * ROW_GAP + 60)
+    const H = flowH + (idle.length > 0 ? 110 : 30)
+
+    const pos = new Map<string, Pos>()
+    for (const [c, names] of byCol) {
+      names.sort()
+      const totalH = names.length * ROW_GAP
+      names.forEach((name, i) => {
+        pos.set(name, { x: MARGIN + c * COL_GAP, y: (flowH - totalH) / 2 + i * ROW_GAP + ROW_GAP / 2 })
+      })
+    }
+    idle.sort().forEach((name, i) => {
+      pos.set(name, { x: MARGIN + i * (NODE_W + 40), y: flowH + 40 })
     })
-    // externals on a clearly-outer arc (right side), padded so they never sit on a service node
-    externals.forEach((n, i) => {
-      const a = -Math.PI * 0.12 + (i * Math.PI * 0.24) / Math.max(externals.length - 1, 1)
-      pos.set(n.name, { x: cx + (r + 150) * Math.cos(a), y: cy + (r + 150) * Math.sin(a) })
-    })
-    return { W, H, pos }
+    return { W, H, pos, idle: new Set(idle) }
   }, [graph])
 
   if (!graph || !layout) return <p className="map__hint">…</p>
 
   const maxMean = Math.max(...graph.edges.map((e) => e.mean ?? 0), 0)
   const maxRate = Math.max(...Object.values(rates), 0)
+  const nodeRate = (name: string, dir: 'in' | 'out') =>
+    graph.edges.reduce((a, e) => a + ((dir === 'out' ? e.from : e.to) === name ? (rates[`${e.from}→${e.to}`] ?? 0) : 0), 0)
+
+  const edgeColor = (e: GraphEdge) => {
+    const errPct = e.count > 0 ? (e.error5xx / e.count) * 100 : 0
+    if (errPct > 0) return '#e5484d'
+    if (maxMean > 0 && (e.mean ?? 0) >= maxMean && graph.edges.length > 1) return '#e0a106'
+    return '#4d82c4'
+  }
+
+  const dimmed = (name: string) =>
+    selected != null && name !== selected && !graph.edges.some((e) =>
+      (e.from === selected && e.to === name) || (e.from === name && e.to === selected))
+
+  const selNode = selected ? graph.nodes.find((n) => n.name === selected) : null
+  const uses = selected ? graph.edges.filter((e) => e.from === selected) : []
+  const usedBy = selected ? graph.edges.filter((e) => e.to === selected) : []
 
   return (
     <div className="map">
       {graph.edges.length === 0 && <p className="map__hint">{t('map.empty')}</p>}
-      <svg viewBox={`0 0 ${layout.W} ${layout.H}`} className="map__svg" role="img" aria-label={t('map.title')}>
-        <defs>
-          {['#3d6fa8', '#e0a106', '#e5484d'].map((c) => (
-            <marker key={c} id={`arr-${c.slice(1)}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 1 L 9 5 L 0 9 z" fill={c} />
-            </marker>
-          ))}
-        </defs>
-        {graph.edges.map((e) => {
-          const a = layout.pos.get(e.from)
-          const b = layout.pos.get(e.to)
-          if (!a || !b) return null
-          const k = `${e.from}→${e.to}`
-          const rate = rates[k] ?? null
-          const errPct = e.count > 0 ? (e.error5xx / e.count) * 100 : 0
-          const color = errPct > 0 ? '#e5484d' : (maxMean > 0 && (e.mean ?? 0) >= maxMean && graph.edges.length > 1 ? '#e0a106' : '#3d6fa8')
-          const width = 1.5 + (maxRate > 0 && rate != null ? (rate / maxRate) * 3.5 : 1)
-          // shorten the line so the arrowhead lands on the node ring, not its center
-          const dx = b.x - a.x
-          const dy = b.y - a.y
-          const len = Math.hypot(dx, dy) || 1
-          const pad = 26
-          const x1 = a.x + (dx / len) * pad
-          const y1 = a.y + (dy / len) * pad
-          const x2 = b.x - (dx / len) * pad
-          const y2 = b.y - (dy / len) * pad
-          return (
-            <line
-              key={k}
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={color} strokeWidth={width} markerEnd={`url(#arr-${color.slice(1)})`}
-              opacity={0.85} className="map__edge"
-              onMouseEnter={() => setHover({ x: (x1 + x2) / 2, y: (y1 + y2) / 2, from: e.from, to: e.to, rate, mean: e.mean, max: e.max, errPct })}
-              onMouseLeave={() => setHover(null)}
-            />
-          )
-        })}
-        {graph.nodes.map((n) => {
-          const p = layout.pos.get(n.name)
-          if (!p) return null
-          return (
-            <g
-              key={n.name}
-              transform={`translate(${p.x},${p.y})`}
-              className={n.external ? 'map__node map__node--ext' : 'map__node'}
-              onClick={() => { if (!n.external) onSelect(n.name) }}
-            >
-              {n.external ? (
-                <rect x={-9} y={-9} width={18} height={18} rx={4} fill="#12151c" stroke="#5a6270" strokeWidth={1.5} />
-              ) : (
-                <>
-                  <circle r={14} fill="#12151c" stroke={STATE_COLOR[n.state]} strokeWidth={2.5} />
-                  <circle r={4.5} fill={STATE_COLOR[n.state]} />
-                </>
-              )}
-              <text y={n.external ? 26 : 32} textAnchor="middle" className="map__label">{n.name}</text>
-            </g>
-          )
-        })}
-        {hover && (
-          <g transform={`translate(${Math.min(hover.x, layout.W - 190)},${Math.max(hover.y - 58, 8)})`} pointerEvents="none">
-            <rect width={185} height={52} rx={8} fill="#0d0f14" stroke="#384057" />
-            <text x={10} y={17} className="map__tip map__tip--title">{hover.from} → {hover.to}</text>
-            <text x={10} y={33} className="map__tip">
-              {hover.rate != null ? `${hover.rate.toFixed(1)}/s` : '—'} · avg {formatValue(hover.mean, 'SECONDS')} · max {formatValue(hover.max, 'SECONDS')}
-            </text>
-            <text x={10} y={46} className="map__tip">5xx {hover.errPct.toFixed(hover.errPct > 0 && hover.errPct < 1 ? 1 : 0)}%</text>
-          </g>
+      <div className="map__stage">
+        <svg viewBox={`0 0 ${layout.W} ${layout.H}`} className="map__svg" role="img" aria-label={t('map.title')} onClick={() => setSelected(null)}>
+          {graph.edges.map((e, i) => {
+            const a = layout.pos.get(e.from)
+            const b = layout.pos.get(e.to)
+            if (!a || !b) return null
+            const k = `${e.from}→${e.to}`
+            const rate = rates[k] ?? null
+            const color = edgeColor(e)
+            const x1 = a.x + NODE_W / 2
+            const y1 = a.y
+            const x2 = b.x - NODE_W / 2 - 8
+            const y2 = b.y
+            const bend = Math.max(60, (x2 - x1) / 2)
+            // Edges that span more than one column arc OVER the middle nodes instead of stabbing
+            // through their cards (which read as a different edge entirely).
+            const span = Math.round((b.x - a.x) / COL_GAP)
+            const lift = span > 1 ? -(NODE_H + 34) : 0
+            const path = span > 1
+              ? `M ${x1} ${y1} C ${x1 + bend * 0.7} ${y1 + lift}, ${x2 - bend * 0.7} ${y2 + lift}, ${x2} ${y2}`
+              : `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`
+            const width = 1.6 + (maxRate > 0 && rate != null ? (rate / maxRate) * 3 : 0.8)
+            const isDim = selected != null && e.from !== selected && e.to !== selected
+            const particles = rate != null && rate > 0 ? Math.min(4, 1 + Math.floor(rate / 2)) : 0
+            const dur = rate != null && rate > 0 ? Math.max(0.9, 3.2 - rate * 0.35) : 3
+            const midX = (x1 + x2) / 2
+            const midY = (y1 + y2) / 2 - 12 + (span > 1 ? lift * 0.72 : 0)
+            const label = `${rate != null ? rate.toFixed(1) : '–'}/s · ${formatValue(e.mean, 'SECONDS')}`
+            return (
+              <g key={k} opacity={isDim ? 0.15 : 1} className="map__edgeg">
+                <path d={path} fill="none" stroke={color} strokeWidth={width + 5} opacity={0.12} />
+                <path id={`edge-${i}`} d={path} fill="none" stroke={color} strokeWidth={width} opacity={0.9}
+                  markerEnd="none" strokeLinecap="round" />
+                <polygon
+                  points={`${x2},${y2} ${x2 - 9},${y2 - 4.5} ${x2 - 9},${y2 + 4.5}`}
+                  fill={color}
+                />
+                {Array.from({ length: particles }, (_, p) => (
+                  <circle key={p} r={2.6} fill={color} opacity={0.95}>
+                    <animateMotion dur={`${dur}s`} repeatCount="indefinite" begin={`${(p * dur) / particles}s`}>
+                      <mpath href={`#edge-${i}`} />
+                    </animateMotion>
+                  </circle>
+                ))}
+                <g transform={`translate(${midX},${midY})`} pointerEvents="none">
+                  <rect x={-46} y={-11} width={92} height={18} rx={9} fill="#0d0f14" stroke="#2a2f3a" opacity={0.95} />
+                  <text textAnchor="middle" y={3.5} className="map__edge-label">{label}</text>
+                </g>
+              </g>
+            )
+          })}
+          {graph.nodes.map((n) => {
+            const p = layout.pos.get(n.name)
+            if (!p) return null
+            const color = STATE_COLOR[n.state]
+            const inR = nodeRate(n.name, 'in')
+            const outR = nodeRate(n.name, 'out')
+            const isSel = selected === n.name
+            return (
+              <g
+                key={n.name}
+                transform={`translate(${p.x - NODE_W / 2},${p.y - NODE_H / 2})`}
+                className="map__card"
+                opacity={dimmed(n.name) ? 0.25 : 1}
+                onClick={(ev) => { ev.stopPropagation(); setSelected(isSel ? null : n.name) }}
+              >
+                <rect
+                  width={NODE_W} height={NODE_H} rx={11}
+                  fill={n.external ? '#0d0f14' : '#141924'}
+                  stroke={isSel ? '#6ea8e0' : n.external ? '#384057' : color}
+                  strokeWidth={isSel ? 2.5 : 1.8}
+                  strokeDasharray={n.external ? '4 3' : undefined}
+                />
+                {!n.external && <circle cx={16} cy={NODE_H / 2 - 8} r={4.5} fill={color} />}
+                <text x={n.external ? 12 : 27} y={NODE_H / 2 - 4} className={n.external ? 'map__name map__name--ext' : 'map__name'}>
+                  {n.name.length > 16 ? `${n.name.slice(0, 15)}…` : n.name}
+                </text>
+                <text x={n.external ? 12 : 27} y={NODE_H / 2 + 13} className="map__sub">
+                  {n.external ? t('map.external') : `↓ ${inR.toFixed(1)}/s · ↑ ${outR.toFixed(1)}/s`}
+                </text>
+              </g>
+            )
+          })}
+        </svg>
+
+        {selected && selNode && (
+          <aside className="map__panel" role="dialog" aria-label={selected}>
+            <header className="map__panel-head">
+              {!selNode.external && <span className="admin-dot" style={{ color: STATE_COLOR[selNode.state] }}>●</span>}
+              <strong className="map__panel-title">{selected}</strong>
+              <button className="map__panel-close" onClick={() => setSelected(null)} aria-label="close">×</button>
+            </header>
+            {selNode.external && <p className="admin-muted admin-small">{t('map.externalHint')}</p>}
+
+            {uses.length > 0 && (
+              <>
+                <h4 className="map__panel-sub">{t('map.uses', { n: uses.length })}</h4>
+                {uses.map((e) => <PanelRow key={e.to} name={e.to} edge={e} rate={rates[`${e.from}→${e.to}`]} onPick={(nm) => setSelected(nm)} />)}
+              </>
+            )}
+            {usedBy.length > 0 && (
+              <>
+                <h4 className="map__panel-sub">{t('map.usedBy', { n: usedBy.length })}</h4>
+                {usedBy.map((e) => <PanelRow key={e.from} name={e.from} edge={e} rate={rates[`${e.from}→${e.to}`]} onPick={(nm) => setSelected(nm)} />)}
+              </>
+            )}
+            {uses.length === 0 && usedBy.length === 0 && <p className="admin-muted admin-small">{t('map.noEdges')}</p>}
+
+            {!selNode.external && (
+              <button className="admin-btn admin-btn--primary map__panel-open" onClick={() => onSelect(selected)}>
+                {t('map.openDetail')}
+              </button>
+            )}
+          </aside>
         )}
-      </svg>
+      </div>
       <p className="map__legend">
-        <span><span className="map__dot" style={{ background: '#3d6fa8' }} />{t('map.legendOk')}</span>
+        <span><span className="map__dot" style={{ background: '#4d82c4' }} />{t('map.legendOk')}</span>
         <span><span className="map__dot" style={{ background: '#e0a106' }} />{t('map.legendSlow')}</span>
         <span><span className="map__dot" style={{ background: '#e5484d' }} />{t('map.legend5xx')}</span>
         <span>{t('map.legendHint')}</span>
       </p>
     </div>
+  )
+}
+
+function PanelRow({ name, edge, rate, onPick }: { name: string; edge: GraphEdge; rate?: number; onPick: (name: string) => void }) {
+  const errPct = edge.count > 0 ? (edge.error5xx / edge.count) * 100 : 0
+  return (
+    <button className="map__panel-row" onClick={() => onPick(name)}>
+      <span className="map__panel-name">{name}</span>
+      <span className="map__panel-stats">
+        {rate != null ? `${rate.toFixed(1)}/s` : '—'} · {formatValue(edge.mean, 'SECONDS')}
+        {errPct > 0 && <span className="outbound__err"> · 5xx {errPct.toFixed(1)}%</span>}
+      </span>
+    </button>
   )
 }

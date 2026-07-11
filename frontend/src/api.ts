@@ -164,3 +164,19 @@ export async function fetchGraph(): Promise<ServiceGraph> {
   if (!res.ok) throw new Error(`GET /api/graph: ${res.status}`)
   return res.json()
 }
+
+export async function restoreBackup(name: string): Promise<{ rows: number; tookMs: number }> {
+  const res = await fetch(`${BASE}/api/history/backups/${encodeURIComponent(name)}/restore`, { method: 'POST' })
+  if (!res.ok) throw await asApiError(res)
+  return res.json()
+}
+
+export async function uploadBackup(file: File): Promise<BackupFile> {
+  const res = await fetch(`${BASE}/api/history/backups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: file,
+  })
+  if (!res.ok) throw await asApiError(res)
+  return res.json()
+}

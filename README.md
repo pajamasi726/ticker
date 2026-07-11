@@ -45,9 +45,11 @@ at a glance — not arbitrary-metric exploration.
   to cold storage (guardrail #5).
 - **Add monitors from the UI or from code** — a plain HTTP endpoint from the wall, or targets /
   alert rules from a `TickerConfigurer` bean. Static `targets.yml` also works.
-- **Service map without tracing.** A wall-level **map view** (Wall/Map toggle) draws your services
-  as state-colored nodes with call edges between them — arrow width = call rate, amber = slowest
-  edge, red = has 5xx; hover for rate/latency, click a node to open it. Each SPRING detail also
+- **Service map without tracing.** A wall-level **map view** (Wall/Map toggle) lays your services
+  out as a left→right call flow — state-colored node cards with live in/out rates, bezier edges
+  carrying always-visible `rate/s · avg` labels and **animated traffic dots** that speed up with
+  load (amber = slowest edge, red = has 5xx, idle services parked in a bottom band). Click a node
+  for a side panel of who it calls / who calls it, then jump to its detail. Each SPRING detail also
   shows both directions: who it calls (per host → per path, with jump chips) and **who calls it**.
   All aggregated from Boot's auto-instrumented `http.client.requests` — for a monolith split across
   a few servers this answers "which server, which requests, how slow" with **zero tracing
@@ -55,8 +57,9 @@ at a glance — not arbitrary-metric exploration.
   Collected when apps use Boot-built clients (`RestTemplateBuilder` / `WebClient.Builder` /
   `RestClient.Builder`; on Boot 4 add `spring-boot-starter-restclient` for RestClient).
 - **Admin view (⚙)** — operate the collector from the UI: storage stats + one-click zero-downtime
-  H2 backup (list/download), deploy silence windows, alert-rule toggles, the target registry with
-  per-instance heartbeats, and the collector's own config at a glance. `ticker.server.admin-enabled=false`
+  H2 backup (list / download / **upload** / **one-click restore**, no restart), deploy silence
+  windows, alert-rule toggles, the target registry with per-instance heartbeats, and the collector's
+  own config at a glance. `ticker.server.admin-enabled=false`
   hides the whole surface.
 - **i18n** — Korean / English, switchable top-right.
 - **Single Docker image** — Spring Boot serves the built React assets; Java 21, virtual threads on.
@@ -103,7 +106,7 @@ Add the **server** starter to a Spring Boot app and enable it:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.5.0")
+    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.6.0")
 }
 ```
 ```yaml
@@ -131,9 +134,9 @@ always runs on Boot 4 / Java 21; a Boot 3.2+ app on Java 17+ registers with it o
 ```kotlin
 dependencies {
     // on a Spring Boot 4.x app:
-    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.5.0")
+    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.6.0")
     // …or on a Spring Boot 3.2+ app instead (same config, same behaviour — only the artifact differs):
-    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.5.0")
+    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.6.0")
 }
 ```
 ```yaml
@@ -231,9 +234,12 @@ one row per resolved dashboard widget per sample into `metric_sample` — so the
   Same button lives in the **admin view** (gear icon), plus `GET /api/history/backups` to list and
   `GET /api/history/backups/<name>` to download. Automate with `ticker.history.backup.schedule`
   (Spring cron); rolling caps (`file-retention`, `max-total-size-mb`) default **off** so a manual
-  backup is never silently deleted. **Restore** = unzip, place the `.mv.db` at `ticker.history.h2-path`,
-  start. MySQL/PostgreSQL keep using their native tools: `mysqldump --single-transaction <db>
-  metric_sample` (safe live) / `pg_dump -t metric_sample` — the endpoint answers 400 with that hint.
+  backup is never silently deleted. **Restore is one click too** — ↩ on any listed backup (or
+  `POST /api/history/backups/<name>/restore`) replaces the live table's rows from that snapshot
+  with **no restart** (the zip's `.mv.db` is opened as a second embedded H2 and streamed across);
+  carry a zip from another server with **⬆ upload** (`POST /api/history/backups`, raw zip body).
+  MySQL/PostgreSQL keep using their native tools: `mysqldump --single-transaction <db>
+  metric_sample` (safe live) / `pg_dump -t metric_sample` — the endpoints answer 400 with that hint.
 - **Wiping history manually.** `TRUNCATE TABLE metric_sample` is safe **while the app runs** — the recorder
   keeps inserting from the next sample and the charts refill. `DROP TABLE` won't crash anything either
   (each failed save logs a WARN), but saves keep failing until a restart, when `init-schema=true` (default)

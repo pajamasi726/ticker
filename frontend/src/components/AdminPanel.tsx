@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AdminInfo, AdminTarget, AlertFire, AlertRule, BackupFile, HistoryStats, SilenceView } from '../types'
 import {
   ApiError, backupDownloadUrl, clearSilence, deleteBackup, fetchAdminInfo, fetchAdminTargets,
   fetchAlertRules, fetchBackups, fetchHistoryStats, fetchRecentAlerts, fetchSilence, removeTarget,
-  startSilence, triggerBackup, updateAlertRule,
+  restoreBackup, startSilence, triggerBackup, updateAlertRule, uploadBackup,
 } from '../api'
 import { formatValue } from '../format'
 import { useT } from '../i18n'
@@ -48,6 +48,7 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<BackupNote | null>(null)
   const [minutes, setMinutes] = useState('10')
+  const fileRef = useRef<HTMLInputElement | null>(null)
   const [editingRule, setEditingRule] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
 
@@ -83,6 +84,26 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
   const onDeleteBackup = (name: string) => {
     if (!window.confirm(t('admin.backup.deleteConfirm', { name }))) return
     deleteBackup(name).then(reload).catch(() => {})
+  }
+
+  const onRestore = (name: string) => {
+    if (!window.confirm(t('admin.backup.restoreConfirm', { name }))) return
+    setBusy(true)
+    setNote(null)
+    restoreBackup(name)
+      .then((r) => { setNote({ kind: 'ok', name: t('admin.backup.restored', { rows: r.rows.toLocaleString(), ms: r.tookMs }), bytes: -1, ms: -1 }); reload() })
+      .catch((e) => setNote({ kind: 'err', msg: e instanceof ApiError ? e.message : String(e) }))
+      .finally(() => setBusy(false))
+  }
+
+  const onUpload = (file: File | undefined) => {
+    if (!file) return
+    setBusy(true)
+    setNote(null)
+    uploadBackup(file)
+      .then((r) => { setNote({ kind: 'ok', name: t('admin.backup.uploaded', { name: r.name }), bytes: -1, ms: -1 }); reload() })
+      .catch((e) => setNote({ kind: 'err', msg: e instanceof ApiError ? e.message : String(e) }))
+      .finally(() => { setBusy(false); if (fileRef.current) fileRef.current.value = '' })
   }
 
   const onSilence = (m: number) => {
@@ -153,9 +174,18 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
 
               <div className="admin-actions">
                 {stats.backupSupported ? (
-                  <button className="admin-btn admin-btn--primary" onClick={onBackup} disabled={busy}>
-                    {busy ? t('admin.backup.running') : `⬇ ${t('admin.backup.now')}`}
-                  </button>
+                  <>
+                    <button className="admin-btn admin-btn--primary" onClick={onBackup} disabled={busy}>
+                      {busy ? t('admin.backup.running') : `⬇ ${t('admin.backup.now')}`}
+                    </button>
+                    <button className="admin-btn" onClick={() => fileRef.current?.click()} disabled={busy}>
+                      ⬆ {t('admin.backup.upload')}
+                    </button>
+                    <input
+                      ref={fileRef} type="file" accept=".zip" style={{ display: 'none' }}
+                      onChange={(e) => onUpload(e.target.files?.[0])}
+                    />
+                  </>
                 ) : (
                   <span className="admin-muted">{t('admin.backup.unsupported')}</span>
                 )}
@@ -163,7 +193,7 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
               {note && (
                 <p className={`admin-note ${note.kind === 'err' ? 'admin-note--err' : ''}`} role="status">
                   {note.kind === 'ok'
-                    ? t('admin.backup.done', { name: note.name, size: humanBytes(note.bytes), ms: note.ms })
+                    ? (note.bytes < 0 ? note.name : t('admin.backup.done', { name: note.name, size: humanBytes(note.bytes), ms: note.ms }))
                     : note.msg}
                 </p>
               )}
@@ -183,7 +213,8 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
                         </td>
                         <td className="admin-table__actions admin-nowrap">
                           <a className="admin-iconbtn" href={backupDownloadUrl(b.name)} title={t('admin.backup.download')} aria-label={t('admin.backup.download')}>⬇</a>
-                          <button className="admin-iconbtn admin-iconbtn--danger" onClick={() => onDeleteBackup(b.name)} title={t('admin.backup.delete')} aria-label={t('admin.backup.delete')}>🗑</button>
+                          <button className="admin-iconbtn" onClick={() => onRestore(b.name)} disabled={busy} title={t('admin.backup.restore')} aria-label={t('admin.backup.restore')}>↩</button>
+                          <button className="admin-iconbtn admin-iconbtn--danger" onClick={() => onDeleteBackup(b.name)} disabled={busy} title={t('admin.backup.delete')} aria-label={t('admin.backup.delete')}>🗑</button>
                         </td>
                       </tr>
                     ))}
