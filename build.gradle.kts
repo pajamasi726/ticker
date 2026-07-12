@@ -15,7 +15,7 @@ plugins {
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"
-    version = "0.7.0"   // 0.7.0: drag-to-arrange map (persisted, resettable) + uniform admin cards + wall→dashboard rename
+    version = "0.7.1"   // 0.7.1: in-app zoom control (Chrome-style, persisted) replacing html auto-zoom that clipped the page bottom
     repositories { mavenCentral() }
 
     apply(plugin = "jacoco")

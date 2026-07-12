@@ -8,6 +8,7 @@ import { ServiceMap } from './components/ServiceMap'
 import { SummaryBar } from './components/SummaryBar'
 import { AddMonitor } from './components/AddMonitor'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
+import { ZoomControl } from './components/ZoomControl'
 import { useT } from './i18n'
 
 const POLL_MS = 5000
@@ -48,6 +49,7 @@ export default function App() {
   return (
     <>
       <div className="app__lang">
+        <ZoomControl />
         <button
           className={`app__gear${adminOpen ? ' app__gear--active' : ''}`}
           onClick={() => setAdminOpen((v) => !v)}

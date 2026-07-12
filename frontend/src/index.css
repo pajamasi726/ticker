@@ -14,9 +14,8 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 /* Resolution-consistent sizing: scale the WHOLE UI up on large monitors (like browser zoom),
    so the board reads the same on a 4K wall display as on a laptop instead of shrinking into
    a corner. Tiers, not vw-proportional, so text stays crisp and layouts stay stable. */
-@media (min-width: 1800px) { html { zoom: 1.2; } }
-@media (min-width: 2400px) { html { zoom: 1.45; } }
-@media (min-width: 3200px) { html { zoom: 1.8; } }
+/* Wide-screen auto-zoom moved into the header ZoomControl (html-level zoom broke page-bottom
+   scrolling under some browser-zoom combos; the control zooms <body> instead). */
 .app { padding:16px 20px; }
 .app__header { display:flex; align-items:baseline; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
 .app__header h1 { font-size:18px; margin:0; letter-spacing:.5px; font-weight:700; }
@@ -484,6 +483,11 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 /* Language switcher — fixed top-right, same segmented-button style as scale toggle */
 .app__lang { position: fixed; top: 12px; right: 16px; z-index: 100; }
 .lang-switch { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+.zoomctl { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; background: var(--bg-1); }
+.zoomctl button { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 3px 8px; line-height: 1.4; }
+.zoomctl button:hover:not(:disabled) { color: var(--text); background: rgba(255,255,255,0.06); }
+.zoomctl button:disabled { opacity: 0.35; cursor: default; }
+.zoomctl__pct { font-family: var(--mono); font-size: 11px; min-width: 44px; border-left: 1px solid var(--border) !important; border-right: 1px solid var(--border) !important; }
 .lang-switch button { background: var(--bg-0); border: none; color: var(--text-dim); font-family: var(--mono); font-size: 10px; padding: 4px 10px; cursor: pointer; letter-spacing: 0; }
 .lang-switch button:hover { color: var(--text); }
 .lang-switch button.on { background: var(--accent); color: #fff; }
@@ -524,7 +528,7 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
   border-radius: 8px; padding: 2px 9px; font-size: 15px; cursor: pointer; margin-right: 6px;
 }
 .app__gear:hover, .app__gear--active { color: var(--fg, #e6e9ef); border-color: #4a5160; }
-.admin { max-width: 1200px; margin: 0 auto; }
+.admin { max-width: 1200px; margin: 0 auto; padding-bottom: 40px; }
 .admin__grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
 .admin-card { background: var(--tile-bg, #12151c); border: 1px solid var(--border, #2a2f3a); border-radius: 12px; padding: 16px 18px; min-width: 0; }
 .admin-card--wide { grid-column: 1 / -1; }
@@ -609,7 +613,7 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
   margin-right: 0; width: auto; height: 24px; display: inline-flex; align-items: center;
   padding: 0 11px; font-size: 14px; border-radius: var(--r-sm);
 }
-.app__header { padding-right: 170px; }
+.app__header { padding-right: 300px; } /* fixed corner group: zoom + gear + language */
 .admin-silence { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; }
 .admin-silence__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .admin-silence__custom { border-left: none; padding-left: 0; margin-left: 0; }
