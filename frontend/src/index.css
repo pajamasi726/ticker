@@ -525,7 +525,7 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 }
 .app__gear:hover, .app__gear--active { color: var(--fg, #e6e9ef); border-color: #4a5160; }
 .admin { max-width: 1200px; margin: 0 auto; }
-.admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; margin-top: 16px; }
+.admin__grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
 .admin-card { background: var(--tile-bg, #12151c); border: 1px solid var(--border, #2a2f3a); border-radius: 12px; padding: 16px 18px; min-width: 0; }
 .admin-card--wide { grid-column: 1 / -1; }
 .admin-card__title { margin: 0 0 12px; font-size: 15px; letter-spacing: 0.02em; }
@@ -678,7 +678,9 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 /* ---- Map v2 ---- */
 .map__stage { position: relative; overflow-x: auto; }
 /* Very wide fleets scroll horizontally instead of scaling text below readability. */
-.map__card { cursor: pointer; }
+.map__card { cursor: grab; touch-action: none; }
+.map__card:active { cursor: grabbing; }
+.map__reset { position: absolute; top: 8px; left: 8px; z-index: 2; }
 .map__card:hover rect { filter: brightness(1.25); }
 .map__name { fill: var(--text); font-size: 13px; font-weight: 600; }
 .map__name--ext { font-family: var(--mono); font-size: 11.5px; font-weight: 400; fill: var(--text-dim); }

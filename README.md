@@ -45,13 +45,15 @@ at a glance — not arbitrary-metric exploration.
   to cold storage (guardrail #5).
 - **Add monitors from the UI or from code** — a plain HTTP endpoint from the wall, or targets /
   alert rules from a `TickerConfigurer` bean. Static `targets.yml` also works.
-- **Service map without tracing.** A wall-level **map view** (Wall/Map toggle) lays your services
-  out as a left→right call flow (callers always left of callees) — state-colored node cards with
-  live in/out rates, and **orthogonal 90°-bend edges** where every edge gets its own vertical lane
-  and longer hops ride highway tracks above the flow, so lines stay untangled as the fleet grows.
-  **Animated traffic dots** speed up with load (amber = slowest edge, red = has 5xx); `rate/s · avg`
-  labels stay always-on for small fleets and reveal on hover/selection beyond that. Click a node
-  for a side panel of who it calls / who calls it, then jump to its detail. Each SPRING detail also
+- **Service map without tracing.** A top-level **map view** (Dashboard/Map toggle) lays your
+  services out as a left→right call flow (callers always left of callees) — state-colored node
+  cards with live in/out rates, and **orthogonal 90°-bend edges** where every edge gets its own
+  vertical lane and longer hops ride highway tracks above the flow, so lines stay untangled as the
+  fleet grows. **Animated traffic dots** speed up with load (amber = slowest edge, red = has 5xx);
+  `rate/s · avg` labels stay always-on for small fleets and reveal on hover/selection beyond that.
+  **Drag any card** to rearrange — positions persist in your browser (edges re-route around the
+  moved cards) and one click restores the auto layout. Click a node for a side panel of who it
+  calls / who calls it, then jump to its detail. Each SPRING detail also
   shows both directions: who it calls (per host → per path, with jump chips) and **who calls it**.
   All aggregated from Boot's auto-instrumented `http.client.requests` — for a monolith split across
   a few servers this answers "which server, which requests, how slow" with **zero tracing
@@ -108,7 +110,7 @@ Add the **server** starter to a Spring Boot app and enable it:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.6.1")
+    implementation("io.stevelabs:ticker-server-spring-boot-starter:0.7.0")
 }
 ```
 ```yaml
@@ -136,9 +138,9 @@ always runs on Boot 4 / Java 21; a Boot 3.2+ app on Java 17+ registers with it o
 ```kotlin
 dependencies {
     // on a Spring Boot 4.x app:
-    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.6.1")
+    implementation("io.stevelabs:ticker-client-spring-boot-starter:0.7.0")
     // …or on a Spring Boot 3.2+ app instead (same config, same behaviour — only the artifact differs):
-    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.6.1")
+    // implementation("io.stevelabs:ticker-client-spring-boot3-starter:0.7.0")
 }
 ```
 ```yaml

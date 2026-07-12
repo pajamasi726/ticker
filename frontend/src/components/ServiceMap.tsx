@@ -12,6 +12,7 @@ const BASE_GAP = 120 // min horizontal gap between columns
 const LANE_STEP = 26 // spacing between vertical edge lanes inside a gap
 const TRACK_STEP = 26 // spacing between highway tracks above the flow
 const CORNER = 8 // rounded-corner radius on 90° bends
+const LAYOUT_KEY = 'ticker-map-layout' // user-dragged node positions, per browser
 
 const STATE_COLOR: Record<string, string> = {
   UP: '#2ecc71', DEGRADED: '#e0a106', DOWN: '#e5484d', UNKNOWN: '#5a6270',
@@ -19,6 +20,22 @@ const STATE_COLOR: Record<string, string> = {
 
 interface Pos { x: number; y: number }
 interface Route { d: string; ax: number; ay: number; labelX: number; labelY: number }
+
+function loadOverrides(): Record<string, Pos> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? '{}') as Record<string, Pos>
+    return typeof raw === 'object' && raw !== null ? raw : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveOverrides(o: Record<string, Pos>) {
+  try {
+    if (Object.keys(o).length === 0) localStorage.removeItem(LAYOUT_KEY)
+    else localStorage.setItem(LAYOUT_KEY, JSON.stringify(o))
+  } catch { /* storage full/blocked — dragging still works for the session */ }
+}
 
 /** Orthogonal path through the given corner points, with rounded 90° bends. */
 function orthoPath(pts: Array<[number, number]>): string {
@@ -43,13 +60,19 @@ function orthoPath(pts: Array<[number, number]>): string {
  * longer/backward edge rides a dedicated horizontal highway track above the flow — so lines
  * never overlap each other or stab through node cards. Ports fan out along each card's sides.
  * Edge labels stay always-on for small fleets and switch to hover/selection reveal beyond
- * 6 edges. Still zero graph-library dependencies.
+ * 6 edges. Nodes are DRAGGABLE on top of the auto layout: moved cards keep their spot in
+ * localStorage (edges re-route point-to-point around them), and a reset button returns to the
+ * computed default. Still zero graph-library dependencies.
  */
 export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
   const t = useT()
   const [graph, setGraph] = useState<ServiceGraph | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
+  const [overrides, setOverrides] = useState<Record<string, Pos>>(loadOverrides)
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const dragRef = useRef<{ name: string; startX: number; startY: number; orig: Pos; moved: boolean } | null>(null)
+  const justDragged = useRef(false)
   const prev = useRef<{ at: number; counts: Record<string, number> } | null>(null)
   const [rates, setRates] = useState<Record<string, number>>({})
 
@@ -211,7 +234,7 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
     //    into rows in a bottom band instead of one unbounded strip.
     const tallest = Math.max(1, ...[...byCol.values()].map((v) => v.length))
     const flowH = Math.max(260, tallest * ROW_GAP)
-    const W = Math.max(...xLeft.map((x) => x + NODE_W), ML + NODE_W) + 24
+    let W = Math.max(...xLeft.map((x) => x + NODE_W), ML + NODE_W) + 24
     const pos = new Map<string, Pos>()
     for (const [c, names] of byCol) {
       const totalH = names.length * ROW_GAP
@@ -227,7 +250,18 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
       })
     })
     const idleRows = idle.length > 0 ? Math.ceil(idle.length / idlePerRow) : 0
-    const H = topPad + flowH + (idleRows > 0 ? 30 + idleRows * (NODE_H + 26) : 20)
+    let H = topPad + flowH + (idleRows > 0 ? 30 + idleRows * (NODE_H + 26) : 20)
+
+    // 6b) User-dragged positions override the computed ones (the default layout stays the base:
+    //     un-dragged nodes never reflow because of a dragged neighbor). Canvas grows to fit.
+    const custom = new Set<string>()
+    for (const [name, p] of Object.entries(overrides)) {
+      if (!pos.has(name)) continue
+      pos.set(name, p)
+      custom.add(name)
+      W = Math.max(W, p.x + NODE_W / 2 + 24)
+      H = Math.max(H, p.y + NODE_H / 2 + 24)
+    }
 
     // 7) Ports: fan incoming/outgoing edges along each card's left/right side (sorted by the
     //    other end's row) so several edges never converge on one point.
@@ -243,6 +277,17 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
     }
 
     // 8) Routes: orthogonal points → rounded path + a label anchor on the longest horizontal run.
+    //    Edges touching a dragged node leave the lane grid and route point-to-point instead
+    //    (Z-shape forward, a below-the-cards loop when the target sits left of the source).
+    //    Their segments dodge OTHER cards by sliding to the nearest collision-free offset —
+    //    cheap, not a full router, but keeps lines from vanishing under unrelated nodes.
+    const rects = [...pos.entries()].map(([nm, p]) => ({
+      nm, x1: p.x - NODE_W / 2 - 6, x2: p.x + NODE_W / 2 + 6, y1: p.y - NODE_H / 2 - 6, y2: p.y + NODE_H / 2 + 6,
+    }))
+    const hitsV = (x: number, ya: number, yb: number, skip: Set<string>) =>
+      rects.some((r) => !skip.has(r.nm) && x >= r.x1 && x <= r.x2 && Math.max(ya, yb) >= r.y1 && Math.min(ya, yb) <= r.y2)
+    const hitsH = (y: number, xa: number, xb: number, skip: Set<string>) =>
+      rects.some((r) => !skip.has(r.nm) && y >= r.y1 && y <= r.y2 && Math.max(xa, xb) >= r.x1 && Math.min(xa, xb) <= r.x2)
     const routes = new Map<string, Route>()
     for (const c of classified) {
       const key = `${c.e.from}→${c.e.to}`
@@ -253,7 +298,35 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
       const y2 = b.y + (inPort.get(key) ?? 0)
       const x1 = a.x + NODE_W / 2
       const x2 = b.x - NODE_W / 2 - 8
-      if (c.kind === 'adj') {
+      if (custom.has(c.e.from) || custom.has(c.e.to)) {
+        const skip = new Set([c.e.from, c.e.to])
+        if (x2 - x1 >= 44) {
+          const mx = (x1 + x2) / 2
+          if (Math.abs(y1 - y2) < 3) {
+            routes.set(key, { d: orthoPath([[x1, y1], [x2, y2]]), ax: x2, ay: y2, labelX: (x1 + x2) / 2, labelY: y1 - 12 })
+          } else {
+            // Slide the vertical of the Z to a collision-free x (midpoint first, then outward).
+            let vx = mx
+            const cands = [mx]
+            for (let k = 1; k <= 8; k++) { cands.push(mx + k * 36, mx - k * 36) }
+            for (const cand of cands) {
+              if (cand <= x1 + 12 || cand >= x2 - 12) continue
+              if (!hitsV(cand, y1, y2, skip) && !hitsH(y1, x1, cand, skip) && !hitsH(y2, cand, x2, skip)) { vx = cand; break }
+            }
+            const pts: Array<[number, number]> = [[x1, y1], [vx, y1], [vx, y2], [x2, y2]]
+            routes.set(key, { d: orthoPath(pts), ax: x2, ay: y2, labelX: vx, labelY: (y1 + y2) / 2 })
+          }
+        } else {
+          // Backward: loop under the cards, dropping the run further down until it's clear.
+          let yd = Math.max(a.y, b.y) + NODE_H / 2 + 28
+          for (let k = 0; k <= 8; k++) {
+            const cand = yd + k * 36
+            if (!hitsH(cand, x1 + 22, x2 - 22, skip) && !hitsV(x1 + 22, y1, cand, skip) && !hitsV(x2 - 22, cand, y2, skip)) { yd = cand; break }
+          }
+          const pts: Array<[number, number]> = [[x1, y1], [x1 + 22, y1], [x1 + 22, yd], [x2 - 22, yd], [x2 - 22, y2], [x2, y2]]
+          routes.set(key, { d: orthoPath(pts), ax: x2, ay: y2, labelX: (x1 + x2) / 2, labelY: yd - 12 })
+        }
+      } else if (c.kind === 'adj') {
         const lx = laneX(c.upGap, `${key}@up`)
         const pts: Array<[number, number]> = Math.abs(y1 - y2) < 3
           ? [[x1, y1], [x2, y2]]
@@ -275,7 +348,7 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
     }
 
     return { W, H, pos, idle: new Set(idle), routes }
-  }, [graph])
+  }, [graph, overrides])
 
   if (!graph || !layout) return <p className="map__hint">…</p>
 
@@ -295,6 +368,46 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
     selected != null && name !== selected && !graph.edges.some((e) =>
       (e.from === selected && e.to === name) || (e.from === name && e.to === selected))
 
+  // Drag = move a card (persisted); a press that never travels stays a click (select).
+  const svgScale = () => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    return rect && rect.width > 0 ? layout.W / rect.width : 1
+  }
+  const onCardDown = (name: string) => (ev: React.PointerEvent<SVGGElement>) => {
+    const p = layout.pos.get(name)
+    if (!p) return
+    dragRef.current = { name, startX: ev.clientX, startY: ev.clientY, orig: p, moved: false }
+    ev.currentTarget.setPointerCapture?.(ev.pointerId)
+  }
+  const onCardMove = (ev: React.PointerEvent<SVGGElement>) => {
+    const d = dragRef.current
+    if (!d) return
+    const s = svgScale()
+    const dx = (ev.clientX - d.startX) * s
+    const dy = (ev.clientY - d.startY) * s
+    if (!d.moved && Math.hypot(dx, dy) < 5) return
+    d.moved = true
+    setOverrides((o) => ({
+      ...o,
+      [d.name]: {
+        x: Math.max(NODE_W / 2 + 4, Math.round(d.orig.x + dx)),
+        y: Math.max(NODE_H / 2 + 4, Math.round(d.orig.y + dy)),
+      },
+    }))
+  }
+  const onCardUp = () => {
+    const d = dragRef.current
+    dragRef.current = null
+    if (d?.moved) {
+      justDragged.current = true
+      setOverrides((o) => { saveOverrides(o); return o })
+    }
+  }
+  const resetLayout = () => {
+    setOverrides({})
+    saveOverrides({})
+  }
+
   // Always-on labels stay cozy on small fleets; on bigger ones they'd collide, so they
   // reveal per node on hover/selection instead.
   const focus = hovered ?? selected
@@ -309,7 +422,7 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
     <div className="map">
       {graph.edges.length === 0 && <p className="map__hint">{t('map.empty')}</p>}
       <div className="map__stage">
-        <svg viewBox={`0 0 ${layout.W} ${layout.H}`} className="map__svg" style={{ minWidth: layout.W > 2600 ? `${Math.round(layout.W * 0.7)}px` : undefined }} role="img" aria-label={t('map.title')} onClick={() => setSelected(null)}>
+        <svg ref={svgRef} viewBox={`0 0 ${layout.W} ${layout.H}`} className="map__svg" style={{ minWidth: layout.W > 2600 ? `${Math.round(layout.W * 0.7)}px` : undefined }} role="img" aria-label={t('map.title')} onClick={() => setSelected(null)}>
           {graph.edges.map((e, i) => {
             const k = `${e.from}→${e.to}`
             const route = layout.routes.get(k)
@@ -360,7 +473,14 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
                 transform={`translate(${p.x - NODE_W / 2},${p.y - NODE_H / 2})`}
                 className="map__card"
                 opacity={dimmed(n.name) ? 0.25 : 1}
-                onClick={(ev) => { ev.stopPropagation(); setSelected(isSel ? null : n.name) }}
+                onClick={(ev) => {
+                  ev.stopPropagation()
+                  if (justDragged.current) { justDragged.current = false; return }
+                  setSelected(isSel ? null : n.name)
+                }}
+                onPointerDown={onCardDown(n.name)}
+                onPointerMove={onCardMove}
+                onPointerUp={onCardUp}
                 onMouseEnter={() => setHovered(n.name)}
                 onMouseLeave={() => setHovered((h) => (h === n.name ? null : h))}
               >
@@ -382,6 +502,10 @@ export function ServiceMap({ onSelect }: { onSelect: (name: string) => void }) {
             )
           })}
         </svg>
+
+        {Object.keys(overrides).length > 0 && (
+          <button className="admin-btn map__reset" onClick={resetLayout}>↺ {t('map.resetLayout')}</button>
+        )}
 
         {selected && selNode && (
           <aside className="map__panel" role="dialog" aria-label={selected}>
