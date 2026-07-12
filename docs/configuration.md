@@ -76,7 +76,7 @@ Storage & admin runtime APIs (the admin view's backing endpoints — also curl-a
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/history/stats` | History state: db, row count, data span, H2 file size, retention, archive totals. Answers `{enabled:false}` when history is off — never a 404. |
+| `GET /api/history/stats` | History state: db, row count, data span, H2 file size + disk usable/total of its volume (usage %), retention, archive totals. Answers `{enabled:false}` when history is off — never a 404. |
 | `POST /api/history/backup` | Zero-downtime H2 snapshot to `backup.dir` (409 while one runs; 400 with a `mysqldump`/`pg_dump` hint on other DBs). |
 | `GET /api/history/backups` · `GET /api/history/backups/{name}` | List / download backup zips (names strictly whitelisted — no traversal). |
 | `POST /api/history/backups/{name}/restore` | Replace the live history rows from that backup, zero downtime (replace semantics; 409 while a backup/restore runs; 400 `RESTORE_FAILED` with the cause). |

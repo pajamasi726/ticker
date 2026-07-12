@@ -11,6 +11,12 @@ import { useT } from '../i18n'
 const POLL_MS = 5000
 const SILENCE_PRESETS = [10, 30, 60]
 
+function fmtPct(p: number): string {
+  if (!Number.isFinite(p)) return '?'
+  if (p < 0.01) return '<0.01'
+  return p >= 10 ? p.toFixed(0) : p >= 1 ? p.toFixed(1) : p.toFixed(2)
+}
+
 function humanBytes(n: number | null | undefined): string {
   if (n == null) return '—'
   if (n < 1024) return `${n} B`
@@ -162,7 +168,20 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
                 <dt>{t('admin.storage.db')}</dt><dd>{stats.db}</dd>
                 <dt>{t('admin.storage.rows')}</dt><dd>{stats.rowCount?.toLocaleString() ?? '—'}</dd>
                 <dt>{t('admin.storage.span')}</dt><dd>{span}</dd>
-                {stats.h2FileBytes != null && <><dt>{t('admin.storage.file')}</dt><dd>{humanBytes(stats.h2FileBytes)}</dd></>}
+                {stats.h2FileBytes != null && (
+                  <>
+                    <dt>{t('admin.storage.file')}</dt>
+                    <dd>
+                      {stats.diskUsableBytes != null
+                        ? t('admin.storage.fileUsage', {
+                            used: humanBytes(stats.h2FileBytes),
+                            free: humanBytes(stats.diskUsableBytes),
+                            pct: fmtPct((stats.h2FileBytes / (stats.h2FileBytes + stats.diskUsableBytes)) * 100),
+                          })
+                        : humanBytes(stats.h2FileBytes)}
+                    </dd>
+                  </>
+                )}
                 <dt>{t('admin.storage.retention')}</dt><dd>{humanMillis(stats.retentionMillis)}</dd>
                 <dt>{t('admin.storage.archive')}</dt>
                 <dd>

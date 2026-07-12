@@ -109,6 +109,8 @@ export interface HistoryStats {
   oldestTsMillis?: number | null
   newestTsMillis?: number | null
   h2FileBytes?: number | null
+  diskUsableBytes?: number | null
+  diskTotalBytes?: number | null
   retentionMillis?: number
   sampleIntervalMillis?: number
   archive?: ArchiveStats

@@ -39,6 +39,8 @@ class HistoryOpsController(
         val oldestTsMillis: Long? = null,
         val newestTsMillis: Long? = null,
         val h2FileBytes: Long? = null,
+        val diskUsableBytes: Long? = null,
+        val diskTotalBytes: Long? = null,
         val retentionMillis: Long? = null,
         val sampleIntervalMillis: Long? = null,
         val archive: ArchiveStats? = null,
@@ -60,6 +62,8 @@ class HistoryOpsController(
             oldestTsMillis = table.oldestTsMillis,
             newestTsMillis = table.newestTsMillis,
             h2FileBytes = if (props.db == HistoryDb.H2) sizeOrNull(Path.of(props.h2Path + ".mv.db")) else null,
+            diskUsableBytes = if (props.db == HistoryDb.H2) diskSpace()?.first else null,
+            diskTotalBytes = if (props.db == HistoryDb.H2) diskSpace()?.second else null,
             retentionMillis = props.retention.toMillis(),
             sampleIntervalMillis = props.sampleInterval.toMillis(),
             archive = ArchiveStats(
@@ -154,6 +158,15 @@ class HistoryOpsController(
         } catch (_: Exception) {
             emptyList()
         }
+    }
+
+    /** usable/total bytes of the volume holding the H2 file — what "how full are we" is measured against. */
+    private fun diskSpace(): Pair<Long, Long>? = try {
+        var dir = Path.of(props.h2Path).toAbsolutePath().parent
+        while (dir != null && !Files.isDirectory(dir)) dir = dir.parent
+        dir?.let { Files.getFileStore(it).let { fs -> fs.usableSpace to fs.totalSpace } }
+    } catch (_: Exception) {
+        null
     }
 
     private fun sizeOrNull(p: Path): Long? = try {
