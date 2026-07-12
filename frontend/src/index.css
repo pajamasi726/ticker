@@ -676,7 +676,8 @@ body { margin:0; font-family:var(--sans); background:var(--bg-0); color:var(--te
 .outbound__row--in { opacity: 0.9; }
 
 /* ---- Map v2 ---- */
-.map__stage { position: relative; }
+.map__stage { position: relative; overflow-x: auto; }
+/* Very wide fleets scroll horizontally instead of scaling text below readability. */
 .map__card { cursor: pointer; }
 .map__card:hover rect { filter: brightness(1.25); }
 .map__name { fill: var(--text); font-size: 13px; font-weight: 600; }

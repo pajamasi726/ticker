@@ -15,7 +15,7 @@ plugins {
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"
-    version = "0.6.0"   // 0.6.0: map v2 (layered layout, live traffic animation, side panel) + backup restore/upload from the UI
+    version = "0.6.1"   // 0.6.1: map v3 — orthogonal lane/highway edge routing + longest-path layering (stays readable at fleet scale)
     repositories { mavenCentral() }
 
     apply(plugin = "jacoco")
