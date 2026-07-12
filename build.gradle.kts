@@ -15,7 +15,7 @@ plugins {
 // Root: shared coordinates + test-coverage (JaCoCo) for every JVM module.
 subprojects {
     group = "io.stevelabs"
-    version = "0.7.1"   // 0.7.1: in-app zoom control (Chrome-style, persisted) replacing html auto-zoom that clipped the page bottom
+    version = "0.7.2"   // 0.7.2: zoom always defaults to 100% (user preference remembered per browser)
     repositories { mavenCentral() }
 
     apply(plugin = "jacoco")

@@ -4,21 +4,13 @@ import { useT } from '../i18n'
 const KEY = 'ticker-ui-zoom'
 const STEPS = [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200]
 
-/** Wide monitors used to get an automatic html-zoom; now it's just the DEFAULT the user can change. */
-function defaultZoom(): number {
-  const w = window.innerWidth
-  if (w >= 3200) return 175
-  if (w >= 2400) return 150
-  if (w >= 1800) return 110
-  return 100
-}
-
+/** Everyone starts at 100%; whatever they pick is remembered per browser and restored next visit. */
 function initialZoom(): number {
   try {
     const stored = Number(localStorage.getItem(KEY))
     if (STEPS.includes(stored)) return stored
   } catch { /* ignore */ }
-  return defaultZoom()
+  return 100
 }
 
 /**
